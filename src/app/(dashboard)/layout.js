@@ -49,7 +49,7 @@ export default function SynergyDashboardLayout({ children }) {
 
   const user = {
     name: "Zaid",
-    role: "support",
+    role: "installation",
   };
 
   const navigation = ROLE_NAVIGATION[user.role] || [];
