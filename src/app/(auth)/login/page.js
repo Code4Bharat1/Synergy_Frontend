@@ -105,23 +105,24 @@ export default function LoginPage() {
 
             {/* Animated card */}
             <div className="relative z-10 flex flex-col justify-end min-h-screen pb-8 px-4">
-              <div
-                className={`bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl ${mounted ? "mobile-card-enter" : "opacity-0"
-                  }`}
-              >
-                {/* Logo */}
                 <div className="flex items-center gap-2 mb-6">
                  
                     <h1
                       className="text-[50px] font-black tracking-wide
                  bg-[url('/waterpark.webp')]
-                 bg-cover bg-top
+                 bg-cover bg-top items-start text-center
                  bg-clip-text text-teal-500/30"
                     >
                       SYNERGY
                     </h1>
                   
                 </div>
+              <div
+                className={`bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl ${mounted ? "mobile-card-enter" : "opacity-0"
+                  }`}
+              >
+                {/* Logo */}
+              
 
                 <h2 className="text-2xl font-bold text-white mb-1">Welcome back</h2>
                 <p className="text-white/60 text-sm mb-6">Sign in to your Synergy workspace</p>
