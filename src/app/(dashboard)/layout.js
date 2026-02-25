@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Home, FolderKanban, CheckSquare, Bell, Settings, LayoutDashboard, Search, FilePlus, FileText, Wrench, BarChart2, User } from "lucide-react";
+import { Home, FolderKanban, CheckSquare, Bell, Settings, LayoutDashboard, Search, FilePlus, FileText, Wrench, BarChart2, User, ClipboardCheck, ClipboardList, Hammer } from "lucide-react";
 import Navbar from "@/components/common/Navbar";
 import Sidebar from "@/components/common/Sidebar";
 
@@ -39,7 +39,13 @@ const ROLE_NAVIGATION = {
     { href: "/installation-incharge/progress", icon: CheckSquare, label: "Progress Monitoring" },
     { href: "/installation-incharge/Trial", icon: CheckSquare, label: "Trial & QC" },
     { href: "/installation-incharge/complaint-approval", icon: CheckSquare, label: "Complaint Approval" },
-  ]
+  ],
+   qualityControl: [
+  { label: "Dashboard",  icon: LayoutDashboard, href: "/quality-control"  },
+  { label: "Inspection", icon: ClipboardCheck,   href: "/quality-control/inspection" },
+  { label: "Trial Approval", icon: ClipboardList,    href: "/quality-control/trial-approval" },
+  { label: "Punch In",   icon: Hammer,           href: "/quality-control/punch-in"   },
+]
 };
 
 export default function SynergyDashboardLayout({ children }) {
@@ -49,7 +55,7 @@ export default function SynergyDashboardLayout({ children }) {
 
   const user = {
     name: "Zaid",
-    role: "installation",
+    role: "qualityControl",
   };
 
   const navigation = ROLE_NAVIGATION[user.role] || [];

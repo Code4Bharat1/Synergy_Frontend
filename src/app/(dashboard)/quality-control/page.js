@@ -1,9 +1,5 @@
-import React from 'react'
+import QCDashboard from "@/components/Quality-Control/Dashboard";
 
-const page = () => {
-  return (
-    <div>page</div>
-  )
+export default function QCDashboardPage() {
+  return <QCDashboard />;
 }
-
-export default page
