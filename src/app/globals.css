@@ -1,14 +1,10 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
 
 @theme inline {
 --color-extra-darkblue : #0F2854 ;
 --color-extra-blue : #1C4D8D ;
 --color-medium-blue : #4988C4 ;
---color-lightblue : #BDE8F5 ;   
+--color-lightblue : #BDE8F5 ;
 }
 
