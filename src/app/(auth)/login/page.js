@@ -59,31 +59,30 @@ export default function LoginPage() {
 
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex select-none">
 
       {/* LEFT SIDE */}
       <div
-        className="hidden md:flex w-1/2 relative text-white"
+        className="hidden md:flex w-1/2 relative text-white min-h-screen"
         style={{
-          backgroundImage: "url('/waterpark.jpg')",
+          backgroundImage: "url('/waterpark.webp')",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
       >
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-teal-900 bg-opacity-80"></div>
+        <div className="absolute inset-0 bg-teal-900/70"></div>
 
-        <div className="relative z-10 p-12 flex flex-col justify-between h-full w-full">
-          <h1 className="text-2xl font-bold">Synergy</h1>
+        <div className="relative z-10 p-12 flex flex-col justify-start items-center  h-full w-full">
 
-          <div>
-            <h2 className="text-3xl font-semibold leading-snug">
-              Engineering the world's most exhilarating water experiences with precision and safety.
-            </h2>
-            <p className="mt-4 text-sm opacity-80">
-              Global Operations Portal v2.4
-            </p>
-          </div>
+          <h1
+            className="text-[100px] font-black tracking-wide 
+                 bg-[url('/waterpark.webp')] 
+                  bg-cover bg-top 
+                 bg-clip-text text-teal-500/30"
+          >
+            SYNERGY
+          </h1>
+
         </div>
       </div>
 
@@ -132,33 +131,7 @@ export default function LoginPage() {
             Sign In to Portal
           </button>
 
-          {/* Divider */}
-          <div className="my-6 text-center text-gray-400 text-sm">
-            Quick Access (Demo)
-          </div>
 
-          <div className="flex gap-3">
-            <button
-              type="button"
-              className="flex-1 border p-2 rounded-lg hover:bg-gray-50"
-            >
-              Director
-            </button>
-
-            <button
-              type="button"
-              className="flex-1 border p-2 rounded-lg hover:bg-gray-50"
-            >
-              Manager
-            </button>
-
-            <button
-              type="button"
-              className="flex-1 border p-2 rounded-lg hover:bg-gray-50"
-            >
-              Engineer
-            </button>
-          </div>
 
           <p className="text-xs text-center text-gray-400 mt-6">
             Restricted Access. Authorized Personnel Only.
