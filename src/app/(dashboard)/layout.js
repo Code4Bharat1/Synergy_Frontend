@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Home, FolderKanban, CheckSquare, Bell, Settings } from "lucide-react";
+import { Home, FolderKanban, CheckSquare, Bell, Settings, LayoutDashboard, Search, FilePlus, FileText, Wrench, BarChart2 } from "lucide-react";
 import Navbar from "@/components/common/Navbar";
 import Sidebar from "@/components/common/Sidebar";
 
@@ -39,7 +39,7 @@ export default function SynergyDashboardLayout({ children }) {
 
   const user = {
     name: "Zaid",
-    role: "admin",
+    role: "support",
   };
 
   const navigation = ROLE_NAVIGATION[user.role] || [];
