@@ -1,10 +1,10 @@
-import DashboardPage from '@/components/support/supportdashboard'
+import SearchPage from '@/components/support/SearchPage'
 import React from 'react'
 
 const page = () => {
   return (
     <div>
-      <DashboardPage/>
+      <SearchPage/>
     </div>
   )
 }

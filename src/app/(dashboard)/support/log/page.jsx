@@ -1,10 +1,10 @@
-import DashboardPage from '@/components/support/supportdashboard'
+import LogComplaintPage from '@/components/support/logcomplaintPage'
 import React from 'react'
 
 const page = () => {
   return (
     <div>
-      <DashboardPage/>
+      <LogComplaintPage/>
     </div>
   )
 }
