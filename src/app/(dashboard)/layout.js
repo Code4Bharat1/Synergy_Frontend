@@ -22,6 +22,14 @@ const ROLE_NAVIGATION = {
     { label: "Tasks", icon: CheckSquare, href: "/engineer/tasks" },
     { label: "Projects", icon: FolderKanban, href: "/engineer/projects" },
   ],
+  support: [
+    { href: "/support", icon: LayoutDashboard, label: "Dashboard" },
+    { href: "/support/search", icon: Search, label: "Search" },
+    { href: "/support/log", icon: FilePlus, label: "Log Complaint" },
+    { href: "/support/detail", icon: FileText, label: "Complaint Detail" },
+    { href: "/support/service", icon: Wrench, label: "Service Execution" },
+    { href: "/support/analytics", icon: BarChart2, label: "Analytics" },
+  ]
 };
 
 export default function SynergyDashboardLayout({ children }) {
