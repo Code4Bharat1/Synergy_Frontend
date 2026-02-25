@@ -30,6 +30,15 @@ const ROLE_NAVIGATION = {
     { href: "/support/service", icon: Wrench, label: "Service Execution" },
     { href: "/support/analytics", icon: BarChart2, label: "Analytics" },
     { href: "/support/profile", icon: User, label: "Profile" }, 
+  ],
+   installation:[
+    { href: "/installation-incharge", icon: LayoutDashboard, label: "Dashboard" },
+    { href: "/installation-incharge/eligibility", icon: CheckSquare, label: "Eligibility Checklist" },
+    { href: "/installation-incharge/assign-engineer", icon: CheckSquare, label: "Assign Engineer" },
+    { href: "/installation-incharge/issue-approval", icon: CheckSquare, label: "Issue Approval" },
+    { href: "/installation-incharge/progress", icon: CheckSquare, label: "Progress Monitoring" },
+    { href: "/installation-incharge/Trial", icon: CheckSquare, label: "Trial & QC" },
+    { href: "/installation-incharge/complaint-approval", icon: CheckSquare, label: "Complaint Approval" },
   ]
 };
 
