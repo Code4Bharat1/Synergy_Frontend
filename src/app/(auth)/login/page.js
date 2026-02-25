@@ -60,7 +60,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex font-inter bg-white">
+    <div className="min-h-screen flex font-inter bg-white select-none">
       {/* LEFT SIDE — UNCHANGED ✅ */}
       <div
         className="hidden md:flex w-1/2 relative text-white min-h-screen"

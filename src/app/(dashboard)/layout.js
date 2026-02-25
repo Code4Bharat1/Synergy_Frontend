@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Home, FolderKanban, CheckSquare, Bell, Settings, LayoutDashboard, Search, FilePlus, FileText, Wrench, BarChart2 } from "lucide-react";
+import { Home, FolderKanban, CheckSquare, Bell, Settings, LayoutDashboard, Search, FilePlus, FileText, Wrench, BarChart2, User } from "lucide-react";
 import Navbar from "@/components/common/Navbar";
 import Sidebar from "@/components/common/Sidebar";
 
@@ -29,6 +29,7 @@ const ROLE_NAVIGATION = {
     { href: "/support/detail", icon: FileText, label: "Complaint Detail" },
     { href: "/support/service", icon: Wrench, label: "Service Execution" },
     { href: "/support/analytics", icon: BarChart2, label: "Analytics" },
+    { href: "/support/profile", icon: User, label: "Profile" }, 
   ]
 };
 
