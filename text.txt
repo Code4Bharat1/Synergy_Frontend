@@ -1,0 +1,31 @@
+ "email": "director@synergy.com",
+  "password": "director@123",
+  "role": "director"
+
+  "email": "engineer@synergy.com",
+  "password": "engineer@123",
+  "role": "engineer"
+
+  "email": "support@synergy.com",
+  "password": "support@123",
+  "role": "support"
+
+  "email": "installationIncharge@synergy.com",
+  "password": "installationIncharge@123",
+  "role": "installationIncharge"
+
+"email": "marketingCoordinatore@synergy.com",
+  "password": "marketingCoordinator@123",
+  "role": "marketingCoordinator"
+
+   "email": "marketingExecutive@synergy.com",
+  "password": "marketingExecutive@123",
+  "role": "marketingExecutive"
+
+    "email": "qualityControl@synergy.com",
+  "password": "qualityControl@123",
+  "role": "qualityControl"
+
+  
+  "email": "admin@synergy.com",
+  "password": "admin@123"

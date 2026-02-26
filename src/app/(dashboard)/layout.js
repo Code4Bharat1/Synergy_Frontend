@@ -73,7 +73,7 @@ const ROLE_NAVIGATION = {
     { href: "/support/analytics", icon: BarChart2, label: "Analytics" },
     { href: "/support/profile", icon: User, label: "Profile" },
   ],
-  installationIncharge: [
+  "installation-incharge": [
     {
       href: "/installation-incharge",
       icon: LayoutDashboard,
@@ -110,7 +110,7 @@ const ROLE_NAVIGATION = {
       label: "Complaint Approval",
     },
   ],
-  qualityControl: [
+  "quality-control": [
     { label: "Dashboard", icon: LayoutDashboard, href: "/quality-control" },
     {
       label: "Inspection",
@@ -124,8 +124,8 @@ const ROLE_NAVIGATION = {
     },
     { label: "Punch In", icon: Hammer, href: "/quality-control/punch-in" },
   ],
-  marketingExecutive: [],
-  marketingCoordinator: [
+  "marketing-executive": [],
+  "marketing-coordinator": [
     {
       href: "/marketing-coordinator/",
       icon: LayoutDashboard,
