@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Home, FolderKanban, CheckSquare, Bell, Settings, LayoutDashboard, Search, FilePlus, FileText, Wrench, BarChart2, User, ClipboardCheck, ClipboardList, Hammer } from "lucide-react";
+import { Home, FolderKanban, CheckSquare, Bell, Settings, LayoutDashboard, Search, FilePlus, FileText, Wrench, BarChart2, User, ClipboardCheck, ClipboardList, Hammer, AlertTriangle, MessageSquare, Copy, Send } from "lucide-react";
 import Navbar from "@/components/common/Navbar";
 import Sidebar from "@/components/common/Sidebar";
 
@@ -45,6 +45,20 @@ const ROLE_NAVIGATION = {
   { label: "Inspection", icon: ClipboardCheck,   href: "/quality-control/inspection" },
   { label: "Trial Approval", icon: ClipboardList,    href: "/quality-control/trial-approval" },
   { label: "Punch In",   icon: Hammer,           href: "/quality-control/punch-in"   },
+],
+engineer:[
+  { href: "/engineer/",      icon: LayoutDashboard, label: "Dashboard"         },
+  { href: "/engineer/daily-report",   icon: ClipboardList,   label: "Daily Report"      },
+  { href: "/engineer/issue-log",      icon: AlertTriangle,   label: "Issue Log"         },
+  { href: "/engineer/qc-upload",      icon: CheckSquare,     label: "QC Upload"         },
+  { href: "/engineer/complaint-log",  icon: MessageSquare,   label: "Complaint Log"     },
+  { href: "/engineer/documents",      icon: FileText,        label: "Documents"         },
+],
+marketingcoordinator: [
+  { href: "/marketing-coordinator/",             icon: LayoutDashboard, label: "Dashboard"            },
+  { href: "/marketing-coordinator/project-replication",   icon: Copy,            label: "Project Replication"  },
+  { href: "/marketing-coordinator/documents",             icon: FileText,        label: "Documents"             },
+  { href: "/marketing-coordinator/installation-request",  icon: Send,            label: "Installation Request"  },
 ]
 };
 
@@ -55,7 +69,7 @@ export default function SynergyDashboardLayout({ children }) {
 
   const user = {
     name: "Zaid",
-    role: "qualityControl",
+    role: "marketingcoordinator",
   };
 
   const navigation = ROLE_NAVIGATION[user.role] || [];
