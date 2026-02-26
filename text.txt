@@ -2,6 +2,10 @@
   "password": "director@123",
   "role": "director"
 
+  "email": "admin@synergy.com",
+  "password": "admin@123"
+  "role" : " admin"
+
   "email": "engineer@synergy.com",
   "password": "engineer@123",
   "role": "engineer"
@@ -27,5 +31,3 @@
   "role": "qualityControl"
 
   
-  "email": "admin@synergy.com",
-  "password": "admin@123"
