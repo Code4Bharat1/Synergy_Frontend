@@ -41,9 +41,20 @@ const ROLE_NAVIGATION = {
     { label: "Reports", icon: FolderKanban, href: "/director/reports" },
   ],
   engineer: [
-    { label: "Dashboard", icon: Home, href: "/engineer" },
-    { label: "Tasks", icon: CheckSquare, href: "/engineer/tasks" },
-    { label: "Projects", icon: FolderKanban, href: "/engineer/projects" },
+    { href: "/engineer/", icon: LayoutDashboard, label: "Dashboard" },
+    {
+      href: "/engineer/daily-report",
+      icon: ClipboardList,
+      label: "Daily Report",
+    },
+    { href: "/engineer/issue-log", icon: AlertTriangle, label: "Issue Log" },
+    { href: "/engineer/qc-upload", icon: CheckSquare, label: "QC Upload" },
+    {
+      href: "/engineer/complaint-log",
+      icon: MessageSquare,
+      label: "Complaint Log",
+    },
+    { href: "/engineer/documents", icon: FileText, label: "Documents" },
   ],
   support: [
     { href: "/support", icon: LayoutDashboard, label: "Dashboard" },
@@ -106,7 +117,28 @@ const ROLE_NAVIGATION = {
     { label: "Punch In", icon: Hammer, href: "/quality-control/punch-in" },
   ],
   marketingExecutive: [],
-  marketingCoordinator: [],
+  marketingCoordinator: [
+    {
+      href: "/marketing-coordinator/",
+      icon: LayoutDashboard,
+      label: "Dashboard",
+    },
+    {
+      href: "/marketing-coordinator/project-replication",
+      icon: Copy,
+      label: "Project Replication",
+    },
+    {
+      href: "/marketing-coordinator/documents",
+      icon: FileText,
+      label: "Documents",
+    },
+    {
+      href: "/marketing-coordinator/installation-request",
+      icon: Send,
+      label: "Installation Request",
+    },
+  ],
 };
 
 export default function SynergyDashboardLayout({ children }) {
