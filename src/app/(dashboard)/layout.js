@@ -33,21 +33,21 @@ import Sidebar from "@/components/common/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 
 const ROLE_NAVIGATION = {
-   admin: [
+  admin: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
     { label: "User Management", icon: Users, href: "/admin/user" },
     { label: "Projects", icon: FolderKanban, href: "/admin/project" },
     { label: "Role Assignment", icon: ShieldCheck, href: "/admin/role" },
     { label: "Document Control", icon: FileText, href: "/admin/document" },
-    { label: "Attendance",       icon: CalendarCheck,   href: "/admin/attendance" },
+    { label: "Attendance", icon: CalendarCheck, href: "/admin/attendance" },
   ],
   director: [
-  { label: "Dashboard",          icon: LayoutDashboard,       href: "/director"   },
-  { label: "Projects",           icon: FolderKanban,          href: "/director/project"    },
-  { label: "Approvals",          icon: CheckSquare,           href: "/director/approval"   },
-  { label: "Complaints",         icon: MessageSquareWarning,  href: "/director/complaint"  },
-  { label: "Performance",        icon: BarChart3,             href: "/director/performance" },
-],
+    { label: "Dashboard", icon: LayoutDashboard, href: "/director" },
+    { label: "Projects", icon: FolderKanban, href: "/director/project" },
+    { label: "Approvals", icon: CheckSquare, href: "/director/approval" },
+    { label: "Complaints", icon: MessageSquareWarning, href: "/director/complaint" },
+    { label: "Performance", icon: BarChart3, href: "/director/performance" },
+  ],
   engineer: [
     { href: "/engineer/", icon: LayoutDashboard, label: "Dashboard" },
     {
@@ -124,7 +124,7 @@ const ROLE_NAVIGATION = {
     },
     { label: "Punch In", icon: Hammer, href: "/quality-control/punch-in" },
   ],
-  "marketingexecutive": [
+  "marketing-executive": [
     { href: "/marketing-executive/", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/marketing-executive/Create-Project", icon: Copy, label: "Create Project" },
     { href: "/marketing-executive/project-status", icon: FileText, label: "Project Status" },
@@ -162,6 +162,7 @@ export default function SynergyDashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
+  
   /* ---------------- AUTH GUARD ---------------- */
   useEffect(() => {
     if (!loading) {
@@ -170,10 +171,15 @@ export default function SynergyDashboardLayout({ children }) {
         return;
       }
 
-      const rolePrefix = `/${user.role}`;
+      const navigation = ROLE_NAVIGATION[user.role] || [];
+      const allowedPaths = navigation.map((item) => item.href);
 
-      if (!pathname.startsWith(rolePrefix)) {
-        router.replace(`${rolePrefix}/dashboard`);
+      const isAllowed = allowedPaths.some((path) =>
+        pathname.startsWith(path)
+      );
+
+      if (!isAllowed && allowedPaths.length > 0) {
+        router.replace(allowedPaths[0]);
       }
     }
   }, [user, loading, pathname, router]);
