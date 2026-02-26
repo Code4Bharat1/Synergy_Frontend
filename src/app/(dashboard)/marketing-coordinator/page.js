@@ -1,4 +1,4 @@
-import MarketingDashboard from '@/components/MarketingCoordinator/MarketingDashboard'
+import MarketingDashboard from '@/components/marketingcoordinator/MarketingDashboard'
 import React from 'react'
 
 const page = () => {

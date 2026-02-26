@@ -1,4 +1,4 @@
-import DailyReportPage from '@/components/Engineer/DailyReportPage'
+import DailyReportPage from '@/components/engineer/DailyReportPage'
 import React from 'react'
 
 const page = () => {

@@ -1,4 +1,4 @@
-import ComplaintLogPage from '@/components/Engineer/ComplaintLogPage'
+import ComplaintLogPage from '@/components/engineer/ComplaintLogPage'
 import React from 'react'
 
 const page = () => {

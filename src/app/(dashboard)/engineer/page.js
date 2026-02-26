@@ -1,4 +1,4 @@
-import EngineerDashboard from '@/components/Engineer/Dashboard'
+import EngineerDashboard from '@/components/engineer/Dashboard'
 import React from 'react'
 
 const page = () => {

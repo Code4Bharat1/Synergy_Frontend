@@ -1,4 +1,4 @@
-import TrialApproval from "@/components/Quality-Control/Trial-approval";
+import TrialApproval from "@/components/quality-control/Trial-approval";
 
 
 export default function TrialApprovalPage() {

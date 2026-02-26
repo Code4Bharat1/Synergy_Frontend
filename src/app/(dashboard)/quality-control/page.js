@@ -1,4 +1,4 @@
-import QCDashboard from "@/components/Quality-Control/Dashboard";
+import QCDashboard from "@/components/quality-control/Dashboard";
 
 export default function QCDashboardPage() {
   return <QCDashboard />;
