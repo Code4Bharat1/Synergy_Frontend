@@ -1,7 +1,2 @@
-import React from "react";
-
-const page = () => {
-  return <div className="">page</div>;
-};
-
-export default page;
+import AdminDashboard from "@/components/admin/Dashboard";
+export default function AdminDashboardPage() { return <AdminDashboard />; }

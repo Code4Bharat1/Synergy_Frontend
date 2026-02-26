@@ -21,6 +21,11 @@ import {
   MessageSquare,
   Copy,
   Send,
+  MessageSquareWarning,
+  BarChart3,
+  CalendarCheck,
+  ShieldCheck,
+  Users,
 } from "lucide-react";
 
 import Navbar from "@/components/common/Navbar";
@@ -28,18 +33,21 @@ import Sidebar from "@/components/common/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 
 const ROLE_NAVIGATION = {
-  admin: [
-    { label: "Dashboard", icon: Home, href: "/admin" },
-    { label: "Projects", icon: FolderKanban, href: "/admin/projects" },
-    { label: "Tasks", icon: CheckSquare, href: "/admin/tasks" },
-    { label: "Complaints", icon: Bell, href: "/admin/complaints" },
-    { label: "Settings", icon: Settings, href: "/admin/settings" },
+   admin: [
+    { label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
+    { label: "User Management", icon: Users, href: "/admin/user" },
+    { label: "Projects", icon: FolderKanban, href: "/admin/project" },
+    { label: "Role Assignment", icon: ShieldCheck, href: "/admin/role" },
+    { label: "Document Control", icon: FileText, href: "/admin/document" },
+    { label: "Attendance",       icon: CalendarCheck,   href: "/admin/attendance" },
   ],
   director: [
-    { label: "Dashboard", icon: Home, href: "/director" },
-    { label: "Projects", icon: FolderKanban, href: "/director/projects" },
-    { label: "Reports", icon: FolderKanban, href: "/director/reports" },
-  ],
+  { label: "Dashboard",          icon: LayoutDashboard,       href: "/director"   },
+  { label: "Projects",           icon: FolderKanban,          href: "/director/project"    },
+  { label: "Approvals",          icon: CheckSquare,           href: "/director/approval"   },
+  { label: "Complaints",         icon: MessageSquareWarning,  href: "/director/complaint"  },
+  { label: "Performance",        icon: BarChart3,             href: "/director/performance" },
+],
   engineer: [
     { href: "/engineer/", icon: LayoutDashboard, label: "Dashboard" },
     {

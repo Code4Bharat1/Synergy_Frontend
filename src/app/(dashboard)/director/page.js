@@ -1,9 +1,3 @@
-import React from 'react'
+import DirectorDashboard from "@/components/director/Dashboard";
 
-const page = () => {
-  return (
-    <div>page</div>
-  )
-}
-
-export default page
+export default function Page() { return <DirectorDashboard />; }
