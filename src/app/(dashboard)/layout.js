@@ -124,7 +124,11 @@ const ROLE_NAVIGATION = {
     },
     { label: "Punch In", icon: Hammer, href: "/quality-control/punch-in" },
   ],
-  "marketing-executive": [],
+  "marketingexecutive": [
+    { href: "/marketing-executive/", icon: LayoutDashboard, label: "Dashboard" },
+    { href: "/marketing-executive/Create-Project", icon: Copy, label: "Create Project" },
+    { href: "/marketing-executive/project-status", icon: FileText, label: "Project Status" },
+  ],
   "marketing-coordinator": [
     {
       href: "/marketing-coordinator/",
