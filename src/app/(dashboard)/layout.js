@@ -1,8 +1,27 @@
 "use client";
-import { useState } from "react";
-import { Home, FolderKanban, CheckSquare, Bell, Settings, LayoutDashboard, Search, FilePlus, FileText, Wrench, BarChart2, User, ClipboardCheck, ClipboardList, Hammer } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import {
+  Home,
+  FolderKanban,
+  CheckSquare,
+  Bell,
+  Settings,
+  LayoutDashboard,
+  Search,
+  FilePlus,
+  FileText,
+  Wrench,
+  BarChart2,
+  User,
+  ClipboardCheck,
+  ClipboardList,
+  Hammer,
+} from "lucide-react";
+
 import Navbar from "@/components/common/Navbar";
 import Sidebar from "@/components/common/Sidebar";
+import { useAuth } from "@/context/AuthContext";
 
 const ROLE_NAVIGATION = {
   admin: [
@@ -29,34 +48,89 @@ const ROLE_NAVIGATION = {
     { href: "/support/detail", icon: FileText, label: "Complaint Detail" },
     { href: "/support/service", icon: Wrench, label: "Service Execution" },
     { href: "/support/analytics", icon: BarChart2, label: "Analytics" },
-    { href: "/support/profile", icon: User, label: "Profile" }, 
+    { href: "/support/profile", icon: User, label: "Profile" },
   ],
-   installation:[
-    { href: "/installation-incharge", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/installation-incharge/eligibility", icon: CheckSquare, label: "Eligibility Checklist" },
-    { href: "/installation-incharge/assign-engineer", icon: CheckSquare, label: "Assign Engineer" },
-    { href: "/installation-incharge/issue-approval", icon: CheckSquare, label: "Issue Approval" },
-    { href: "/installation-incharge/progress", icon: CheckSquare, label: "Progress Monitoring" },
-    { href: "/installation-incharge/Trial", icon: CheckSquare, label: "Trial & QC" },
-    { href: "/installation-incharge/complaint-approval", icon: CheckSquare, label: "Complaint Approval" },
+  installationIncharge: [
+    {
+      href: "/installation-incharge",
+      icon: LayoutDashboard,
+      label: "Dashboard",
+    },
+    {
+      href: "/installation-incharge/eligibility",
+      icon: CheckSquare,
+      label: "Eligibility Checklist",
+    },
+    {
+      href: "/installation-incharge/assign-engineer",
+      icon: CheckSquare,
+      label: "Assign Engineer",
+    },
+    {
+      href: "/installation-incharge/issue-approval",
+      icon: CheckSquare,
+      label: "Issue Approval",
+    },
+    {
+      href: "/installation-incharge/progress",
+      icon: CheckSquare,
+      label: "Progress Monitoring",
+    },
+    {
+      href: "/installation-incharge/Trial",
+      icon: CheckSquare,
+      label: "Trial & QC",
+    },
+    {
+      href: "/installation-incharge/complaint-approval",
+      icon: CheckSquare,
+      label: "Complaint Approval",
+    },
   ],
-   qualityControl: [
-  { label: "Dashboard",  icon: LayoutDashboard, href: "/quality-control"  },
-  { label: "Inspection", icon: ClipboardCheck,   href: "/quality-control/inspection" },
-  { label: "Trial Approval", icon: ClipboardList,    href: "/quality-control/trial-approval" },
-  { label: "Punch In",   icon: Hammer,           href: "/quality-control/punch-in"   },
-]
+  qualityControl: [
+    { label: "Dashboard", icon: LayoutDashboard, href: "/quality-control" },
+    {
+      label: "Inspection",
+      icon: ClipboardCheck,
+      href: "/quality-control/inspection",
+    },
+    {
+      label: "Trial Approval",
+      icon: ClipboardList,
+      href: "/quality-control/trial-approval",
+    },
+    { label: "Punch In", icon: Hammer, href: "/quality-control/punch-in" },
+  ],
+  marketingExecutive: [],
+  marketingCoordinator: [],
 };
 
 export default function SynergyDashboardLayout({ children }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [active, setActive] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
-  const user = {
-    name: "Zaid",
-    role: "qualityControl",
-  };
+  /* ---------------- AUTH GUARD ---------------- */
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      const rolePrefix = `/${user.role}`;
+
+      if (!pathname.startsWith(rolePrefix)) {
+        router.replace(`${rolePrefix}/dashboard`);
+      }
+    }
+  }, [user, loading, pathname, router]);
+
+  if (loading || !user) return null;
 
   const navigation = ROLE_NAVIGATION[user.role] || [];
 
@@ -80,7 +154,6 @@ export default function SynergyDashboardLayout({ children }) {
             className="absolute inset-0 bg-black/20"
             onClick={() => setSidebarOpen(false)}
           />
-
           <div className="absolute left-0 top-0 h-full w-64 bg-white shadow-lg">
             <Sidebar
               navigation={navigation}
@@ -97,7 +170,6 @@ export default function SynergyDashboardLayout({ children }) {
 
       <div className="flex flex-col flex-1 h-screen">
         <Navbar user={user} onMenuClick={() => setSidebarOpen(true)} />
-
         <main className="flex-1 overflow-y-auto bg-white p-4 md:p-6">
           {children}
         </main>

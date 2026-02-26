@@ -7,6 +7,8 @@ import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import toast from "react-hot-toast";
 import { Eye, EyeOff, Mail, Lock, Layers } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { loginUser } from "@/services/auth.service";
 
 const schema = yup.object({
   email: yup
@@ -26,10 +28,6 @@ export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    const role = localStorage.getItem("role");
-    if (token && role) router.replace(`/${role}/dashboard`);
-
     const mq = window.matchMedia("(max-width: 768px)");
     setIsMobile(mq.matches);
     const handler = (e) => setIsMobile(e.matches);
@@ -47,19 +45,18 @@ export default function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm({ resolver: yupResolver(schema) });
 
+  const { login } = useAuth();
+
   const handleLogin = async (data) => {
     try {
-      const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
-        data,
-        { withCredentials: true }
-      );
-      const role = res.data.user.role;
-      localStorage.setItem("accessToken", res.data.accessToken);
-      localStorage.setItem("role", role);
-      router.replace(`/${role}/dashboard`);
+      const user = await loginUser(data);
+
+      login(user);
+
+      router.replace(`/${user.role}`);
     } catch (error) {
       toast.error(error.response?.data?.message || "Login Failed");
+      console.log(error);
     }
   };
 
@@ -89,7 +86,6 @@ export default function LoginPage() {
       `}</style>
 
       <div className="min-h-screen flex">
-
         {/* ══ MOBILE ONLY: fullscreen bg + animated card ══ */}
         {isMobile && (
           <>
@@ -105,29 +101,34 @@ export default function LoginPage() {
 
             {/* Animated card */}
             <div className="relative z-10 flex flex-col justify-end min-h-screen pb-8 px-4">
-                <div className="flex items-center gap-2 mb-6">
-                 
-                    <h1
-                      className="text-[50px] font-black tracking-wide
+              <div className="flex items-center gap-2 mb-6">
+                <h1
+                  className="text-[50px] font-black tracking-wide
                  bg-[url('/waterpark.webp')]
                  bg-cover bg-top items-start text-center
                  bg-clip-text text-teal-500/30"
-                    >
-                      SYNERGY
-                    </h1>
-                  
-                </div>
+                >
+                  SYNERGY
+                </h1>
+              </div>
               <div
-                className={`bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl ${mounted ? "mobile-card-enter" : "opacity-0"
-                  }`}
+                className={`bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl ${
+                  mounted ? "mobile-card-enter" : "opacity-0"
+                }`}
               >
                 {/* Logo */}
-              
 
-                <h2 className="text-2xl font-bold text-white mb-1">Welcome back</h2>
-                <p className="text-white/60 text-sm mb-6">Sign in to your Synergy workspace</p>
+                <h2 className="text-2xl font-bold text-white mb-1">
+                  Welcome back
+                </h2>
+                <p className="text-white/60 text-sm mb-6">
+                  Sign in to your Synergy workspace
+                </p>
 
-                <form onSubmit={handleSubmit(handleLogin)} className="space-y-4">
+                <form
+                  onSubmit={handleSubmit(handleLogin)}
+                  className="space-y-4"
+                >
                   {/* Email */}
                   <div>
                     <label className="text-white/80 text-xs font-medium mb-1.5 block">
@@ -143,15 +144,24 @@ export default function LoginPage() {
                       />
                     </div>
                     {errors.email && (
-                      <p className="text-red-400 text-xs mt-1">⚠ {errors.email.message}</p>
+                      <p className="text-red-400 text-xs mt-1">
+                        ⚠ {errors.email.message}
+                      </p>
                     )}
                   </div>
 
                   {/* Password */}
                   <div>
                     <div className="flex justify-between mb-1.5">
-                      <label className="text-white/80 text-xs font-medium">Password</label>
-                      <a href="#" className="text-blue-400 text-xs hover:text-blue-300">Forgot password?</a>
+                      <label className="text-white/80 text-xs font-medium">
+                        Password
+                      </label>
+                      <a
+                        href="#"
+                        className="text-blue-400 text-xs hover:text-blue-300"
+                      >
+                        Forgot password?
+                      </a>
                     </div>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
@@ -166,11 +176,17 @@ export default function LoginPage() {
                         onClick={() => setShowPw((v) => !v)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
                       >
-                        {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showPw ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
                     {errors.password && (
-                      <p className="text-red-400 text-xs mt-1">⚠ {errors.password.message}</p>
+                      <p className="text-red-400 text-xs mt-1">
+                        ⚠ {errors.password.message}
+                      </p>
                     )}
                   </div>
 
@@ -186,7 +202,9 @@ export default function LoginPage() {
 
                 <p className="text-center text-white/40 text-xs mt-5">
                   Need access?{" "}
-                  <a href="#" className="text-blue-400 hover:text-blue-300">Contact your administrator</a>
+                  <a href="#" className="text-blue-400 hover:text-blue-300">
+                    Contact your administrator
+                  </a>
                 </p>
               </div>
             </div>
@@ -222,8 +240,12 @@ export default function LoginPage() {
         {!isMobile && (
           <div className="flex flex-col justify-center items-center w-full md:w-1/2 lg:w-2/5 px-8 bg-white">
             <div className="w-full max-w-sm">
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h2>
-              <p className="text-gray-500 text-sm mb-8">Sign in to your Synergy workspace</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                Welcome back
+              </h2>
+              <p className="text-gray-500 text-sm mb-8">
+                Sign in to your Synergy workspace
+              </p>
 
               <form onSubmit={handleSubmit(handleLogin)} className="space-y-5">
                 <div>
@@ -237,7 +259,9 @@ export default function LoginPage() {
                     className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                   />
                   {errors.email && (
-                    <p className="text-red-500 text-xs mt-1">⚠ {errors.email.message}</p>
+                    <p className="text-red-500 text-xs mt-1">
+                      ⚠ {errors.email.message}
+                    </p>
                   )}
                 </div>
 
@@ -246,7 +270,12 @@ export default function LoginPage() {
                     <label className="text-gray-700 text-sm font-medium">
                       <Lock className="inline w-4 h-4 mr-1" /> Password
                     </label>
-                    <a href="#" className="text-blue-600 text-sm hover:underline">Forgot password?</a>
+                    <a
+                      href="#"
+                      className="text-blue-600 text-sm hover:underline"
+                    >
+                      Forgot password?
+                    </a>
                   </div>
                   <div className="relative">
                     <input
@@ -259,11 +288,17 @@ export default function LoginPage() {
                       onClick={() => setShowPw((v) => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showPw ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                   {errors.password && (
-                    <p className="text-red-500 text-xs mt-1">⚠ {errors.password.message}</p>
+                    <p className="text-red-500 text-xs mt-1">
+                      ⚠ {errors.password.message}
+                    </p>
                   )}
                 </div>
 
@@ -278,7 +313,9 @@ export default function LoginPage() {
 
               <p className="text-center text-gray-400 text-sm mt-6">
                 Need access?{" "}
-                <a href="#" className="text-blue-600 hover:underline">Contact your administrator</a>
+                <a href="#" className="text-blue-600 hover:underline">
+                  Contact your administrator
+                </a>
               </p>
             </div>
           </div>
