@@ -1,4 +1,4 @@
-import QCUploadPage from '@/components/Engineer/QCUploadPage'
+import QCUploadPage from '@/components/engineer/QCUploadPage'
 import React from 'react'
 
 const page = () => {
