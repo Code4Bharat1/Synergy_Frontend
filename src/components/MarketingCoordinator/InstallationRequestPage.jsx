@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Send, User, Calendar, MessageSquare, CheckCircle, AlertTriangle, Clock } from "lucide-react";
+import { Send, User, Calendar, MessageSquare, CheckCircle, AlertTriangle, Clock, MapPin, Flag } from "lucide-react";
 import { PROJECTS, ENGINEERS } from "./shared";
 
 const PRIORITY_OPTS = [
@@ -211,7 +211,10 @@ export default function InstallationRequestPage() {
                       <div className="text-brand-mid text-[10px]">{eng.id}</div>
                     </div>
                   </div>
-                  <div className="text-brand-mid text-[10px] mt-1">📍 {eng.site}</div>
+                <div className="text-brand-mid text-[10px] mt-1 flex items-center gap-1">
+  <MapPin size={12} className="text-brand-mid" />
+  {eng.site}
+</div>
                   {form.engineer?.id === eng.id && (
                     <div className="flex items-center gap-1 text-emerald-600 text-[10px] font-bold mt-1.5">
                       <CheckCircle size={10} /> Selected
@@ -334,11 +337,25 @@ export default function InstallationRequestPage() {
                         {req.status}
                       </span>
                     </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-brand-mid">
-                      <span>👷 {req.engineer}</span>
-                      <span>📅 {req.date}</span>
-                      <span className={`font-bold ${p?.color || "text-brand-mid"}`}>{req.priority}</span>
-                    </div>
+                   
+
+
+<div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-brand-mid">
+  <span className="flex items-center gap-1">
+    <User size={12} className="shrink-0" />
+    {req.engineer}
+  </span>
+
+  <span className="flex items-center gap-1">
+    <Calendar size={12} className="shrink-0" />
+    {req.date}
+  </span>
+
+  <span className={`flex items-center gap-1 font-bold ${p?.color || "text-brand-mid"}`}>
+    <Flag size={12} className="shrink-0" />
+    {req.priority}
+  </span>
+</div>
                   </div>
                 );
               })}

@@ -4,6 +4,10 @@ import Link from "next/link";
 import {
   Copy, FileText, Send, AlertCircle,
   Clock, CheckCircle, ChevronRight, Bell, TrendingUp,
+  User,
+  Package,
+  Calendar,
+  Calendar1,
 } from "lucide-react";
 import {
   COORDINATOR, PENDING_REPLICATIONS, PENDING_DOCUMENTS,
@@ -104,31 +108,49 @@ export default function MarketingDashboard() {
               </span>
             </Link>
           </div>
-
-          <div className="space-y-3">
-            {PENDING_REPLICATIONS.map(r => {
-              const s = statusStyle[r.status] || statusStyle["Pending"];
-              return (
-                <div key={r.id} className="rounded-xl  bg-brand-bg/50 p-3.5">
-                  <div className="flex items-start justify-between gap-3 mb-2.5 flex-wrap">
-                    <div>
-                      <span className="text-[11px] font-bold text-brand-dark">{r.id}</span>
-                      <div className="text-brand-darkest text-[13px] font-bold mt-0.5">{r.project}</div>
-                    </div>
-                    <span className={`inline-flex items-center gap-1.5 rounded-full border ${s.bg} ${s.border} px-2.5 py-0.5 text-[11px] font-bold ${s.text} whitespace-nowrap`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-                      {r.status}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-brand-mid">
-                    <span>👷 {r.incharge}</span>
-                    <span>📦 {r.items} items</span>
-                    <span>📅 Due: {r.due}</span>
-                  </div>
-                </div>
-              );
-            })}
+<div className="space-y-3">
+  {PENDING_REPLICATIONS.map(r => {
+    const s = statusStyle[r.status] || statusStyle["Pending"];
+    return (
+      <div key={r.id} className="rounded-xl bg-brand-bg/50 p-3.5">
+        <div className="flex items-start justify-between gap-3 mb-2.5 flex-wrap">
+          <div>
+            <span className="text-[11px] font-bold text-brand-dark">
+              {r.id}
+            </span>
+            <div className="text-brand-darkest text-[13px] font-bold mt-0.5">
+              {r.project}
+            </div>
           </div>
+
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border ${s.bg} ${s.border} px-2.5 py-0.5 text-[11px] font-bold ${s.text} whitespace-nowrap`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+            {r.status}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-brand-mid">
+          <span className="flex items-center gap-1">
+            <User size={12} className="shrink-0" />
+            {r.incharge}
+          </span>
+
+          <span className="flex items-center gap-1">
+            <Package size={12} className="shrink-0" />
+            {r.items} items
+          </span>
+
+          <span className="flex items-center gap-1">
+            <Calendar1 size={12} className="shrink-0" />
+            Due: {r.due}
+          </span>
+        </div>
+      </div>
+    );
+  })}
+</div>
         </div>
 
         {/* ── Right Column ─────────────────────────────────────────────── */}
