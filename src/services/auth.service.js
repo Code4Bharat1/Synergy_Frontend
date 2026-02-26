@@ -23,7 +23,7 @@ export const loginUser = async (data) => {
 
 /* ---------------- LOGOUT ---------------- */
 export const logoutUser = async () => {
-  await axiosInstance.post("/api/auth/logout");
+  await axiosInstance.post("/auth/logout");
 
   localStorage.removeItem("accessToken");
   localStorage.removeItem("user");
