@@ -17,6 +17,10 @@ import {
   ClipboardCheck,
   ClipboardList,
   Hammer,
+  AlertTriangle,
+  MessageSquare,
+  Copy,
+  Send,
 } from "lucide-react";
 
 import Navbar from "@/components/common/Navbar";
