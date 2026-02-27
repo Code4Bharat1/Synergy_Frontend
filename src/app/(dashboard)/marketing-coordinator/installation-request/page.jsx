@@ -1,4 +1,5 @@
-import InstallationRequestPage from '@/components/marketingcoordinator/InstallationRequestPage'
+
+import InstallationRequestPage from '@/components/MarketingCoordinator/InstallationRequestPage'
 import React from 'react'
 
 const page = () => {

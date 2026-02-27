@@ -1,4 +1,5 @@
-import IssueLogPage from '@/components/engineer/IssueLogPage'
+
+import IssueLogPage from '@/components/Engineer/IssueLogPage'
 import React from 'react'
 
 const page = () => {

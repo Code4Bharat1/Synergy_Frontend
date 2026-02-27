@@ -1,10 +1,11 @@
-import EngineerDashboard from '@/components/engineer/Dashboard'
+
+import EngineerDashboard from '@/components/Engineer/Dashboard'
 import React from 'react'
 
 const page = () => {
   return (
     <div>
-      <EngineerDashboard/>
+      <EngineerDashboard />
     </div>
   )
 }

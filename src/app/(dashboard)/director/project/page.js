@@ -1,3 +1,4 @@
-import ProjectOverview from "@/components/director/Project";
+import ProjectOverview from "@/components/Director/Project";
+
 
 export default function Page() { return <ProjectOverview />; }

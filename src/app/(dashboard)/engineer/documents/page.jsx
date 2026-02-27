@@ -1,4 +1,5 @@
-import DocumentsPage from '@/components/engineer/DocumentsPage'
+
+import DocumentsPage from '@/components/Engineer/DocumentsPage'
 import React from 'react'
 
 const page = () => {

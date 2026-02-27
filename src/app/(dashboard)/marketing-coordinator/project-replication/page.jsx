@@ -1,4 +1,5 @@
-import ProjectReplicationPage from '@/components/marketingcoordinator/ProjectReplicationPage'
+
+import ProjectReplicationPage from '@/components/MarketingCoordinator/ProjectReplicationPage'
 import React from 'react'
 
 const page = () => {
