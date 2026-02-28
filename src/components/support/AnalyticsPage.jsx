@@ -3,7 +3,7 @@ import {
   TrendingUp, Layers, HardHat, RefreshCw,
   Clock, Zap, BarChart2, AlertTriangle,
 } from "lucide-react";
-import { PageHeader, FONTS } from "./shared";
+import { PageHeader} from "./shared";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    DATA

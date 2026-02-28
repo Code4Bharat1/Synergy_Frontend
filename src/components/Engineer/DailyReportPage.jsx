@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import {
   PageHeader, Card, SectionHead, Label, inputStyle, SubmitBtn,
-  FONTS, PROJECTS, ITEMS_BY_PROJECT,
+   PROJECTS, ITEMS_BY_PROJECT,
 } from "./shared";
 
 /* ─────────────────────────────────────────────────────────────────────────────
