@@ -85,7 +85,7 @@ export default function LoginPage() {
         }
       `}</style>
 
-      <div className="min-h-screen flex">
+      <div className="min-h-screen flex ">
         {/* ══ MOBILE ONLY: fullscreen bg + animated card ══ */}
         {isMobile && (
           <>
@@ -100,7 +100,7 @@ export default function LoginPage() {
             />
 
             {/* Animated card */}
-            <div className="relative z-10 flex flex-col justify-end min-h-screen pb-8 px-4">
+            <div className="relative z-10 flex flex-col justify-center items-center min-h-screen pb-8 px-4">
               <div className="flex items-center gap-2 mb-6">
                 <h1
                   className="text-[50px] font-black tracking-wide
