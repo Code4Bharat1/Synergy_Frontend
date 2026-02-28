@@ -1,12 +1,12 @@
-import AttendancePage from '@/components/MarketingCoordinator/Attendancepage'
-import React from 'react'
+import AttendancePage from "@/components/marketingcoordinator/Attendancepage";
+import React from "react";
 
 const page = () => {
   return (
     <div>
-      <AttendancePage/>
+      <AttendancePage />
     </div>
-  )
-}
+  );
+};
 
-export default page
+export default page;
