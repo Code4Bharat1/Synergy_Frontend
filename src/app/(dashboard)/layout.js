@@ -109,6 +109,11 @@ const ROLE_NAVIGATION = {
       icon: CheckSquare,
       label: "Complaint Approval",
     },
+    {
+      href: "/installation-incharge/Attendance",
+      icon: CalendarCheck,
+      label: "Attendance",
+    },
   ],
   "quality-control": [
     { label: "Dashboard", icon: LayoutDashboard, href: "/quality-control" },
@@ -128,6 +133,7 @@ const ROLE_NAVIGATION = {
     { href: "/marketing-executive/", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/marketing-executive/Create-Project", icon: Copy, label: "Create Project" },
     { href: "/marketing-executive/project-status", icon: FileText, label: "Project Status" },
+    { href: "/marketing-executive/Attendance", icon: CalendarCheck, label: "Attendance" },
   ],
   "marketing-coordinator": [
     {
