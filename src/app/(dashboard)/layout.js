@@ -29,8 +29,9 @@ import {
 } from "lucide-react";
 
 import Navbar from "@/components/common/Navbar";
-import Sidebar from "@/components/common/Sidebar";
 import { useAuth } from "@/context/AuthContext";
+import MobileSidebar from "@/components/common/MobileSidebar";
+import DesktopSidebar from "@/components/common/DesktopSidebar";
 
 const ROLE_NAVIGATION = {
   admin: [
@@ -45,7 +46,11 @@ const ROLE_NAVIGATION = {
     { label: "Dashboard", icon: LayoutDashboard, href: "/director" },
     { label: "Projects", icon: FolderKanban, href: "/director/project" },
     { label: "Approvals", icon: CheckSquare, href: "/director/approval" },
-    { label: "Complaints", icon: MessageSquareWarning, href: "/director/complaint" },
+    {
+      label: "Complaints",
+      icon: MessageSquareWarning,
+      href: "/director/complaint",
+    },
     { label: "Performance", icon: BarChart3, href: "/director/performance" },
   ],
   engineer: [
@@ -125,9 +130,21 @@ const ROLE_NAVIGATION = {
     { label: "Punch In", icon: Hammer, href: "/quality-control/punch-in" },
   ],
   "marketing-executive": [
-    { href: "/marketing-executive/", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/marketing-executive/Create-Project", icon: Copy, label: "Create Project" },
-    { href: "/marketing-executive/project-status", icon: FileText, label: "Project Status" },
+    {
+      href: "/marketing-executive/",
+      icon: LayoutDashboard,
+      label: "Dashboard",
+    },
+    {
+      href: "/marketing-executive/Create-Project",
+      icon: Copy,
+      label: "Create Project",
+    },
+    {
+      href: "/marketing-executive/project-status",
+      icon: FileText,
+      label: "Project Status",
+    },
   ],
   "marketing-coordinator": [
     {
@@ -162,7 +179,6 @@ export default function SynergyDashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
-  
   /* ---------------- AUTH GUARD ---------------- */
   useEffect(() => {
     if (!loading) {
@@ -174,9 +190,7 @@ export default function SynergyDashboardLayout({ children }) {
       const navigation = ROLE_NAVIGATION[user.role] || [];
       const allowedPaths = navigation.map((item) => item.href);
 
-      const isAllowed = allowedPaths.some((path) =>
-        pathname.startsWith(path)
-      );
+      const isAllowed = allowedPaths.some((path) => pathname.startsWith(path));
 
       if (!isAllowed && allowedPaths.length > 0) {
         router.replace(allowedPaths[0]);
@@ -192,7 +206,7 @@ export default function SynergyDashboardLayout({ children }) {
     <div className="flex h-screen overflow-hidden bg-white text-extra-darkblue">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex">
-        <Sidebar
+        <DesktopSidebar
           navigation={navigation}
           active={active}
           setActive={setActive}
@@ -208,20 +222,16 @@ export default function SynergyDashboardLayout({ children }) {
             className="absolute inset-0 bg-black/20"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="absolute left-0 top-0 h-full w-64 bg-white shadow-lg">
-            <Sidebar
+          <div className="absolute left-0 top-0 h-full">
+            <MobileSidebar
               navigation={navigation}
               active={active}
-              setActive={(label) => {
-                setActive(label);
-                setSidebarOpen(false);
-              }}
-              collapsed={false}
+              setActive={setActive}
+              onClose={() => setSidebarOpen(false)}
             />
           </div>
         </div>
       )}
-
       <div className="flex flex-col flex-1 h-screen">
         <Navbar user={user} onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto bg-white p-4 md:p-6">

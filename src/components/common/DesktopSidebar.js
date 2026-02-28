@@ -5,11 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-function Sidebar({
+function DesktopSidebar({
   navigation,
   active,
   setActive,
-  collapsed = false,
+  collapsed,
   setCollapsed,
 }) {
   const router = useRouter();
@@ -24,12 +24,6 @@ function Sidebar({
     }
   };
 
-  const handleToggle = () => {
-    if (typeof setCollapsed === "function") {
-      setCollapsed((prev) => !prev);
-    }
-  };
-
   return (
     <aside
       className={`border-r border-gray-100 bg-white flex flex-col h-screen transition-all duration-300
@@ -37,26 +31,23 @@ function Sidebar({
     >
       {/* Header */}
       <div
-        className={`min-h-16 flex items-center px-4 border-b transition-all duration-300 border-gray-100
+        className={`min-h-16 flex items-center px-4 border-b border-gray-100
           ${collapsed ? "justify-center" : "justify-between"}`}
       >
         {!collapsed && (
           <h2 className="text-lg font-semibold text-extra-blue">Synergy</h2>
         )}
 
-        {/* Only show toggle if collapse state exists (desktop only) */}
-        {typeof setCollapsed === "function" && (
-          <button
-            onClick={handleToggle}
-            className="p-2 rounded-lg hover:bg-gray-50 cursor-pointer text-gray-600"
-          >
-            {collapsed ? (
-              <PanelLeftOpen size={18} />
-            ) : (
-              <PanelLeftClose size={18} />
-            )}
-          </button>
-        )}
+        <button
+          onClick={() => setCollapsed((prev) => !prev)}
+          className="p-2 rounded-lg hover:bg-gray-50 cursor-pointer text-gray-600"
+        >
+          {collapsed ? (
+            <PanelLeftOpen size={18} />
+          ) : (
+            <PanelLeftClose size={18} />
+          )}
+        </button>
       </div>
 
       {/* Navigation */}
@@ -70,8 +61,8 @@ function Sidebar({
               href={item.href}
               key={item.label}
               onClick={() => setActive(item.label)}
-              className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
-                ${collapsed ? "justify-center" : "justify-start"}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
+                ${collapsed ? "justify-center" : ""}
                 ${
                   isActive
                     ? "bg-lightblue text-extra-darkblue"
@@ -99,4 +90,4 @@ function Sidebar({
   );
 }
 
-export default Sidebar;
+export default DesktopSidebar;
