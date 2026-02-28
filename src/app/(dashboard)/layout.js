@@ -26,6 +26,8 @@ import {
   CalendarCheck,
   ShieldCheck,
   Users,
+  UserCog,
+  FlaskConical,
 } from "lucide-react";
 
 import Navbar from "@/components/common/Navbar";
@@ -86,33 +88,38 @@ const ROLE_NAVIGATION = {
     },
     {
       href: "/installation-incharge/eligibility",
-      icon: CheckSquare,
+      icon: ClipboardList,
       label: "Eligibility Checklist",
     },
     {
       href: "/installation-incharge/assign-engineer",
-      icon: CheckSquare,
+      icon: UserCog,
       label: "Assign Engineer",
     },
     {
       href: "/installation-incharge/issue-approval",
-      icon: CheckSquare,
+      icon: ShieldCheck,
       label: "Issue Approval",
     },
     {
       href: "/installation-incharge/progress",
-      icon: CheckSquare,
+      icon: BarChart2,
       label: "Progress Monitoring",
     },
     {
       href: "/installation-incharge/Trial",
-      icon: CheckSquare,
+      icon: FlaskConical,
       label: "Trial & QC",
     },
     {
       href: "/installation-incharge/complaint-approval",
-      icon: CheckSquare,
+      icon: MessageSquareWarning,
       label: "Complaint Approval",
+    },
+    {
+      href: "/installation-incharge/Attendance",
+      icon: CalendarCheck,
+      label: "Attendance",
     },
   ],
   "quality-control": [
@@ -144,6 +151,11 @@ const ROLE_NAVIGATION = {
       href: "/marketing-executive/project-status",
       icon: FileText,
       label: "Project Status",
+    },
+    {
+      href: "/marketing-executive/Attendance",
+      icon: CalendarCheck,
+      label: "Attendance",
     },
   ],
   "marketing-coordinator": [
