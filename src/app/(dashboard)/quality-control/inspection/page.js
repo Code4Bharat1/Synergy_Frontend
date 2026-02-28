@@ -1,5 +1,4 @@
-import QCInspection from "@/components/Quality-Control/Inspection";
-
+import QCInspection from "@/components/qualitycontrol/Inspection";
 
 export default function QCInspectionPage() {
   return <QCInspection />;

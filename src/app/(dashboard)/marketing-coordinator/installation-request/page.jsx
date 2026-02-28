@@ -1,13 +1,12 @@
-
-import InstallationRequestPage from '@/components/MarketingCoordinator/InstallationRequestPage'
-import React from 'react'
+import InstallationRequestPage from "@/components/marketingcoordinator/InstallationRequestPage";
+import React from "react";
 
 const page = () => {
   return (
     <div>
-      <InstallationRequestPage/>
+      <InstallationRequestPage />
     </div>
-  )
-}
+  );
+};
 
-export default page
+export default page;

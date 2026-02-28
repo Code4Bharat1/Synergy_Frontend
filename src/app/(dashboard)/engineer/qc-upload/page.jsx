@@ -1,13 +1,12 @@
-
-import QCUploadPage from '@/components/Engineer/QCUploadPage'
-import React from 'react'
+import QCUploadPage from "@/components/engineer/QCUploadPage";
+import React from "react";
 
 const page = () => {
   return (
     <div>
-      <QCUploadPage/>
+      <QCUploadPage />
     </div>
-  )
-}
+  );
+};
 
-export default page
+export default page;

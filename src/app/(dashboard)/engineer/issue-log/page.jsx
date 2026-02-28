@@ -1,13 +1,12 @@
-
-import IssueLogPage from '@/components/Engineer/IssueLogPage'
-import React from 'react'
+import IssueLogPage from "@/components/engineer/IssueLogPage";
+import React from "react";
 
 const page = () => {
   return (
     <div>
-      <IssueLogPage/>
+      <IssueLogPage />
     </div>
-  )
-}
+  );
+};
 
-export default page
+export default page;

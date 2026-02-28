@@ -1,4 +1,5 @@
 import Approvals from "@/components/director/Approval";
 
-
-export default function Page() { return <Approvals />; }
+export default function Page() {
+  return <Approvals />;
+}

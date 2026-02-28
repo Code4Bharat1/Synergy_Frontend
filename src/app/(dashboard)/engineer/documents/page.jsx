@@ -1,13 +1,12 @@
-
-import DocumentsPage from '@/components/Engineer/DocumentsPage'
-import React from 'react'
+import DocumentsPage from "@/components/engineer/DocumentsPage";
+import React from "react";
 
 const page = () => {
   return (
     <div>
-      <DocumentsPage/>
+      <DocumentsPage />
     </div>
-  )
-}
+  );
+};
 
-export default page
+export default page;

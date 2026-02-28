@@ -1,6 +1,4 @@
-import PunchIn from "@/components/Quality-Control/Punch-in";
-
-
+import PunchIn from "@/components/qualitycontrol/Punch-in";
 
 export default function QCPunchInPage() {
   return <PunchIn />;
