@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { PageHeader, Card, inputStyle, labelStyle } from "./shared";
 import PunchModal from "./Punchmodal";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export default function ServiceExecutionPage() {
   // ── punch state ─────────────────────────────────────────────────────────────
@@ -65,12 +67,17 @@ export default function ServiceExecutionPage() {
 
   return (
     <div>
+       <div style={{ marginBottom: 12 }}>
+          <Link href="/support/" style={{ color: "#4988C4", fontSize: 13, cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <ArrowLeft size={14} /> Back to Home
+          </Link>
+        </div>
       <PageHeader
         eyebrow="Field"
         title="Service Execution"
         subtitle="CMP-001 · Waterslide Alpha · AquaPark Dubai"
       />
-
+ 
       {/* ── Punch In / Out Card ─────────────────────────────────────────────── */}
       <Card style={{
         padding: "22px", marginBottom: 16,
