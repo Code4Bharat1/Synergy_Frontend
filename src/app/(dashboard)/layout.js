@@ -26,6 +26,9 @@ import {
   CalendarCheck,
   ShieldCheck,
   Users,
+  UserCog,
+  FlaskConical,
+  
 } from "lucide-react";
 
 import Navbar from "@/components/common/Navbar";
@@ -74,47 +77,47 @@ const ROLE_NAVIGATION = {
     // { href: "/support/profile", icon: User, label: "Profile" },
   ],
   "installation-incharge": [
-    {
-      href: "/installation-incharge",
-      icon: LayoutDashboard,
-      label: "Dashboard",
-    },
-    {
-      href: "/installation-incharge/eligibility",
-      icon: CheckSquare,
-      label: "Eligibility Checklist",
-    },
-    {
-      href: "/installation-incharge/assign-engineer",
-      icon: CheckSquare,
-      label: "Assign Engineer",
-    },
-    {
-      href: "/installation-incharge/issue-approval",
-      icon: CheckSquare,
-      label: "Issue Approval",
-    },
-    {
-      href: "/installation-incharge/progress",
-      icon: CheckSquare,
-      label: "Progress Monitoring",
-    },
-    {
-      href: "/installation-incharge/Trial",
-      icon: CheckSquare,
-      label: "Trial & QC",
-    },
-    {
-      href: "/installation-incharge/complaint-approval",
-      icon: CheckSquare,
-      label: "Complaint Approval",
-    },
-    {
-      href: "/installation-incharge/Attendance",
-      icon: CalendarCheck,
-      label: "Attendance",
-    },
-  ],
+  {
+    href: "/installation-incharge",
+    icon: LayoutDashboard,
+    label: "Dashboard",
+  },
+  {
+    href: "/installation-incharge/eligibility",
+    icon: ClipboardList,
+    label: "Eligibility Checklist",
+  },
+  {
+    href: "/installation-incharge/assign-engineer",
+    icon: UserCog,
+    label: "Assign Engineer",
+  },
+  {
+    href: "/installation-incharge/issue-approval",
+    icon: ShieldCheck,
+    label: "Issue Approval",
+  },
+  {
+    href: "/installation-incharge/progress",
+    icon: BarChart2,
+    label: "Progress Monitoring",
+  },
+  {
+    href: "/installation-incharge/Trial",
+    icon: FlaskConical,
+    label: "Trial & QC",
+  },
+  {
+    href: "/installation-incharge/complaint-approval",
+    icon: MessageSquareWarning,
+    label: "Complaint Approval",
+  },
+  {
+    href: "/installation-incharge/Attendance",
+    icon: CalendarCheck,
+    label: "Attendance",
+  },
+],
   "quality-control": [
     { label: "Dashboard", icon: LayoutDashboard, href: "/quality-control" },
     {
