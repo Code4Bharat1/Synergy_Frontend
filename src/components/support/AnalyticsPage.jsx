@@ -404,7 +404,7 @@ export default function AnalyticsPage() {
 
   return (
     <>
-      <style>{FONTS + RWD}</style>
+      <style>{ RWD}</style>
 
       {/* ── Page Header ──────────────────────────────────────────────────── */}
       <div className="an-page-header">

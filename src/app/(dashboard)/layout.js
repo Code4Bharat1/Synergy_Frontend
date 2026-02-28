@@ -28,6 +28,7 @@ import {
   Users,
   UserCog,
   FlaskConical,
+  UserCheck,
 } from "lucide-react";
 
 import Navbar from "@/components/common/Navbar";
@@ -179,6 +180,7 @@ const ROLE_NAVIGATION = {
       icon: Send,
       label: "Installation Request",
     },
+    { href: "/marketing-coordinator/attendance",           icon: UserCheck,       label: "Attendance"           },
   ],
 };
 
