@@ -244,9 +244,9 @@ export default function SynergyDashboardLayout({ children }) {
           </div>
         </div>
       )}
-      <div className="flex flex-col flex-1 h-screen">
+      <div className="flex flex-col flex-1 h-screen min-w-0 overflow-hidden">
         <Navbar user={user} onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto bg-white p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-white p-4 md:p-6">
           {children}
         </main>
       </div>
