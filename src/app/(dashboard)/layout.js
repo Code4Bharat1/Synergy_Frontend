@@ -81,106 +81,106 @@ const ROLE_NAVIGATION = {
     { href: "/support/analytics", icon: BarChart2, label: "Analytics" },
     // { href: "/support/profile", icon: User, label: "Profile" },
   ],
-  "installation-incharge": [
+  "installationIncharge": [
     {
-      href: "/installation-incharge",
+      href: "/installationIncharge",
       icon: LayoutDashboard,
       label: "Dashboard",
     },
     {
-      href: "/installation-incharge/eligibility",
+      href: "/installationIncharge/eligibility",
       icon: ClipboardList,
       label: "Eligibility Checklist",
     },
     {
-      href: "/installation-incharge/assign-engineer",
+      href: "/installationIncharge/assign-engineer",
       icon: UserCog,
       label: "Assign Engineer",
     },
     {
-      href: "/installation-incharge/issue-approval",
+      href: "/installationIncharge/issue-approval",
       icon: ShieldCheck,
       label: "Issue Approval",
     },
     {
-      href: "/installation-incharge/progress",
+      href: "/installationIncharge/progress",
       icon: BarChart2,
       label: "Progress Monitoring",
     },
     {
-      href: "/installation-incharge/Trial",
+      href: "/installationIncharge/Trial",
       icon: FlaskConical,
       label: "Trial & QC",
     },
     {
-      href: "/installation-incharge/complaint-approval",
+      href: "/installationIncharge/complaint-approval",
       icon: MessageSquareWarning,
       label: "Complaint Approval",
     },
     {
-      href: "/installation-incharge/Attendance",
+      href: "/installationIncharge/Attendance",
       icon: CalendarCheck,
       label: "Attendance",
     },
   ],
-  "quality-control": [
-    { label: "Dashboard", icon: LayoutDashboard, href: "/quality-control" },
+  "qualityControl": [
+    { label: "Dashboard", icon: LayoutDashboard, href: "/qualityControl" },
     {
       label: "Inspection",
       icon: ClipboardCheck,
-      href: "/quality-control/inspection",
+      href: "/qualityControl/inspection",
     },
     {
       label: "Trial Approval",
       icon: ClipboardList,
-      href: "/quality-control/trial-approval",
+      href: "/qualityControl/trial-approval",
     },
-    { label: "Punch In", icon: Hammer, href: "/quality-control/punch-in" },
+    { label: "Punch In", icon: Hammer, href: "/qualityControl/punch-in" },
   ],
-  "marketing-executive": [
+  "marketingExecutive": [
     {
-      href: "/marketing-executive/",
+      href: "/marketingExecutive/",
       icon: LayoutDashboard,
       label: "Dashboard",
     },
     {
-      href: "/marketing-executive/Create-Project",
+      href: "/marketingExecutive/Create-Project",
       icon: Copy,
       label: "Create Project",
     },
     {
-      href: "/marketing-executive/project-status",
+      href: "/marketingExecutive/project-status",
       icon: FileText,
       label: "Project Status",
     },
     {
-      href: "/marketing-executive/Attendance",
+      href: "/marketingExecutive/Attendance",
       icon: CalendarCheck,
       label: "Attendance",
     },
   ],
-  "marketing-coordinator": [
+  "marketingCoordinator": [
     {
-      href: "/marketing-coordinator/",
+      href: "/marketingCoordinator/",
       icon: LayoutDashboard,
       label: "Dashboard",
     },
     {
-      href: "/marketing-coordinator/project-replication",
+      href: "/marketingCoordinator/project-replication",
       icon: Copy,
       label: "Project Replication",
     },
     {
-      href: "/marketing-coordinator/documents",
+      href: "/marketingCoordinator/documents",
       icon: FileText,
       label: "Documents",
     },
     {
-      href: "/marketing-coordinator/installation-request",
+      href: "/marketingCoordinator/installation-request",
       icon: Send,
       label: "Installation Request",
     },
-    { href: "/marketing-coordinator/attendance",           icon: UserCheck,       label: "Attendance"           },
+    { href: "/marketingCoordinator/attendance",           icon: UserCheck,       label: "Attendance"           },
   ],
 };
 
