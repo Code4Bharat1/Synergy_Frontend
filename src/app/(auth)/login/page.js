@@ -156,12 +156,7 @@ export default function LoginPage() {
                       <label className="text-white/80 text-xs font-medium">
                         Password
                       </label>
-                      <a
-                        href="#"
-                        className="text-blue-400 text-xs hover:text-blue-300"
-                      >
-                        Forgot password?
-                      </a>
+                      
                     </div>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
@@ -270,12 +265,7 @@ export default function LoginPage() {
                     <label className="text-gray-700 text-sm font-medium">
                       <Lock className="inline w-4 h-4 mr-1" /> Password
                     </label>
-                    <a
-                      href="#"
-                      className="text-blue-600 text-sm hover:underline"
-                    >
-                      Forgot password?
-                    </a>
+                    
                   </div>
                   <div className="relative">
                     <input
