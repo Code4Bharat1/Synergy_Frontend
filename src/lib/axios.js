@@ -56,7 +56,7 @@ axiosInstance.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axiosInstance.post("/api/auth/refresh");
+        const { data } = await axiosInstance.post("/auth/refresh");
 
         localStorage.setItem("accessToken", data.accessToken);
 
