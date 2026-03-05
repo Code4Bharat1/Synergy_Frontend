@@ -1,201 +1,699 @@
 "use client";
-import { useState } from "react";
-import { MessageSquareWarning, TrendingDown, AlertTriangle, Star } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  MessageSquareWarning,
+  TrendingDown,
+  AlertTriangle,
+  Star,
+  Plus,
+  X,
+  RefreshCw,
+  Eye,
+  Pencil,
+  Trash2,
+  ChevronDown,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  XCircle,
+  Loader2,
+} from "lucide-react";
 
-// ── Data ──────────────────────────────────────────────────────────────────────
-const COMPLAINTS_PER_PROJECT = [
-  { project: "Greenfield Complex",  total: 8,  resolved: 6, open: 1, escalated: 1, failurePct: 12 },
-  { project: "Harbor View Tower",   total: 14, resolved: 7, open: 4, escalated: 3, failurePct: 28 },
-  { project: "Westgate Mall",       total: 11, resolved: 4, open: 5, escalated: 2, failurePct: 45 },
-  { project: "Sunrise Residency",   total: 3,  resolved: 3, open: 0, escalated: 0, failurePct: 6  },
-];
+// ── API Base ───────────────────────────────────────────────────────────────────
+// Uses your existing axiosInstance which already has baseURL + interceptors configured
+import axiosInstance from "../../lib/axios";
 
-const REPEATED_FAILURES = [
-  { item: "Waterproofing",         occurrences: 6, projects: ["Greenfield", "Harbor View"],       severity: "High"   },
-  { item: "Concrete Mix Quality",  occurrences: 4, projects: ["Harbor View", "Westgate"],         severity: "High"   },
-  { item: "Electrical Labelling",  occurrences: 3, projects: ["Greenfield", "Westgate"],          severity: "Medium" },
-  { item: "Safety Equipment",      occurrences: 5, projects: ["Harbor View", "Westgate"],         severity: "High"   },
-  { item: "Paint Finish",          occurrences: 2, projects: ["Sunrise", "Greenfield"],           severity: "Low"    },
-];
-
-const CONTRACTORS = [
-  { name: "BuildPro Contractors",  projects: 3, complaints: 8,  onTime: 72, rating: 3.2, trend: "down" },
-  { name: "Apex Installations",    projects: 2, complaints: 3,  onTime: 91, rating: 4.5, trend: "up"   },
-  { name: "FastTrack Civil",       projects: 2, complaints: 11, onTime: 58, rating: 2.8, trend: "down" },
-  { name: "Elite MEP Solutions",   projects: 1, complaints: 2,  onTime: 96, rating: 4.8, trend: "up"   },
-];
-
-const SEV_STYLE = {
-  High:   "bg-red-50 text-red-500",
-  Medium: "bg-amber-50 text-amber-600",
-  Low:    "bg-gray-100 text-gray-500",
+const apiFetch = async (path, { method = "GET", body } = {}) => {
+  const token = localStorage.getItem("accessToken");
+  const config = {
+    method,
+    url: path,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    ...(body ? { data: JSON.parse(body) } : {}),
+  };
+  const res = await axiosInstance(config);
+  return res.data;
 };
 
-// ── Bar Chart row ─────────────────────────────────────────────────────────────
-function HBar({ label, value, max, color, suffix = "" }) {
-  const pct = Math.min(100, Math.round((value / max) * 100));
+// ── Constants ─────────────────────────────────────────────────────────────────
+const STATUS_META = {
+  open:        { label: "Open",        color: "bg-blue-50 text-blue-600",   icon: AlertCircle,   dot: "bg-blue-500"   },
+  "in-progress":{ label: "In Progress", color: "bg-amber-50 text-amber-600", icon: Clock,         dot: "bg-amber-400"  },
+  resolved:    { label: "Resolved",    color: "bg-green-50 text-green-600", icon: CheckCircle2,  dot: "bg-green-500"  },
+  closed:      { label: "Closed",      color: "bg-gray-100 text-gray-500",  icon: XCircle,       dot: "bg-gray-400"   },
+};
+
+const PRIORITY_META = {
+  low:      { label: "Low",      color: "bg-gray-100 text-gray-500"   },
+  medium:   { label: "Medium",   color: "bg-blue-50 text-blue-600"    },
+  high:     { label: "High",     color: "bg-amber-50 text-amber-600"  },
+  critical: { label: "Critical", color: "bg-red-50 text-red-500"      },
+};
+
+const EMPTY_FORM = {
+  title: "",
+  description: "",
+  project: "",
+  priority: "medium",
+  status: "open",
+  assignedTo: "",
+  resolutionNotes: "",
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const Badge = ({ text, colorClass }) => (
+  <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${colorClass}`}>{text}</span>
+);
+
+const StatusIcon = ({ status }) => {
+  const Meta = STATUS_META[status];
+  if (!Meta) return null;
+  const Icon = Meta.icon;
+  return <Icon size={13} />;
+};
+
+function StatCard({ label, value, colorClass }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-xs text-gray-500 w-36 shrink-0 truncate">{label}</span>
-      <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
+      <p className={`text-2xl font-bold ${colorClass}`}>{value}</p>
+      <p className="text-xs text-gray-400 mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function Modal({ title, onClose, children }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h3 className="text-sm font-bold text-gray-800">{title}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="px-6 py-5">{children}</div>
       </div>
-      <span className="text-xs font-bold text-extra-darkblue w-12 text-right">{value}{suffix}</span>
     </div>
   );
 }
 
-// ── Star Rating ───────────────────────────────────────────────────────────────
-function Stars({ rating }) {
+// ── Complaint Form ─────────────────────────────────────────────────────────────
+function ComplaintForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel = "Submit" }) {
+  const [form, setForm] = useState(initial);
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(form);
+  };
+
   return (
-    <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map(i => (
-        <Star key={i} size={12} className={i <= Math.round(rating) ? "text-amber-400 fill-amber-400" : "text-gray-200 fill-gray-200"} />
-      ))}
-      <span className="text-xs font-bold text-extra-darkblue ml-1">{rating}</span>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1 block">Title *</label>
+        <input
+          required
+          value={form.title}
+          onChange={(e) => set("title", e.target.value)}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="Brief complaint title"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1 block">Description *</label>
+        <textarea
+          required
+          rows={3}
+          value={form.description}
+          onChange={(e) => set("description", e.target.value)}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+          placeholder="Detailed description of the complaint"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-semibold text-gray-600 mb-1 block">Priority</label>
+          <select
+            value={form.priority}
+            onChange={(e) => set("priority", e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          >
+            {Object.entries(PRIORITY_META).map(([k, v]) => (
+              <option key={k} value={k}>{v.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-gray-600 mb-1 block">Status</label>
+          <select
+            value={form.status}
+            onChange={(e) => set("status", e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          >
+            {Object.entries(STATUS_META).map(([k, v]) => (
+              <option key={k} value={k}>{v.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1 block">Project ID</label>
+        <input
+          value={form.project}
+          onChange={(e) => set("project", e.target.value)}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="MongoDB Project ObjectId"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1 block">Assigned To (User ID)</label>
+        <input
+          value={form.assignedTo}
+          onChange={(e) => set("assignedTo", e.target.value)}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="MongoDB User ObjectId"
+        />
+      </div>
+
+      {(form.status === "resolved" || form.status === "closed") && (
+        <div>
+          <label className="text-xs font-semibold text-gray-600 mb-1 block">Resolution Notes</label>
+          <textarea
+            rows={2}
+            value={form.resolutionNotes}
+            onChange={(e) => set("resolutionNotes", e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+            placeholder="How was this complaint resolved?"
+          />
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+      >
+        {loading && <Loader2 size={14} className="animate-spin" />}
+        {submitLabel}
+      </button>
+    </form>
+  );
+}
+
+// ── Detail View ───────────────────────────────────────────────────────────────
+function ComplaintDetail({ complaint }) {
+  const SM = STATUS_META[complaint.status] || {};
+  const PM = PRIORITY_META[complaint.priority] || {};
+
+  return (
+    <div className="space-y-4 text-sm">
+      <div className="flex flex-wrap gap-2">
+        <Badge text={SM.label || complaint.status} colorClass={SM.color || "bg-gray-100 text-gray-600"} />
+        <Badge text={PM.label || complaint.priority} colorClass={PM.color || "bg-gray-100 text-gray-600"} />
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold text-gray-400 mb-1">Description</p>
+        <p className="text-gray-700 leading-relaxed">{complaint.description}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-xs font-semibold text-gray-400 mb-1">Project</p>
+          <p className="text-gray-700">{complaint.project?.name || "—"}</p>
+          {complaint.project?.clientName && (
+            <p className="text-xs text-gray-400">{complaint.project.clientName}</p>
+          )}
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-gray-400 mb-1">Logged By</p>
+          <p className="text-gray-700">{complaint.loggedBy?.name || "—"}</p>
+          <p className="text-xs text-gray-400">{complaint.loggedBy?.role || ""}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-gray-400 mb-1">Assigned To</p>
+          <p className="text-gray-700">{complaint.assignedTo?.name || "Unassigned"}</p>
+          <p className="text-xs text-gray-400">{complaint.assignedTo?.role || ""}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-gray-400 mb-1">Created</p>
+          <p className="text-gray-700">{new Date(complaint.createdAt).toLocaleDateString()}</p>
+        </div>
+        {complaint.resolvedAt && (
+          <div>
+            <p className="text-xs font-semibold text-gray-400 mb-1">Resolved At</p>
+            <p className="text-gray-700">{new Date(complaint.resolvedAt).toLocaleDateString()}</p>
+          </div>
+        )}
+      </div>
+
+      {complaint.resolutionNotes && (
+        <div>
+          <p className="text-xs font-semibold text-gray-400 mb-1">Resolution Notes</p>
+          <p className="text-gray-700 bg-green-50 rounded-lg p-3 text-xs leading-relaxed">{complaint.resolutionNotes}</p>
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
-export default function ComplaintAnalytics() {
-  const [activeProject, setActiveProject] = useState(null);
-  const total = COMPLAINTS_PER_PROJECT.reduce((s, p) => s + p.total, 0);
-  const maxComplaints = Math.max(...COMPLAINTS_PER_PROJECT.map(p => p.total));
-  const maxFailure    = Math.max(...COMPLAINTS_PER_PROJECT.map(p => p.failurePct));
+// ── Analytics Sub-panel ───────────────────────────────────────────────────────
+function AnalyticsPanel({ complaints }) {
+  // Group by project
+  const byProject = {};
+  complaints.forEach((c) => {
+    const key = c.project?.name || "Unassigned";
+    if (!byProject[key]) byProject[key] = { total: 0, resolved: 0, open: 0, escalated: 0 };
+    byProject[key].total++;
+    if (c.status === "resolved" || c.status === "closed") byProject[key].resolved++;
+    else if (c.status === "open") byProject[key].open++;
+    else if (c.status === "in-progress") byProject[key].escalated++;
+  });
 
+  // Priority breakdown
+  const byPriority = { low: 0, medium: 0, high: 0, critical: 0 };
+  complaints.forEach((c) => { if (byPriority[c.priority] !== undefined) byPriority[c.priority]++; });
+
+  const maxTotal = Math.max(...Object.values(byProject).map((p) => p.total), 1);
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
+      {/* Per-project bars */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <MessageSquareWarning size={15} className="text-blue-500" />
+          <h3 className="text-sm font-bold text-gray-800">Complaints per Project</h3>
+        </div>
+        <div className="space-y-3">
+          {Object.entries(byProject).map(([name, d]) => (
+            <div key={name} className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="font-semibold text-gray-700 truncate max-w-[60%]">{name}</span>
+                <span className="text-gray-400">{d.total} total</span>
+              </div>
+              <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
+                <div className="bg-green-400" style={{ width: `${(d.resolved / d.total) * 100}%` }} />
+                <div className="bg-amber-400" style={{ width: `${(d.open / d.total) * 100}%` }} />
+                <div className="bg-blue-400" style={{ width: `${(d.escalated / d.total) * 100}%` }} />
+              </div>
+            </div>
+          ))}
+          {Object.keys(byProject).length === 0 && (
+            <p className="text-xs text-gray-400 text-center py-4">No data yet</p>
+          )}
+        </div>
+        <div className="flex gap-4 text-xs text-gray-400 pt-1 border-t border-gray-50">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" /> Resolved</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Open</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" /> In Progress</span>
+        </div>
+      </div>
+
+      {/* Priority breakdown */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <AlertTriangle size={15} className="text-amber-500" />
+          <h3 className="text-sm font-bold text-gray-800">Priority Breakdown</h3>
+        </div>
+        <div className="space-y-3">
+          {Object.entries(byPriority).map(([p, count]) => {
+            const PM = PRIORITY_META[p];
+            const pct = complaints.length ? Math.round((count / complaints.length) * 100) : 0;
+            return (
+              <div key={p} className="flex items-center gap-3">
+                <span className="text-xs text-gray-500 w-16 capitalize">{PM.label}</span>
+                <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${pct}%`,
+                      background: p === "critical" ? "#ef4444" : p === "high" ? "#d97706" : p === "medium" ? "#3b82f6" : "#9ca3af",
+                    }}
+                  />
+                </div>
+                <span className="text-xs font-bold text-gray-700 w-8 text-right">{count}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+export default function ComplaintAnalytics() {
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [view, setView] = useState("list"); // "list" | "analytics"
+
+  // Modals
+  const [showCreate, setShowCreate] = useState(false);
+  const [viewComplaint, setViewComplaint] = useState(null);
+  const [editComplaint, setEditComplaint] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // Filters
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterPriority, setFilterPriority] = useState("all");
+  const [search, setSearch] = useState("");
+
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+  const fetchComplaints = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await apiFetch("/complaints");
+      setComplaints(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchComplaints(); }, [fetchComplaints]);
+
+  // ── CRUD Handlers ──────────────────────────────────────────────────────────
+  const handleCreate = async (form) => {
+    try {
+      setActionLoading(true);
+      // Strip empty optional fields
+      const payload = Object.fromEntries(
+        Object.entries(form).filter(([, v]) => v !== "")
+      );
+      await apiFetch("/complaints", { method: "POST", body: JSON.stringify(payload) });
+      setShowCreate(false);
+      fetchComplaints();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUpdate = async (form) => {
+    try {
+      setActionLoading(true);
+      const payload = Object.fromEntries(
+        Object.entries(form).filter(([, v]) => v !== "")
+      );
+      await apiFetch(`/complaints/${editComplaint._id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      setEditComplaint(null);
+      fetchComplaints();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setActionLoading(true);
+      await apiFetch(`/complaints/${deleteTarget._id}`, { method: "DELETE" });
+      setDeleteTarget(null);
+      fetchComplaints();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ── Derived data ───────────────────────────────────────────────────────────
+  const filtered = complaints.filter((c) => {
+    if (filterStatus !== "all" && c.status !== filterStatus) return false;
+    if (filterPriority !== "all" && c.priority !== filterPriority) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (
+        !c.title?.toLowerCase().includes(q) &&
+        !c.description?.toLowerCase().includes(q) &&
+        !c.project?.name?.toLowerCase().includes(q)
+      ) return false;
+    }
+    return true;
+  });
+
+  const stats = {
+    total: complaints.length,
+    open: complaints.filter((c) => c.status === "open").length,
+    inProgress: complaints.filter((c) => c.status === "in-progress").length,
+    resolved: complaints.filter((c) => c.status === "resolved" || c.status === "closed").length,
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-lg font-bold text-extra-darkblue">Complaint Analytics</h2>
-        <p className="text-sm text-gray-400 mt-0.5">{total} total complaints across all projects</p>
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Complaint Management</h2>
+          <p className="text-sm text-gray-400 mt-0.5">{complaints.length} total complaints across all projects</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+            <button
+              onClick={() => setView("list")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${view === "list" ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}
+            >
+              List
+            </button>
+            <button
+              onClick={() => setView("analytics")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${view === "analytics" ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}
+            >
+              Analytics
+            </button>
+          </div>
+          <button
+            onClick={fetchComplaints}
+            className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+          >
+            <Plus size={13} />
+            New Complaint
+          </button>
+        </div>
       </div>
 
-      {/* Summary stat row */}
+      {/* Error banner */}
+      {error && (
+        <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
+          <AlertCircle size={14} />
+          <span>{error}</span>
+          <button onClick={fetchComplaints} className="ml-auto text-xs underline">Retry</button>
+        </div>
+      )}
+
+      {/* Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Total Complaints", value: total,                                                                             color: "bg-lightblue text-extra-blue"  },
-          { label: "Open",             value: COMPLAINTS_PER_PROJECT.reduce((s,p) => s + p.open, 0),                            color: "bg-amber-50 text-amber-600"    },
-          { label: "Escalated",        value: COMPLAINTS_PER_PROJECT.reduce((s,p) => s + p.escalated, 0),                       color: "bg-red-50 text-red-500"        },
-          { label: "Resolved",         value: COMPLAINTS_PER_PROJECT.reduce((s,p) => s + p.resolved, 0),                        color: "bg-green-50 text-green-600"    },
-        ].map(s => (
-          <div key={s.label} className={`rounded-xl border border-gray-100 shadow-sm p-4 text-center ${s.color.includes("lightblue") ? "bg-white" : "bg-white"}`}>
-            <p className={`text-2xl font-bold ${s.color.split(" ")[1]}`}>{s.value}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
-          </div>
-        ))}
+        <StatCard label="Total" value={stats.total} colorClass="text-blue-600" />
+        <StatCard label="Open" value={stats.open} colorClass="text-amber-600" />
+        <StatCard label="In Progress" value={stats.inProgress} colorClass="text-blue-500" />
+        <StatCard label="Resolved / Closed" value={stats.resolved} colorClass="text-green-600" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* Analytics panel */}
+      {view === "analytics" && <AnalyticsPanel complaints={complaints} />}
 
-        {/* Complaints per project */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <MessageSquareWarning size={15} className="text-extra-blue" />
-            <h3 className="text-sm font-bold text-extra-darkblue">Complaints per Project</h3>
+      {/* List panel */}
+      {view === "list" && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-3 px-5 py-4 border-b border-gray-100">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search complaints…"
+              className="flex-1 min-w-48 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            >
+              <option value="all">All Statuses</option>
+              {Object.entries(STATUS_META).map(([k, v]) => (
+                <option key={k} value={k}>{v.label}</option>
+              ))}
+            </select>
+            <select
+              value={filterPriority}
+              onChange={(e) => setFilterPriority(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            >
+              <option value="all">All Priorities</option>
+              {Object.entries(PRIORITY_META).map(([k, v]) => (
+                <option key={k} value={k}>{v.label}</option>
+              ))}
+            </select>
           </div>
-          <div className="space-y-3">
-            {COMPLAINTS_PER_PROJECT.map(p => (
-              <div key={p.project} className="space-y-1.5 cursor-pointer group" onClick={() => setActiveProject(activeProject === p.project ? null : p.project)}>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-extra-darkblue group-hover:text-extra-blue transition-colors">{p.project}</span>
-                  <span className="text-gray-400">{p.total} total</span>
-                </div>
-                <div className="flex h-4 rounded-full overflow-hidden gap-0.5">
-                  <div className="bg-green-400 transition-all" style={{ width: `${(p.resolved / p.total) * 100}%` }} title="Resolved" />
-                  <div className="bg-amber-400 transition-all" style={{ width: `${(p.open / p.total) * 100}%` }} title="Open" />
-                  <div className="bg-red-500 transition-all"   style={{ width: `${(p.escalated / p.total) * 100}%` }} title="Escalated" />
-                </div>
-                {activeProject === p.project && (
-                  <div className="flex gap-3 text-xs pt-1">
-                    <span className="flex items-center gap-1 text-green-600"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" /> {p.resolved} resolved</span>
-                    <span className="flex items-center gap-1 text-amber-600"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> {p.open} open</span>
-                    <span className="flex items-center gap-1 text-red-500"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> {p.escalated} escalated</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          {/* Legend */}
-          <div className="flex gap-4 text-xs text-gray-400 pt-1 border-t border-gray-50">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" /> Resolved</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Open</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Escalated</span>
-          </div>
+
+          {/* Table */}
+          {loading ? (
+            <div className="flex items-center justify-center py-16 gap-2 text-gray-400">
+              <Loader2 size={18} className="animate-spin" />
+              <span className="text-sm">Loading complaints…</span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-16 text-center text-gray-400 text-sm">
+              {complaints.length === 0 ? "No complaints found. Create the first one!" : "No complaints match your filters."}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {["Title", "Project", "Priority", "Status", "Logged By", "Assigned To", "Date", "Actions"].map((h) => (
+                      <th key={h} className="text-left text-xs font-semibold text-gray-500 px-5 py-3 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filtered.map((c) => {
+                    const SM = STATUS_META[c.status] || {};
+                    const PM = PRIORITY_META[c.priority] || {};
+                    return (
+                      <tr key={c._id} className="hover:bg-gray-50/60 transition-colors group">
+                        <td className="px-5 py-3.5 font-semibold text-gray-800 max-w-[180px] truncate">{c.title}</td>
+                        <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap">{c.project?.name || "—"}</td>
+                        <td className="px-5 py-3.5">
+                          <Badge text={PM.label || c.priority} colorClass={PM.color || "bg-gray-100 text-gray-500"} />
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${SM.color || "bg-gray-100 text-gray-500"}`}>
+                            <StatusIcon status={c.status} />
+                            {SM.label || c.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap">{c.loggedBy?.name || "—"}</td>
+                        <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap">{c.assignedTo?.name || <span className="text-gray-300">Unassigned</span>}</td>
+                        <td className="px-5 py-3.5 text-gray-400 whitespace-nowrap">{new Date(c.createdAt).toLocaleDateString()}</td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => setViewComplaint(c)}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
+                              title="View"
+                            >
+                              <Eye size={13} />
+                            </button>
+                            <button
+                              onClick={() => setEditComplaint(c)}
+                              className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+                              title="Edit"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(c)}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Footer count */}
+          {filtered.length > 0 && (
+            <div className="px-5 py-3 border-t border-gray-50 text-xs text-gray-400">
+              Showing {filtered.length} of {complaints.length} complaints
+            </div>
+          )}
         </div>
+      )}
 
-        {/* Project-wise failure % */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <TrendingDown size={15} className="text-red-500" />
-            <h3 className="text-sm font-bold text-extra-darkblue">Project-wise Failure %</h3>
-          </div>
-          <div className="space-y-3">
-            {COMPLAINTS_PER_PROJECT.sort((a, b) => b.failurePct - a.failurePct).map(p => (
-              <HBar key={p.project} label={p.project} value={p.failurePct} max={100}
-                color={p.failurePct > 30 ? "#ef4444" : p.failurePct > 15 ? "#d97706" : "#16a34a"}
-                suffix="%" />
-            ))}
-          </div>
-          <p className="text-xs text-gray-400">Failure % = escalated + unresolved complaints / total × 100</p>
-        </div>
+      {/* ── Modals ── */}
 
-        {/* Repeated Item Failures */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={15} className="text-amber-500" />
-            <h3 className="text-sm font-bold text-extra-darkblue">Repeated Item Failures</h3>
-          </div>
-          <div className="space-y-2">
-            {REPEATED_FAILURES.sort((a, b) => b.occurrences - a.occurrences).map(f => (
-              <div key={f.item} className="flex items-center gap-3 px-3 py-3 rounded-xl bg-gray-50 border border-gray-100">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-bold text-extra-darkblue">{f.item}</p>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SEV_STYLE[f.severity]}`}>{f.severity}</span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-0.5">{f.projects.join(", ")}</p>
-                </div>
-                <div className="text-center shrink-0">
-                  <p className="text-xl font-bold text-red-500">{f.occurrences}×</p>
-                  <p className="text-xs text-gray-400">occurrences</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Create */}
+      {showCreate && (
+        <Modal title="Log New Complaint" onClose={() => setShowCreate(false)}>
+          <ComplaintForm onSubmit={handleCreate} loading={actionLoading} submitLabel="Log Complaint" />
+        </Modal>
+      )}
 
-        {/* Contractor Performance */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <Star size={15} className="text-amber-500" />
-            <h3 className="text-sm font-bold text-extra-darkblue">Contractor Performance Rating</h3>
-          </div>
-          <div className="space-y-3">
-            {CONTRACTORS.sort((a, b) => b.rating - a.rating).map(c => (
-              <div key={c.name} className="px-4 py-3.5 rounded-xl border border-gray-100 bg-gray-50">
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div>
-                    <p className="text-sm font-bold text-extra-darkblue">{c.name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{c.projects} projects · {c.complaints} complaints</p>
-                  </div>
-                  <Stars rating={c.rating} />
-                </div>
-                <div className="mt-2">
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-gray-400">On-time delivery</span>
-                    <span className={`font-bold ${c.onTime >= 85 ? "text-green-600" : c.onTime >= 70 ? "text-amber-500" : "text-red-500"}`}>{c.onTime}%</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${c.onTime}%`, background: c.onTime >= 85 ? "#16a34a" : c.onTime >= 70 ? "#d97706" : "#ef4444" }} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* View */}
+      {viewComplaint && (
+        <Modal title={viewComplaint.title} onClose={() => setViewComplaint(null)}>
+          <ComplaintDetail complaint={viewComplaint} />
+        </Modal>
+      )}
 
-      </div>
+      {/* Edit */}
+      {editComplaint && (
+        <Modal title="Edit Complaint" onClose={() => setEditComplaint(null)}>
+          <ComplaintForm
+            initial={{
+              title: editComplaint.title || "",
+              description: editComplaint.description || "",
+              project: editComplaint.project?._id || "",
+              priority: editComplaint.priority || "medium",
+              status: editComplaint.status || "open",
+              assignedTo: editComplaint.assignedTo?._id || "",
+              resolutionNotes: editComplaint.resolutionNotes || "",
+            }}
+            onSubmit={handleUpdate}
+            loading={actionLoading}
+            submitLabel="Save Changes"
+          />
+        </Modal>
+      )}
+
+      {/* Delete confirm */}
+      {deleteTarget && (
+        <Modal title="Delete Complaint" onClose={() => setDeleteTarget(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete <span className="font-semibold text-gray-800">"{deleteTarget.title}"</span>? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 border border-gray-200 text-gray-600 text-sm font-semibold py-2 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={actionLoading}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {actionLoading && <Loader2 size={14} className="animate-spin" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
