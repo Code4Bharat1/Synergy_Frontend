@@ -1,723 +1,1039 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import {
-  UserCheck, Clock, MapPin, Camera,
-  CheckCircle, AlertCircle, RefreshCw,
-  LogIn, LogOut, FileText, Calendar,
-  ChevronRight, Briefcase,
-} from "lucide-react";
-import { COORDINATOR, PROJECTS } from "./shared";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PUNCH MODAL — same camera + geo pattern as engineer panel
-// ─────────────────────────────────────────────────────────────────────────────
-function PunchModal({ type = "in", onClose, onSubmit }) {
-  const [formData,        setFormData]        = useState({ location: "", notes: "", photo: null });
-  const [currentLocation, setCurrentLocation] = useState(null);
-  const [loadingLoc,      setLoadingLoc]      = useState(true);
-  const [currentTime,     setCurrentTime]     = useState(new Date());
-  const [isSubmitting,    setIsSubmitting]     = useState(false);
-  const [stream,          setStream]          = useState(null);
-  const [showCam,         setShowCam]         = useState(true);
-  const [camErr,          setCamErr]          = useState(false);
-  const videoRef  = useRef(null);
-  const canvasRef = useRef(null);
+import { useState, useEffect, useRef, useCallback } from "react";
 
+// ── Config ────────────────────────────────────────────────────────────────────
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+const getToken = () =>
+  typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+
+const authHeaders = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${getToken()}`,
+});
+
+// ── Auth-aware fetch — redirects to /login on 401 ─────────────────────────────
+const authFetch = async (url, options = {}) => {
+  const res = await fetch(url, { ...options, headers: authHeaders() });
+  if (res.status === 401) {
+    // Token missing or expired — boot user to login
+    if (typeof window !== "undefined") window.location.href = "/login";
+    throw new Error("Session expired. Redirecting to login…");
+  }
+  return res;
+};
+
+// ── API Client ────────────────────────────────────────────────────────────────
+const api = {
+  async punchIn(location, notes) {
+    const res = await authFetch(`${API_BASE}/attendance/punch-in`, {
+      method: "POST",
+      body: JSON.stringify({ location, notes }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Punch in failed");
+    return data.attendance;
+  },
+
+  async punchOut() {
+    const res = await authFetch(`${API_BASE}/attendance/punch-out`, {
+      method: "POST",
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Punch out failed");
+    return data.attendance;
+  },
+
+  async getMyAttendance() {
+    const res = await authFetch(`${API_BASE}/attendance/me`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to load attendance");
+    return Array.isArray(data) ? data : (data.records || []);
+  },
+
+  async getAllAttendance() {
+    const res = await authFetch(`${API_BASE}/attendance/all`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to load all attendance");
+    return Array.isArray(data) ? data : (data.records || []);
+  },
+};
+
+// Normalise backend record → UI session shape
+// Handles common field name variants from different backends
+function normalise(rec) {
+  const punchIn  = rec.punchInTime  || rec.punchIn  || rec.checkIn  || rec.clockIn  || rec.startTime;
+  const punchOut = rec.punchOutTime || rec.punchOut || rec.checkOut || rec.clockOut || rec.endTime;
+  return {
+    id:       rec._id || rec.id,
+    userId:   rec.userId || rec.user || null,
+    userName: rec.userName || rec.name || rec.email || null,
+    in:  punchIn  ? { timestamp: punchIn,  location: rec.location || "" } : null,
+    out: punchOut ? { timestamp: punchOut, location: rec.location || "" } : null,
+    notes: rec.notes || "",
+  };
+}
+
+// ── Colour tokens ─────────────────────────────────────────────────────────────
+const C = {
+  darkBlue:  "#0F2854",
+  blue:      "#1C4D8D",
+  medBlue:   "#4988C4",
+  lightBlue: "#BDE8F5",
+  bg:        "#f0f6fb",
+  mutedText: "#6b89a5",
+  dimText:   "#8fa3b8",
+  white:     "#ffffff",
+  divider:   "#e3eff8",
+  green:     "#34C759",
+  orange:    "#E07800",
+  red:       "#FF3B30",
+};
+
+// ── Icons ─────────────────────────────────────────────────────────────────────
+const ClockIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4 flex-shrink-0">
+    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+const MapPinIcon = ({ cls = "w-4 h-4" }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={`${cls} flex-shrink-0`}>
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
+  </svg>
+);
+const CameraIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+    <circle cx="12" cy="13" r="4" />
+  </svg>
+);
+const CheckIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+const UserIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4 flex-shrink-0">
+    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
+  </svg>
+);
+const CalendarIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4 flex-shrink-0">
+    <rect x="3" y="4" width="18" height="18" rx="2" />
+    <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+  </svg>
+);
+const RefreshIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+    <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+  </svg>
+);
+const UsersIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4 flex-shrink-0">
+    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+  </svg>
+);
+const NoteIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5 flex-shrink-0">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+    <polyline points="10 9 9 9 8 9" />
+  </svg>
+);
+
+// ── Live Clock ────────────────────────────────────────────────────────────────
+function LiveClock() {
+  const [time, setTime] = useState(new Date());
   useEffect(() => {
-    const t = setInterval(() => setCurrentTime(new Date()), 1000);
+    const t = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
-
-  useEffect(() => { fetchLoc(); }, []);
-  useEffect(() => { openCam(); return () => stopStream(); }, []);
-  useEffect(() => {
-    if (stream && videoRef.current) videoRef.current.srcObject = stream;
-  }, [stream]);
-
-  const stopStream = () =>
-    setStream(prev => { prev?.getTracks().forEach(t => t.stop()); return null; });
-
-  const fetchLoc = () => {
-    setLoadingLoc(true);
-    if (!navigator.geolocation) {
-      setFormData(p => ({ ...p, location: "Geolocation not supported" }));
-      setLoadingLoc(false); return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      async pos => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        setCurrentLocation({ lat, lng });
-        try {
-          const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-          const data = await res.json();
-          setFormData(p => ({ ...p, location: data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}` }));
-        } catch {
-          setFormData(p => ({ ...p, location: `${lat.toFixed(5)}, ${lng.toFixed(5)}` }));
-        }
-        setLoadingLoc(false);
-      },
-      () => { setFormData(p => ({ ...p, location: "Location unavailable" })); setLoadingLoc(false); }
-    );
-  };
-
-  const openCam = async () => {
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
-      setStream(s); setCamErr(false);
-    } catch { setCamErr(true); setShowCam(false); }
-  };
-
-  const capture = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const v = videoRef.current, c = canvasRef.current;
-    c.width = v.videoWidth; c.height = v.videoHeight;
-    const ctx = c.getContext("2d");
-    ctx.translate(c.width, 0); ctx.scale(-1, 1);
-    ctx.drawImage(v, 0, 0, c.width, c.height);
-    setFormData(p => ({ ...p, photo: c.toDataURL("image/jpeg", 0.9) }));
-    setShowCam(false); stopStream();
-  };
-
-  const retake = () => {
-    setFormData(p => ({ ...p, photo: null }));
-    setShowCam(true); openCam();
-  };
-
-  const confirm = async () => {
-    setIsSubmitting(true);
-    await new Promise(r => setTimeout(r, 1200));
-    onSubmit({ ...formData, timestamp: new Date(), coords: currentLocation });
-    setIsSubmitting(false);
-  };
-
-  const isIn = type === "in";
-  const accentBg = isIn
-    ? "linear-gradient(135deg, #0F2854, #1C4D8D)"
-    : "linear-gradient(135deg, #FF9500, #E07800)";
-
   return (
-    <>
-      <style>{`@keyframes pmSpin { to { transform: rotate(360deg); } }`}</style>
-
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 z-[500] flex items-center justify-end sm:justify-center p-0 sm:p-3"
-        style={{ background: "rgba(10,20,48,0.72)", backdropFilter: "blur(6px)" }}
-        onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-      >
-        {/* Modal */}
-        <div className="
-          w-full sm:max-w-[360px]
-          bg-white flex flex-col
-          rounded-t-[22px] sm:rounded-[24px]
-          overflow-hidden
-          max-h-[96dvh] sm:max-h-[90dvh]
-        " style={{ boxShadow: "0 32px 80px rgba(10,20,48,0.45)" }}>
-
-          {/* Header */}
-          <div style={{ background: accentBg }}
-            className="px-[18px] py-[13px] flex justify-between items-center shrink-0">
-            <div>
-              <p className="text-[#BDE8F5] text-[14px] font-bold">
-                {isIn ? "📍 Punch In" : "🏁 Punch Out"}
-              </p>
-              <p className="text-[rgba(189,232,245,0.6)] text-[11px] mt-0.5">
-                {currentTime.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
-                &nbsp;·&nbsp;
-                {currentTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[15px] border-none cursor-pointer shrink-0"
-              style={{ background: "rgba(189,232,245,0.15)", color: "#BDE8F5" }}
-            >✕</button>
-          </div>
-
-          {/* Camera / Photo area */}
-          <div className="relative bg-black overflow-hidden shrink-0"
-            style={{ aspectRatio: "3/4" }}>
-
-            {showCam && !camErr ? (
-              <video ref={videoRef} autoPlay playsInline muted
-                className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
-            ) : formData.photo ? (
-              <img src={formData.photo} alt="selfie" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-[#111] p-6">
-                <span className="text-[38px]">📷</span>
-                <p className="text-[#BDE8F5] text-[13px] text-center m-0 leading-relaxed">
-                  Camera access denied.<br />Please allow camera to continue.
-                </p>
-                <button onClick={openCam}
-                  className="bg-[#1C4D8D] text-[#BDE8F5] border-none px-[18px] py-2 rounded-lg text-[12px] cursor-pointer">
-                  Retry Camera
-                </button>
-              </div>
-            )}
-
-            {/* Location badge */}
-            <div className="absolute top-2.5 left-2.5 right-2.5 rounded-[11px] px-[11px] py-[7px] flex items-start gap-[7px]"
-              style={{ background: "rgba(10,20,48,0.65)", backdropFilter: "blur(8px)" }}>
-              <span className="text-[13px] shrink-0 mt-0.5">📍</span>
-              <div className="flex-1 min-w-0">
-                {loadingLoc ? (
-                  <p className="text-white/70 text-[10px] flex items-center gap-1 m-0">
-                    <span style={{ animation: "pmSpin 1s linear infinite", display: "inline-block" }}>⟳</span>
-                    Detecting location…
-                  </p>
-                ) : (
-                  <p className="text-white text-[10px] leading-snug m-0 line-clamp-2">{formData.location}</p>
-                )}
-              </div>
-              <button onClick={fetchLoc}
-                className="text-[14px] cursor-pointer shrink-0 p-0 border-none bg-transparent"
-                style={{ color: "rgba(189,232,245,0.7)" }}>↺</button>
-            </div>
-
-            {/* Bottom actions */}
-            <div className="absolute bottom-0 left-0 right-0 px-[18px] pb-[22px] pt-[18px]"
-              style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)" }}>
-
-              {showCam && !camErr ? (
-                <div className="flex items-center justify-between">
-                  <button onClick={onClose}
-                    className="text-white/70 text-[12px] cursor-pointer bg-transparent border-none py-1.5 px-1">
-                    Cancel
-                  </button>
-                  {/* Shutter */}
-                  <button onClick={capture}
-                    className="w-[66px] h-[66px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center"
-                    style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
-                    <div className="w-[54px] h-[54px] rounded-full flex items-center justify-center text-[22px]"
-                      style={{ background: "linear-gradient(135deg,#4988C4,#0F2854)" }}>📷</div>
-                  </button>
-                  <div className="w-14" />
-                </div>
-              ) : formData.photo ? (
-                <div className="flex gap-2.5">
-                  <button onClick={retake}
-                    className="flex-1 py-[11px] rounded-[11px] text-[13px] font-bold text-white cursor-pointer border"
-                    style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", borderColor: "rgba(255,255,255,0.25)" }}>
-                    ↩ Retake
-                  </button>
-                  <button onClick={confirm} disabled={isSubmitting}
-                    className="flex-1 py-[11px] rounded-[11px] text-[13px] font-bold text-white cursor-pointer border-none flex items-center justify-center gap-1.5"
-                    style={{ background: isSubmitting ? "rgba(73,136,196,0.7)" : accentBg }}>
-                    {isSubmitting
-                      ? <><span style={{ animation: "pmSpin 0.8s linear infinite", display: "inline-block" }}>⟳</span>Saving…</>
-                      : <><span>✓</span>Confirm {isIn ? "Punch In" : "Punch Out"}</>
-                    }
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          <canvas ref={canvasRef} className="hidden" />
-
-          {/* Notes */}
-          {!showCam && formData.photo && (
-            <div className="px-4 py-3 border-t border-[rgba(73,136,196,0.12)] shrink-0">
-              <p className="text-[#1C4D8D] text-[10px] font-semibold tracking-[0.5px] uppercase mb-1.5">
-                Notes (Optional)
-              </p>
-              <textarea rows={2}
-                className="w-full border border-[rgba(73,136,196,0.25)] rounded-[9px] px-[11px] py-2 text-[12px] text-[#0F2854] resize-none outline-none bg-[rgba(189,232,245,0.06)] box-border"
-                style={{ fontFamily: "inherit" }}
-                placeholder="Add any notes for this attendance record…"
-                value={formData.notes}
-                onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))}
-              />
-            </div>
-          )}
-        </div>
+    <div className="text-center py-1">
+      <div className="font-bold tabular-nums tracking-tight leading-none"
+        style={{ color: C.darkBlue, fontSize: "clamp(26px,7vw,46px)" }}>
+        {time.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
       </div>
-    </>
+      <div className="text-xs font-semibold mt-1.5" style={{ color: C.mutedText }}>
+        {time.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+      </div>
+    </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ATTENDANCE HISTORY (mock)
-// ─────────────────────────────────────────────────────────────────────────────
-const HISTORY = [
-  { date: "Fri, 28 Feb",  in: "09:02 AM", out: "06:18 PM", hrs: "9h 16m", status: "Present",  project: "AquaPark Dubai"     },
-  { date: "Thu, 27 Feb",  in: "08:55 AM", out: "05:45 PM", hrs: "8h 50m", status: "Present",  project: "Ocean World"         },
-  { date: "Wed, 26 Feb",  in: "09:30 AM", out: "06:00 PM", hrs: "8h 30m", status: "Present",  project: "WaveCrest Park"      },
-  { date: "Tue, 25 Feb",  in: "—",        out: "—",        hrs: "—",      status: "Leave",    project: "—"                   },
-  { date: "Mon, 24 Feb",  in: "09:05 AM", out: "06:30 PM", hrs: "9h 25m", status: "Present",  project: "Blue Lagoon Resort"  },
-];
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function Toast({ message, type, onDismiss }) {
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 4500);
+    return () => clearTimeout(t);
+  }, [onDismiss]);
+  const bg = type === "error" ? C.red : type === "success" ? C.green : C.blue;
+  return (
+    <div className="fixed bottom-6 left-1/2 z-[100] flex items-center gap-2 px-4 py-3 rounded-xl shadow-2xl text-white text-sm font-semibold"
+      style={{ backgroundColor: bg, transform: "translateX(-50%)", maxWidth: "90vw" }}>
+      <span>{type === "error" ? "⚠" : "✓"}</span>
+      <span>{message}</span>
+      <button onClick={onDismiss} className="ml-2 opacity-70 hover:opacity-100 text-xs">✕</button>
+    </div>
+  );
+}
 
-const statusPill = {
-  Present: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-  Leave:   "bg-amber-500/10  text-amber-500  border-amber-500/20",
-  Absent:  "bg-red-500/10    text-red-500    border-red-500/20",
-};
+// ── Camera Modal (with Notes field) ──────────────────────────────────────────
+function CameraModal({ type, onClose, onSubmit, loading }) {
+  const videoRef  = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const [photo,    setPhoto]    = useState(null);
+  const [location, setLocation] = useState("Fetching location…");
+  const [camError, setCamError] = useState(false);
+  const [camErrMsg, setCamErrMsg] = useState("Camera unavailable");
+  const [step,     setStep]     = useState("capture");
+  const [notes,    setNotes]    = useState("");
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MAIN PAGE
-// ─────────────────────────────────────────────────────────────────────────────
-export default function AttendancePage() {
-  const today = new Date().toLocaleDateString("en-GB", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
-  });
+  useEffect(() => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCamError(true);
+      setCamErrMsg("Camera not supported in this browser.");
+      return;
+    }
+    // Try without facingMode first (better desktop compat), fall back to facingMode
+    const tryCamera = (constraints) =>
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then(stream => {
+          streamRef.current = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            // Check if stream has active video tracks
+            const videoTracks = stream.getVideoTracks();
+            if (!videoTracks.length || videoTracks[0].readyState === "ended") {
+              setCamError(true);
+              setCamErrMsg("No active camera feed detected.");
+            }
+          }
+        });
 
-  const [showModal,   setShowModal]   = useState(false);
-  const [punchType,   setPunchType]   = useState("in");
-  const [punchIn,     setPunchIn]     = useState(null);
-  const [punchOut,    setPunchOut]    = useState(null);
-  const [activeProj,  setActiveProj]  = useState("");
-  const [workNotes,   setWorkNotes]   = useState("");
-  const [submitted,   setSubmitted]   = useState(false);
-  const [submitting,  setSubmitting]  = useState(false);
+    tryCamera({ video: true, audio: false })
+      .catch(() => tryCamera({ video: { facingMode: "user" }, audio: false }))
+      .catch(err => {
+        setCamError(true);
+        if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError")
+          setCamErrMsg("No camera found on this device.");
+        else if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError")
+          setCamErrMsg("Camera access denied. Allow it in browser settings.");
+        else if (err.name === "NotReadableError")
+          setCamErrMsg("Camera is in use by another app.");
+        else
+          setCamErrMsg(`Camera error: ${err.message}`);
+      });
 
-  const punched    = !!punchIn;
-  const punchedOut = !!punchOut;
+    navigator.geolocation?.getCurrentPosition(
+      pos => setLocation(`${pos.coords.latitude.toFixed(4)}°N, ${pos.coords.longitude.toFixed(4)}°E`),
+      ()  => setLocation("Location unavailable"),
+    );
 
-  const openIn  = () => { setPunchType("in");  setShowModal(true); };
-  const openOut = () => { setPunchType("out"); setShowModal(true); };
+    return () => streamRef.current?.getTracks().forEach(t => t.stop());
+  }, []);
 
-  const handlePunch = (data) => {
-    if (punchType === "in") setPunchIn(data);
-    else                    setPunchOut(data);
-    setShowModal(false);
+  const takePhoto = () => {
+    const v = videoRef.current, c = canvasRef.current;
+    c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
+    c.getContext("2d").drawImage(v, 0, 0);
+    setPhoto(c.toDataURL("image/jpeg", 0.85));
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    setStep("confirm");
   };
 
-  const fmt = d =>
-    d ? new Date(d.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "—";
-
-  const calcDuration = () => {
-    if (!punchIn || !punchOut) return null;
-    const diff = new Date(punchOut.timestamp) - new Date(punchIn.timestamp);
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    return `${h}h ${m}m`;
+  const retake = () => {
+    setPhoto(null); setStep("capture");
+    navigator.mediaDevices?.getUserMedia({ video: { facingMode: "user" }, audio: false })
+      .then(stream => { streamRef.current = stream; if (videoRef.current) videoRef.current.srcObject = stream; });
   };
 
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    await new Promise(r => setTimeout(r, 1400));
-    setSubmitting(false);
-    setSubmitted(true);
-  };
-
-  const reset = () => {
-    setPunchIn(null); setPunchOut(null);
-    setActiveProj(""); setWorkNotes(""); setSubmitted(false);
-  };
-
-  // ── Stats strip ──
-  const stats = [
-    { label: "This Month",    value: "21",   sub: "Days present",   color: "text-sky",          icon: Calendar     },
-    { label: "Avg Hours",     value: "8.9h", sub: "Per working day", color: "text-emerald-500",  icon: Clock        },
-    { label: "Leave Taken",   value: "2",    sub: "Days this month", color: "text-amber-500",    icon: Briefcase    },
-    { label: "On Time Rate",  value: "94%",  sub: "Before 9:30 AM",  color: "text-[#4988C4]",    icon: CheckCircle  },
-  ];
+  const isIn  = type === "in";
+  const accent = isIn ? C.darkBlue : C.orange;
 
   return (
-    <div className="animate-[fadeUp_0.35s_ease_both] max-w-[1100px] mx-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      style={{ backgroundColor: "rgba(15,40,84,0.6)", backdropFilter: "blur(6px)" }}
+      onClick={e => e.target === e.currentTarget && !loading && onClose()}>
+      <div className="w-full sm:w-[420px] rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+        style={{ backgroundColor: C.white, maxHeight: "90dvh" }}>
 
-      {/* ── Header ── */}
-      <div className="mb-6">
-        <p className="text-[11px] font-bold tracking-[2px] uppercase text-[#4988C4] mb-1">
-          Marketing Coordinator
-        </p>
-        <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#0F2854]">
-          Attendance
-        </h1>
-        <p className="text-[#4988C4] text-[13px] mt-1">{today}</p>
-      </div>
+        {/* Drag pill */}
+        <div className="flex justify-center pt-2.5 pb-0.5 sm:hidden">
+          <div className="w-9 h-1 rounded-full" style={{ backgroundColor: C.divider }} />
+        </div>
 
-      {/* ════════════ STATS STRIP ════════════ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        {stats.map((s, i) => (
-          <div key={i}
-            className="rounded-2xl border border-[rgba(73,136,196,0.15)] bg-white shadow-[0_2px_12px_rgba(15,40,84,0.06)] p-4 sm:p-5 hover:-translate-y-0.5 hover:shadow-[0_8px_28px_rgba(15,40,84,0.13)] transition-all duration-200">
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.5px] text-[#4988C4]/80 leading-tight">
-                {s.label}
-              </p>
-              <div className="w-7 h-7 rounded-lg bg-[rgba(73,136,196,0.08)] flex items-center justify-center shrink-0">
-                <s.icon size={13} className={s.color} />
-              </div>
-            </div>
-            <p className={`font-display text-3xl sm:text-[32px] font-extrabold ${s.color}`}>{s.value}</p>
-            <p className="text-[#4988C4] text-[10px] mt-1">{s.sub}</p>
+        {/* Header */}
+        <div className="px-5 py-3.5 flex items-center justify-between" style={{ backgroundColor: accent }}>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white opacity-70">
+              {isIn ? "Punch In" : "Punch Out"}
+            </p>
+            <h3 className="text-sm font-bold text-white mt-0.5">
+              {step === "capture" ? "Take a Selfie" : "Confirm & Submit"}
+            </h3>
           </div>
-        ))}
-      </div>
+          <button onClick={onClose} disabled={loading}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-sm"
+            style={{ backgroundColor: "rgba(255,255,255,0.18)", opacity: loading ? 0.4 : 0.8 }}>
+            ✕
+          </button>
+        </div>
 
-      {/* ════════════ MAIN GRID ════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
-
-        {/* ── LEFT: Today's Attendance ── */}
-        <div className="space-y-4">
-
-          {/* Punch Card */}
-          <div className="rounded-2xl border border-[rgba(73,136,196,0.15)] bg-white shadow-[0_2px_12px_rgba(15,40,84,0.06)] p-5 sm:p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-[#0F2854] to-[#1C4D8D] flex items-center justify-center shrink-0">
-                <UserCheck size={15} className="text-[#BDE8F5]" />
-              </div>
-              <div>
-                <p className="font-display font-bold text-[15px] text-[#0F2854]">Today's Attendance</p>
-                <p className="text-[#4988C4] text-[11px]">Punch in/out with camera &amp; geo-location</p>
-              </div>
-            </div>
-
-            {/* Status banner */}
-            <div className={`rounded-xl px-4 py-3.5 mb-5 border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-              !punched
-                ? "bg-[rgba(73,136,196,0.04)] border-[rgba(73,136,196,0.15)]"
-                : punchedOut
-                ? "bg-emerald-500/5 border-emerald-500/20"
-                : "bg-[rgba(52,199,89,0.04)] border-[rgba(52,199,89,0.25)]"
-            }`}>
-              <div className="flex-1 min-w-0">
-                <p className="text-[#0F2854] font-bold text-[14px] mb-2">
-                  {!punched
-                    ? "📍 Not Yet Punched In"
-                    : punchedOut
-                    ? "🏁 Session Complete"
-                    : "✅ Actively Working"}
-                </p>
-
-                {!punched && (
-                  <p className="text-[#4988C4] text-[12px]">
-                    Tap Punch In to record your attendance with selfie + location.
-                  </p>
-                )}
-
-                {punched && (
-                  <div className="flex flex-wrap gap-x-5 gap-y-3">
-                    {/* In card */}
-                    <div className="flex items-center gap-2.5">
-                      {punchIn.photo && (
-                        <img src={punchIn.photo} alt="in"
-                          className="w-11 h-11 rounded-[9px] object-cover border-2 border-emerald-500/50 shrink-0" />
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-emerald-500 text-[10px] font-bold mb-0.5">PUNCH IN</p>
-                        <p className="text-[#0F2854] text-[14px] font-bold">{fmt(punchIn)}</p>
-                        <p className="text-[#4988C4] text-[10px] truncate max-w-[160px]">
-                          📍 {punchIn.location || "Location captured"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Out card */}
-                    {punchedOut && (
-                      <>
-                        <div className="text-[#4988C4] text-[12px] self-center font-bold hidden sm:block">→</div>
-                        <div className="flex items-center gap-2.5">
-                          {punchOut.photo && (
-                            <img src={punchOut.photo} alt="out"
-                              className="w-11 h-11 rounded-[9px] object-cover border-2 border-[#4988C4]/50 shrink-0" />
-                          )}
-                          <div className="min-w-0">
-                            <p className="text-[#4988C4] text-[10px] font-bold mb-0.5">PUNCH OUT</p>
-                            <p className="text-[#0F2854] text-[14px] font-bold">{fmt(punchOut)}</p>
-                            <p className="text-[#4988C4] text-[10px] truncate max-w-[160px]">
-                              📍 {punchOut.location || "Location captured"}
-                            </p>
-                          </div>
-                        </div>
-                        {calcDuration() && (
-                          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[rgba(73,136,196,0.08)] border border-[rgba(73,136,196,0.15)] self-start">
-                            <Clock size={12} className="text-[#4988C4]" />
-                            <span className="text-[#0F2854] text-[13px] font-bold">{calcDuration()}</span>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex gap-2.5 flex-wrap sm:flex-nowrap sm:flex-col shrink-0">
-                {!punched && (
-                  <button onClick={openIn}
-                    className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-bold text-[#BDE8F5] border-none cursor-pointer flex-1 sm:flex-none justify-center"
-                    style={{ background: "linear-gradient(135deg,#0F2854,#1C4D8D)" }}>
-                    <LogIn size={14} /> Punch In
-                  </button>
-                )}
-                {punched && !punchedOut && (
-                  <button onClick={openOut}
-                    className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-bold text-white border-none cursor-pointer flex-1 sm:flex-none justify-center"
-                    style={{ background: "linear-gradient(135deg,#FF9500,#E07800)" }}>
-                    <LogOut size={14} /> Punch Out
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Warning if not punched */}
-            {!punched && (
-              <div className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 mb-5 bg-amber-500/7 border border-amber-500/25">
-                <AlertCircle size={14} className="text-amber-500 shrink-0" />
-                <p className="text-amber-500 text-[12px] font-medium m-0">
-                  Please punch in to log your attendance for today.
-                </p>
-              </div>
-            )}
-
-            {/* Active Project */}
-            <div className="mb-4">
-              <label className="block text-[10.5px] font-bold uppercase tracking-[0.6px] text-[#1C4D8D] mb-1.5">
-                Active Project Today
-              </label>
-              <select
-                value={activeProj}
-                onChange={e => setActiveProj(e.target.value)}
-                className="w-full bg-slate-50 border border-[rgba(73,136,196,0.25)] rounded-xl px-3.5 py-2.5 text-[13px] text-[#0F2854] outline-none cursor-pointer focus:border-[#4988C4] focus:ring-2 focus:ring-[rgba(73,136,196,0.15)] transition-all"
-                style={{ fontFamily: "inherit" }}
-              >
-                <option value="">Select project you're working on</option>
-                {PROJECTS.map(p => (
-                  <option key={p.id} value={p.id}>{p.id} — {p.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Work Notes */}
-            <div className="mb-5">
-              <label className="block text-[10.5px] font-bold uppercase tracking-[0.6px] text-[#1C4D8D] mb-1.5">
-                Work Summary / Notes
-              </label>
-              <textarea
-                rows={3}
-                value={workNotes}
-                onChange={e => setWorkNotes(e.target.value)}
-                placeholder="Brief summary of today's work activities…"
-                className="w-full bg-slate-50 border border-[rgba(73,136,196,0.25)] rounded-xl px-3.5 py-2.5 text-[13px] text-[#0F2854] outline-none resize-none focus:border-[#4988C4] focus:ring-2 focus:ring-[rgba(73,136,196,0.15)] transition-all"
-                style={{ fontFamily: "inherit" }}
-              />
-            </div>
-
-            {/* Submit */}
-            {!submitted ? (
+        {/* Camera viewport — fixed height, never taller than 280px */}
+        <div className="relative bg-black w-full flex-shrink-0" style={{ height: "clamp(200px, 40vw, 280px)" }}>
+          {camError ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6" style={{ backgroundColor: C.bg }}>
+              <span style={{ color: C.medBlue }}><CameraIcon /></span>
+              <p className="text-xs font-semibold text-center" style={{ color: C.mutedText }}>{camErrMsg}</p>
               <button
-                onClick={handleSubmit}
-                disabled={!punched || submitting}
-                className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-[13px] font-bold text-white border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
-                style={{ background: "linear-gradient(135deg,#34C759,#2EA44F)", fontFamily: "inherit" }}
-              >
-                {submitting
-                  ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Submitting…</>
-                  : <><CheckCircle size={14} />Submit Attendance</>
-                }
+                onClick={() => { setStep("confirm"); setPhoto(null); }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white"
+                style={{ backgroundColor: accent }}>
+                Skip Photo & Continue →
               </button>
-            ) : (
-              <div className="rounded-xl bg-emerald-500/8 border border-emerald-500/25 px-4 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <CheckCircle size={18} className="text-emerald-500 shrink-0" />
-                  <div>
-                    <p className="text-emerald-600 font-bold text-[13px] m-0">Attendance Submitted!</p>
-                    <p className="text-[#4988C4] text-[11px] m-0">
-                      {fmt(punchIn)} – {fmt(punchOut)} · {calcDuration() || "—"}
-                    </p>
-                  </div>
-                </div>
-                <button onClick={reset}
-                  className="text-[11px] font-semibold text-[#4988C4] border border-[rgba(73,136,196,0.25)] rounded-lg px-3 py-1.5 cursor-pointer hover:bg-[rgba(73,136,196,0.08)] transition-colors bg-transparent whitespace-nowrap"
-                  style={{ fontFamily: "inherit" }}>
-                  Reset
-                </button>
-              </div>
-            )}
+            </div>
+          ) : step === "capture" ? (
+            <video ref={videoRef} autoPlay playsInline muted
+              className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
+          ) : photo ? (
+            <img src={photo} alt="selfie"
+              className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
+          ) : (
+            // No photo — skipped camera
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ backgroundColor: C.bg }}>
+              <span className="text-4xl">👤</span>
+              <p className="text-xs font-semibold" style={{ color: C.mutedText }}>No photo captured</p>
+            </div>
+          )}
+          <canvas ref={canvasRef} className="hidden" />
+          {step === "capture" && !camError && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="border-2 border-white rounded-full"
+                style={{ width: "42%", aspectRatio: "3/4", opacity: 0.45 }} />
+            </div>
+          )}
+          {step === "confirm" && (
+            <div className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-white shadow-lg"
+              style={{ backgroundColor: C.green }}>
+              <CheckIcon />
+            </div>
+          )}
+        </div>
+
+        {/* Scrollable bottom — location + notes + buttons always reachable */}
+        <div className="overflow-y-auto">
+
+        <div className="px-4 py-2.5 flex items-center gap-2"
+          style={{ backgroundColor: C.bg, borderBottom: `1px solid ${C.divider}` }}>
+          <span style={{ color: C.medBlue }}><MapPinIcon /></span>
+          <span className="text-xs font-medium truncate" style={{ color: C.mutedText }}>{location}</span>
+        </div>
+
+        {step === "confirm" && (
+          <div className="px-4 pt-3 pb-0">
+            <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider mb-1.5"
+              style={{ color: C.mutedText }}>
+              <NoteIcon /> Notes <span className="font-normal normal-case tracking-normal" style={{ color: C.dimText }}>(optional)</span>
+            </label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder={isIn ? "e.g. Starting site inspection…" : "e.g. Completed all tasks for today."}
+              rows={2}
+              maxLength={300}
+              disabled={loading}
+              className="w-full text-sm rounded-xl px-3 py-2 resize-none outline-none disabled:opacity-50"
+              style={{
+                border: `1.5px solid ${C.divider}`,
+                color: C.darkBlue,
+                backgroundColor: C.bg,
+                fontFamily: "inherit",
+              }}
+            />
+            <p className="text-right text-[10px] mt-0.5" style={{ color: C.dimText }}>
+              {notes.length}/300
+            </p>
           </div>
+        )}
 
-          {/* ── Attendance History ── */}
-          <div className="rounded-2xl border border-[rgba(73,136,196,0.15)] bg-white shadow-[0_2px_12px_rgba(15,40,84,0.06)] overflow-hidden">
-            <div className="px-5 sm:px-6 py-4 border-b border-[rgba(73,136,196,0.1)] flex items-center gap-3">
-              <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-[#0F2854] to-[#1C4D8D] flex items-center justify-center shrink-0">
-                <Calendar size={14} className="text-[#BDE8F5]" />
+        {/* Action buttons */}
+        <div className="px-4 py-4 flex gap-3">
+          {step === "capture" ? (
+            <>
+              <button onClick={onClose} disabled={loading}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold border"
+                style={{ borderColor: C.divider, color: C.mutedText, backgroundColor: C.white }}>
+                Cancel
+              </button>
+              <button onClick={() => { setStep("confirm"); setPhoto(null); }} disabled={loading}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold border disabled:opacity-40"
+                style={{ borderColor: C.divider, color: C.mutedText, backgroundColor: C.white }}>
+                Skip Photo
+              </button>
+              <button onClick={takePhoto} disabled={camError || loading}
+                className="flex-1 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-40"
+                style={{ backgroundColor: accent }}>
+                📷 Capture
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={retake} disabled={loading}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold border disabled:opacity-40"
+                style={{ borderColor: C.divider, color: C.mutedText, backgroundColor: C.white }}>
+                Retake
+              </button>
+              <button
+                onClick={() => onSubmit({ photo, location, notes: notes.trim(), timestamp: new Date().toISOString() })}
+                disabled={loading}
+                className="flex-1 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{ backgroundColor: accent }}>
+                {loading
+                  ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving…</>
+                  : "✓ Confirm"}
+              </button>
+            </>
+          )}
+        </div>
+        </div> {/* end scrollable */}
+      </div>
+    </div>
+  );
+}
+
+// ── Stat Card ─────────────────────────────────────────────────────────────────
+function StatCard({ label, value, icon: Ic, barColor, valueColor }) {
+  return (
+    <div className="relative bg-white rounded-xl overflow-hidden shadow-sm flex flex-col gap-1.5"
+      style={{ border: `1px solid ${C.lightBlue}`, padding: "10px 12px 12px" }}>
+      <div className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: barColor }} />
+      <div className="flex items-center gap-1.5">
+        <span style={{ color: barColor }}><Ic /></span>
+        <span className="font-semibold uppercase tracking-wider leading-tight"
+          style={{ color: C.dimText, fontSize: "clamp(9px,2.5vw,11px)" }}>
+          {label}
+        </span>
+      </div>
+      <div className="font-bold leading-tight truncate"
+        style={{ color: valueColor || C.darkBlue, fontSize: "clamp(15px,4.5vw,22px)" }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+// ── Desktop Log Row (my sessions) ─────────────────────────────────────────────
+function LogRow({ entry, idx }) {
+  const [hov, setHov] = useState(false);
+  const dur = () => {
+    if (!entry.out) return "Ongoing";
+    const ms = new Date(entry.out.timestamp) - new Date(entry.in.timestamp);
+    return `${Math.floor(ms / 3600000)}h ${Math.floor((ms % 3600000) / 60000)}m`;
+  };
+  const fmt = d => d
+    ? new Date(d.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+    : "—";
+
+  return (
+    <tr onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      style={{ backgroundColor: hov ? C.bg : "transparent", borderBottom: `1px solid ${C.divider}`, transition: "background 0.15s" }}>
+      <td className="px-4 py-3 text-sm font-semibold" style={{ color: C.blue }}>
+        {String(idx + 1).padStart(2, "0")}
+      </td>
+      <td className="px-4 py-3 text-sm font-medium whitespace-nowrap" style={{ color: C.darkBlue }}>{fmt(entry.in)}</td>
+      <td className="px-4 py-3 text-sm whitespace-nowrap" style={{ color: C.darkBlue }}>
+        {entry.out ? fmt(entry.out) : <span className="text-xs font-bold" style={{ color: C.orange }}>Active</span>}
+      </td>
+      <td className="px-4 py-3 text-sm whitespace-nowrap" style={{ color: C.mutedText }}>{dur()}</td>
+      <td className="px-4 py-3 whitespace-nowrap">
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
+          style={entry.out
+            ? { backgroundColor: C.lightBlue, color: C.darkBlue }
+            : { backgroundColor: "#fff3e0", color: C.orange }}>
+          {entry.out ? "Completed" : "In Progress"}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-xs" style={{ color: C.dimText, maxWidth: 140 }}>
+        <span className="block truncate">{entry.in?.location || "—"}</span>
+      </td>
+      {/* ── NEW: Notes column ── */}
+      <td className="px-4 py-3 text-xs" style={{ color: C.dimText, maxWidth: 160 }}>
+        {entry.notes
+          ? <span className="block truncate" title={entry.notes}>{entry.notes}</span>
+          : <span style={{ color: C.divider }}>—</span>}
+      </td>
+    </tr>
+  );
+}
+
+// ── Mobile Log Card ───────────────────────────────────────────────────────────
+function MobileLogCard({ entry, idx }) {
+  const dur = () => {
+    if (!entry.out) return "Ongoing";
+    const ms = new Date(entry.out.timestamp) - new Date(entry.in.timestamp);
+    return `${Math.floor(ms / 3600000)}h ${Math.floor((ms % 3600000) / 60000)}m`;
+  };
+  const fmt = d => d
+    ? new Date(d.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+    : "—";
+
+  return (
+    <div className="px-4 py-3 flex items-start gap-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
+      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
+        style={{ backgroundColor: C.bg, color: C.blue }}>
+        {String(idx + 1).padStart(2, "0")}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: C.green }}>IN</span>
+            <span className="text-sm font-semibold" style={{ color: C.darkBlue }}>{fmt(entry.in)}</span>
+          </div>
+          {entry.out && (
+            <>
+              <span style={{ color: C.dimText }}>→</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: C.orange }}>OUT</span>
+                <span className="text-sm font-semibold" style={{ color: C.darkBlue }}>{fmt(entry.out)}</span>
               </div>
-              <div>
-                <p className="font-display font-bold text-[14px] text-[#0F2854]">Recent Attendance</p>
-                <p className="text-[#4988C4] text-[11px]">Last 5 working days</p>
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+          <span className="text-xs" style={{ color: C.mutedText }}>{dur()}</span>
+          {entry.in?.location && (
+            <>
+              <span className="text-xs" style={{ color: C.divider }}>·</span>
+              <div className="flex items-center gap-1 min-w-0">
+                <MapPinIcon cls="w-3 h-3" />
+                <span className="text-xs truncate" style={{ color: C.dimText, maxWidth: 140 }}>
+                  {entry.in.location}
+                </span>
               </div>
-            </div>
+            </>
+          )}
+        </div>
+        {/* ── NEW: notes on mobile ── */}
+        {entry.notes && (
+          <div className="flex items-start gap-1 mt-1 min-w-0">
+            <span style={{ color: C.medBlue, marginTop: 1 }}><NoteIcon /></span>
+            <span className="text-xs" style={{ color: C.dimText }}>{entry.notes}</span>
+          </div>
+        )}
+      </div>
+      <span className="text-[11px] font-semibold px-2 py-0.5 rounded flex-shrink-0 mt-0.5"
+        style={entry.out
+          ? { backgroundColor: C.lightBlue, color: C.darkBlue }
+          : { backgroundColor: "#fff3e0", color: C.orange }}>
+        {entry.out ? "Done" : "Active"}
+      </span>
+    </div>
+  );
+}
 
-            {/* Desktop table */}
-            <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full border-collapse text-[13px]">
-                <thead>
-                  <tr className="bg-[rgba(189,232,245,0.18)]">
-                    {["Date", "Punch In", "Punch Out", "Hours", "Project", "Status"].map(h => (
-                      <th key={h}
-                        className="px-4 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-[0.5px] text-[#1C4D8D]">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {HISTORY.map((row, i) => (
-                    <tr key={i} className="border-t border-[rgba(73,136,196,0.08)] hover:bg-[rgba(189,232,245,0.06)] transition-colors">
-                      <td className="px-4 py-3 text-[#0F2854] font-semibold text-[12px] whitespace-nowrap">{row.date}</td>
-                      <td className="px-4 py-3 text-[#1C4D8D] font-bold text-[12px]">{row.in}</td>
-                      <td className="px-4 py-3 text-[#1C4D8D] font-bold text-[12px]">{row.out}</td>
-                      <td className="px-4 py-3 text-[#0F2854] font-bold text-[12px]">{row.hrs}</td>
-                      <td className="px-4 py-3 text-[#4988C4] text-[11px] max-w-[140px] truncate">{row.project}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${statusPill[row.status] || statusPill.Present}`}>
-                          {row.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+// ── Admin Row (all-staff table) ───────────────────────────────────────────────
+function AdminRow({ entry, idx }) {
+  const [hov, setHov] = useState(false);
+  const dur = () => {
+    if (!entry.out) return "Ongoing";
+    const ms = new Date(entry.out.timestamp) - new Date(entry.in.timestamp);
+    return `${Math.floor(ms / 3600000)}h ${Math.floor((ms % 3600000) / 60000)}m`;
+  };
+  const fmt = d => d
+    ? new Date(d.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+    : "—";
+  const fmtDate = d => d
+    ? new Date(d.timestamp).toLocaleDateString("en-US", { day: "numeric", month: "short" })
+    : "—";
 
-            {/* Mobile cards */}
-            <div className="sm:hidden divide-y divide-[rgba(73,136,196,0.08)]">
-              {HISTORY.map((row, i) => (
-                <div key={i} className="px-4 py-3.5">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div>
-                      <p className="text-[#0F2854] font-bold text-[13px] mb-0.5">{row.date}</p>
-                      <p className="text-[#4988C4] text-[11px]">{row.project}</p>
-                    </div>
-                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border shrink-0 ${statusPill[row.status] || statusPill.Present}`}>
-                      {row.status}
+  return (
+    <tr onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      style={{ backgroundColor: hov ? C.bg : "transparent", borderBottom: `1px solid ${C.divider}`, transition: "background 0.15s" }}>
+      <td className="px-4 py-3 text-sm font-semibold" style={{ color: C.blue }}>
+        {String(idx + 1).padStart(2, "0")}
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+            style={{ backgroundColor: C.blue }}>
+            {(entry.userName || "?")[0].toUpperCase()}
+          </div>
+          <span className="text-sm font-medium truncate" style={{ color: C.darkBlue, maxWidth: 120 }}>
+            {entry.userName || entry.userId || "Unknown"}
+          </span>
+        </div>
+      </td>
+      <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: C.mutedText }}>{fmtDate(entry.in)}</td>
+      <td className="px-4 py-3 text-sm whitespace-nowrap" style={{ color: C.darkBlue }}>{fmt(entry.in)}</td>
+      <td className="px-4 py-3 text-sm whitespace-nowrap" style={{ color: C.darkBlue }}>
+        {entry.out ? fmt(entry.out) : <span className="text-xs font-bold" style={{ color: C.orange }}>Active</span>}
+      </td>
+      <td className="px-4 py-3 text-sm whitespace-nowrap" style={{ color: C.mutedText }}>{dur()}</td>
+      <td className="px-4 py-3 whitespace-nowrap">
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
+          style={entry.out
+            ? { backgroundColor: C.lightBlue, color: C.darkBlue }
+            : { backgroundColor: "#fff3e0", color: C.orange }}>
+          {entry.out ? "Completed" : "Active"}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-xs" style={{ color: C.dimText, maxWidth: 160 }}>
+        {entry.notes
+          ? <span className="block truncate" title={entry.notes}>{entry.notes}</span>
+          : <span style={{ color: C.divider }}>—</span>}
+      </td>
+    </tr>
+  );
+}
+
+// ── Admin Mobile Card ─────────────────────────────────────────────────────────
+function AdminMobileCard({ entry, idx }) {
+  const dur = () => {
+    if (!entry.out) return "Ongoing";
+    const ms = new Date(entry.out.timestamp) - new Date(entry.in.timestamp);
+    return `${Math.floor(ms / 3600000)}h ${Math.floor((ms % 3600000) / 60000)}m`;
+  };
+  const fmt = d => d
+    ? new Date(d.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+    : "—";
+  const fmtDate = d => d
+    ? new Date(d.timestamp).toLocaleDateString("en-US", { day: "numeric", month: "short" })
+    : "—";
+
+  return (
+    <div className="px-4 py-3 flex items-start gap-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
+      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+        style={{ backgroundColor: C.blue }}>
+        {(entry.userName || "?")[0].toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm font-semibold truncate" style={{ color: C.darkBlue }}>
+            {entry.userName || entry.userId || "Unknown"}
+          </span>
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded flex-shrink-0"
+            style={entry.out
+              ? { backgroundColor: C.lightBlue, color: C.darkBlue }
+              : { backgroundColor: "#fff3e0", color: C.orange }}>
+            {entry.out ? "Done" : "Active"}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          <span className="text-[10px]" style={{ color: C.dimText }}>{fmtDate(entry.in)}</span>
+          <span className="text-xs font-medium" style={{ color: C.green }}>{fmt(entry.in)}</span>
+          {entry.out && <><span style={{ color: C.dimText }}>→</span><span className="text-xs font-medium" style={{ color: C.orange }}>{fmt(entry.out)}</span></>}
+          <span className="text-xs" style={{ color: C.mutedText }}>· {dur()}</span>
+        </div>
+        {entry.notes && (
+          <div className="flex items-start gap-1 mt-0.5">
+            <span style={{ color: C.medBlue, marginTop: 1 }}><NoteIcon /></span>
+            <span className="text-xs" style={{ color: C.dimText }}>{entry.notes}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+export default function AttendancePage() {
+  const [modal,      setModal]      = useState(null);   // null | "in" | "out"
+  const [sessions,   setSessions]   = useState([]);
+  const [allRecords, setAllRecords] = useState([]);     // admin view
+  const [loading,    setLoading]    = useState(false);  // punch API in-flight
+  const [fetching,   setFetching]   = useState(true);
+  const [adminFetch, setAdminFetch] = useState(false);
+  const [animPulse,  setAnimPulse]  = useState(false);
+  const [toast,      setToast]      = useState(null);
+  // ── NEW: tab for admin toggle ──
+  const [tab,        setTab]        = useState("my");   // "my" | "all"
+  // ── NEW: isAdmin flag — set from your auth context or decode JWT ──────────
+  // Replace this with your real role check (e.g. useAuth().user.role === "admin")
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const showToast = useCallback((message, type = "success") => {
+    setToast({ message, type });
+  }, []);
+
+  // Read role from the 'user' object stored by your auth service
+  useEffect(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      if (user.role === "admin" || user.role === "director") setIsAdmin(true);
+    } catch { /* ignore */ }
+  }, []);
+
+  // ── Load my sessions ──────────────────────────────────────────────────────
+  const loadSessions = useCallback(async () => {
+    setFetching(true);
+    try {
+      const records = await api.getMyAttendance();
+      const todayStr = new Date().toDateString();
+      const today = records.filter(r => {
+        const ts = r.punchInTime || r.punchIn || r.checkIn || r.clockIn || r.startTime || r.date;
+        return ts && new Date(ts).toDateString() === todayStr;
+      });
+      setSessions(today.map(normalise));
+    } catch (err) {
+      showToast(err.message, "error");
+    } finally {
+      setFetching(false);
+    }
+  }, [showToast]);
+
+  // ── Load all attendance (admin) ───────────────────────────────────────────
+  const loadAllAttendance = useCallback(async () => {
+    setAdminFetch(true);
+    try {
+      const records = await api.getAllAttendance();
+      setAllRecords(records.map(normalise));
+    } catch (err) {
+      showToast(err.message, "error");
+    } finally {
+      setAdminFetch(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => { loadSessions(); }, [loadSessions]);
+
+  // Load all records when admin switches to "all" tab
+  useEffect(() => {
+    if (tab === "all" && isAdmin && allRecords.length === 0) {
+      loadAllAttendance();
+    }
+  }, [tab, isAdmin, allRecords.length, loadAllAttendance]);
+
+  // ── Punch In / Out ────────────────────────────────────────────────────────
+  const handlePunch = async ({ location, notes }) => {
+    setLoading(true);
+    try {
+      if (modal === "in") {
+        const record = await api.punchIn(location, notes);
+        setSessions(prev => [...prev, normalise(record)]);
+        showToast("Punched in successfully!");
+      } else {
+        const record = await api.punchOut();
+        const updated = normalise(record);
+        setSessions(prev =>
+          prev.map(s => (!s.out || s.id === updated.id) ? updated : s)
+        );
+        showToast("Punched out successfully!");
+      }
+      setModal(null);
+      setAnimPulse(true);
+      setTimeout(() => setAnimPulse(false), 700);
+    } catch (err) {
+      showToast(err.message, "error");
+      // If already punched in, reload to surface the existing active session
+      if (err.message?.toLowerCase().includes("already")) {
+        setModal(null);
+        loadSessions();
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+  const activeSession = sessions.find(s => !s.out) || null;
+  const isPunchedIn   = !!activeSession;
+  const totalSessions = sessions.length;
+  const totalHours    = sessions
+    .reduce((acc, s) => {
+      if (!s.out) return acc;
+      return acc + (new Date(s.out.timestamp) - new Date(s.in.timestamp)) / 3600000;
+    }, 0)
+    .toFixed(1);
+
+  const fmt = d => d
+    ? new Date(d.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+    : "";
+
+  const today = new Date().toLocaleDateString("en-US", {
+    day: "numeric", month: "long", year: "numeric",
+  });
+
+  return (
+    <div className="min-h-screen" style={{ backgroundColor: C.bg }}>
+      <main className="p-3 sm:p-4 md:p-5 space-y-4 max-w-2xl mx-auto">
+
+        {/* Heading + refresh */}
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: C.medBlue }}>
+              {today} · Field Attendance
+            </p>
+            <h1 className="text-xl font-bold mt-0.5" style={{ color: C.darkBlue }}>Attendance</h1>
+          </div>
+          <button
+            onClick={tab === "my" ? loadSessions : loadAllAttendance}
+            disabled={fetching || adminFetch}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border disabled:opacity-50"
+            style={{ borderColor: C.divider, color: C.mutedText, backgroundColor: C.white }}
+            title="Refresh from server">
+            <span className={(fetching || adminFetch) ? "animate-spin" : ""}><RefreshIcon /></span>
+            {(fetching || adminFetch) ? "Loading…" : "Refresh"}
+          </button>
+        </div>
+
+        {/* Stat cards */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <StatCard label="Sessions" value={String(totalSessions)} icon={CalendarIcon} barColor={C.darkBlue} />
+          <StatCard label="Hours"    value={`${totalHours}h`}      icon={ClockIcon}    barColor={C.blue} />
+          <StatCard
+            label="Status"
+            value={isPunchedIn ? "On-Site" : "Off-Site"}
+            icon={UserIcon}
+            barColor={isPunchedIn ? C.green : C.medBlue}
+            valueColor={isPunchedIn ? C.green : C.darkBlue}
+          />
+        </div>
+
+        {/* Punch card */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden"
+          style={{
+            border: `1px solid ${isPunchedIn ? "rgba(52,199,89,0.35)" : C.lightBlue}`,
+            transition: "border-color 0.4s",
+          }}>
+          <div className="h-[3px]"
+            style={{ backgroundColor: isPunchedIn ? C.green : C.darkBlue, transition: "background-color 0.4s" }} />
+          <div className="p-4 sm:p-6">
+            <LiveClock />
+            <div className="my-4" style={{ borderTop: `1px solid ${C.divider}` }} />
+
+            {isPunchedIn && (
+              <div className="mb-4 p-3 rounded-xl flex flex-wrap items-center gap-3"
+                style={{ backgroundColor: "rgba(52,199,89,0.05)", border: "1px solid rgba(52,199,89,0.2)" }}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: C.green }}>
+                      ● Punched In
+                    </span>
+                    <span className="text-sm font-bold" style={{ color: C.darkBlue }}>
+                      {fmt(activeSession.in)}
                     </span>
                   </div>
-                  <div className="flex gap-4 text-[12px]">
-                    <div>
-                      <p className="text-[#4988C4] text-[9px] font-bold uppercase tracking-[0.4px] mb-0.5">In</p>
-                      <p className="text-[#1C4D8D] font-bold">{row.in}</p>
-                    </div>
-                    <div>
-                      <p className="text-[#4988C4] text-[9px] font-bold uppercase tracking-[0.4px] mb-0.5">Out</p>
-                      <p className="text-[#1C4D8D] font-bold">{row.out}</p>
-                    </div>
-                    <div>
-                      <p className="text-[#4988C4] text-[9px] font-bold uppercase tracking-[0.4px] mb-0.5">Hours</p>
-                      <p className="text-[#0F2854] font-bold">{row.hrs}</p>
-                    </div>
+                  <div className="flex items-center gap-1.5 mt-0.5" style={{ color: C.mutedText }}>
+                    <MapPinIcon cls="w-3 h-3" />
+                    <span className="text-xs truncate">{activeSession.in?.location || "Location captured"}</span>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ── RIGHT: Info panel ── */}
-        <div className="space-y-4">
-
-          {/* Today Summary Card */}
-          <div className="rounded-2xl border border-[rgba(73,136,196,0.15)] bg-white shadow-[0_2px_12px_rgba(15,40,84,0.06)] p-5 lg:sticky lg:top-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-[#0F2854] to-[#1C4D8D] flex items-center justify-center shrink-0">
-                <FileText size={13} className="text-[#BDE8F5]" />
-              </div>
-              <p className="font-display font-bold text-[14px] text-[#0F2854]">Today's Summary</p>
-            </div>
-
-            <div className="space-y-3">
-              {[
-                { k: "Employee",  v: COORDINATOR.name,   icon: "👤" },
-                { k: "ID",        v: COORDINATOR.id,     icon: "🪪" },
-                { k: "Role",      v: COORDINATOR.role,   icon: "💼" },
-                { k: "Date",      v: new Date().toLocaleDateString("en-GB"), icon: "📅" },
-                { k: "Punch In",  v: fmt(punchIn),       icon: "🟢" },
-                { k: "Punch Out", v: fmt(punchOut),      icon: "🔴" },
-                { k: "Duration",  v: calcDuration() || "—", icon: "⏱" },
-                { k: "Project",   v: PROJECTS.find(p => p.id === activeProj)?.name || "Not set", icon: "📁" },
-              ].map(({ k, v, icon }) => (
-                <div key={k}
-                  className="flex items-center justify-between gap-3 py-2 border-b border-[rgba(73,136,196,0.07)] last:border-0">
-                  <div className="flex items-center gap-2 text-[#4988C4] text-[12px]">
-                    <span className="text-[11px]">{icon}</span>
-                    {k}
-                  </div>
-                  <span className="text-[#0F2854] text-[12px] font-bold text-right truncate max-w-[120px]">{v}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Visual punch status */}
-            <div className="mt-5 pt-4 border-t border-[rgba(73,136,196,0.1)]">
-              <p className="text-[10px] font-bold uppercase tracking-[0.5px] text-[#4988C4]/70 mb-3">Status</p>
-              <div className="flex items-center gap-2">
-                {/* In dot */}
-                <div className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition-all ${
-                  punched ? "bg-emerald-500/8 border-emerald-500/25" : "bg-[rgba(73,136,196,0.04)] border-[rgba(73,136,196,0.12)]"
-                }`}>
-                  <LogIn size={16} className={punched ? "text-emerald-500" : "text-[#4988C4]/30"} />
-                  <span className={`text-[10px] font-bold ${punched ? "text-emerald-600" : "text-[#4988C4]/40"}`}>
-                    {punched ? fmt(punchIn) : "—"}
-                  </span>
-                  <span className="text-[9px] text-[#4988C4]/60">IN</span>
-                </div>
-
-                {/* Arrow */}
-                <ChevronRight size={14} className="text-[rgba(73,136,196,0.3)] shrink-0" />
-
-                {/* Out dot */}
-                <div className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition-all ${
-                  punchedOut ? "bg-[rgba(73,136,196,0.08)] border-[rgba(73,136,196,0.25)]" : "bg-[rgba(73,136,196,0.04)] border-[rgba(73,136,196,0.12)]"
-                }`}>
-                  <LogOut size={16} className={punchedOut ? "text-[#4988C4]" : "text-[#4988C4]/30"} />
-                  <span className={`text-[10px] font-bold ${punchedOut ? "text-[#1C4D8D]" : "text-[#4988C4]/40"}`}>
-                    {punchedOut ? fmt(punchOut) : "—"}
-                  </span>
-                  <span className="text-[9px] text-[#4988C4]/60">OUT</span>
+                  {activeSession.notes && (
+                    <div className="flex items-start gap-1.5 mt-1">
+                      <span style={{ color: C.medBlue, marginTop: 1 }}><NoteIcon /></span>
+                      <span className="text-xs" style={{ color: C.dimText }}>{activeSession.notes}</span>
+                    </div>
+                  )}
                 </div>
               </div>
+            )}
 
-              {/* Duration bar */}
-              {punched && punchedOut && (
-                <div className="mt-3 flex items-center gap-2">
-                  <Clock size={11} className="text-[#4988C4] shrink-0" />
-                  <div className="flex-1 h-1.5 bg-[rgba(73,136,196,0.12)] rounded-full overflow-hidden">
-                    <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-[#4988C4] rounded-full"
-                      style={{ width: `${Math.min(100, ((new Date(punchOut.timestamp) - new Date(punchIn.timestamp)) / (9 * 3600000)) * 100)}%` }}
-                    />
+            <div className="flex gap-3">
+              {!isPunchedIn ? (
+                <button
+                  onClick={() => setModal("in")}
+                  disabled={fetching}
+                  className="flex-1 py-3.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-50"
+                  style={{ background: `linear-gradient(135deg, ${C.darkBlue}, ${C.blue})` }}>
+                  📍 Punch In
+                </button>
+              ) : (
+                <>
+                  <div className="flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold"
+                    style={{ backgroundColor: "rgba(52,199,89,0.07)", color: C.green, border: "1px solid rgba(52,199,89,0.25)" }}>
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${animPulse ? "animate-ping" : "animate-pulse"}`}
+                      style={{ backgroundColor: C.green }} />
+                    On-Site
                   </div>
-                  <span className="text-[#0F2854] text-[11px] font-bold whitespace-nowrap shrink-0">
-                    {calcDuration()}
-                  </span>
-                </div>
+                  <button
+                    onClick={() => setModal("out")}
+                    disabled={fetching}
+                    className="flex-1 py-3.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-50"
+                    style={{ background: `linear-gradient(135deg, ${C.orange}, #FF9500)` }}>
+                    🏁 Punch Out
+                  </button>
+                </>
               )}
             </div>
+            {!isPunchedIn && (
+              <p className="text-center text-xs mt-3" style={{ color: C.dimText }}>
+                Selfie + geo-location + optional notes captured on punch in.
+              </p>
+            )}
           </div>
-
-          {/* Policy reminder */}
-          <div className="rounded-2xl border border-[rgba(73,136,196,0.15)] bg-[rgba(189,232,245,0.08)] p-4">
-            <p className="text-[#0F2854] font-bold text-[12px] mb-3 flex items-center gap-2">
-              <AlertCircle size={13} className="text-[#4988C4]" /> Attendance Policy
-            </p>
-            <div className="space-y-1.5">
-              {[
-                "Office hours: 9:00 AM – 6:00 PM",
-                "Grace period: 30 minutes",
-                "Selfie + location required for both punches",
-                "Submit attendance before 7:00 PM",
-              ].map((t, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <span className="w-1 h-1 rounded-full bg-[rgba(73,136,196,0.5)] mt-1.5 shrink-0" />
-                  <p className="text-[#4988C4] text-[11px] leading-snug m-0">{t}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
         </div>
-      </div>
 
-      {/* Punch Modal */}
-      {showModal && (
-        <PunchModal
-          type={punchType}
-          onClose={() => setShowModal(false)}
+        {/* ── NEW: Tab bar (only shown for admins/directors) ───────────────── */}
+        {isAdmin && (
+          <div className="flex gap-1 p-1 rounded-xl" style={{ backgroundColor: C.divider }}>
+            {[
+              { key: "my",  label: "My Sessions",    Icon: UserIcon  },
+              { key: "all", label: "All Staff",       Icon: UsersIcon },
+            ].map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all"
+                style={tab === key
+                  ? { backgroundColor: C.white, color: C.darkBlue, boxShadow: "0 1px 4px rgba(15,40,84,0.1)" }
+                  : { backgroundColor: "transparent", color: C.mutedText }}>
+                <Icon />{label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── My Sessions log ───────────────────────────────────────────────── */}
+        {tab === "my" && (
+          fetching ? (
+            <div className="bg-white rounded-xl shadow-sm p-8 text-center" style={{ border: `1px solid ${C.lightBlue}` }}>
+              <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-3"
+                style={{ borderColor: C.medBlue, borderTopColor: "transparent" }} />
+              <p className="text-sm font-semibold" style={{ color: C.mutedText }}>Loading sessions…</p>
+            </div>
+          ) : sessions.length > 0 ? (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden" style={{ border: `1px solid ${C.lightBlue}` }}>
+              <div className="px-4 pt-4 pb-0 flex items-center gap-2">
+                <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: C.darkBlue }}>
+                  Today's Sessions
+                </h2>
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full text-white"
+                  style={{ backgroundColor: C.darkBlue }}>
+                  {sessions.length}
+                </span>
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block mt-3 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ backgroundColor: C.bg, borderBottom: `1px solid ${C.divider}` }}>
+                      {["#", "Punch In", "Punch Out", "Duration", "Status", "Location", "Notes"].map(h => (
+                        <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 whitespace-nowrap"
+                          style={{ color: C.medBlue }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...sessions].reverse().map((s, i) => (
+                      <LogRow key={s.id || i} entry={s} idx={sessions.length - 1 - i} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile list */}
+              <div className="md:hidden mt-2">
+                {[...sessions].reverse().map((s, i) => (
+                  <MobileLogCard key={s.id || i} entry={s} idx={sessions.length - 1 - i} />
+                ))}
+              </div>
+
+              <div className="px-4 py-3 flex items-center justify-between flex-wrap gap-2"
+                style={{ borderTop: `1px solid ${C.divider}` }}>
+                <span className="text-xs" style={{ color: C.dimText }}>
+                  {totalSessions} session{totalSessions !== 1 ? "s" : ""} recorded
+                </span>
+                <span className="text-xs font-semibold" style={{ color: C.medBlue }}>
+                  {totalHours}h total today
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm p-8 text-center" style={{ border: `1px solid ${C.lightBlue}` }}>
+              <div className="text-4xl mb-3">🕐</div>
+              <p className="text-sm font-semibold" style={{ color: C.mutedText }}>No sessions recorded yet</p>
+              <p className="text-xs mt-1" style={{ color: C.dimText }}>Punch in to start tracking attendance.</p>
+            </div>
+          )
+        )}
+
+        {/* ── All Staff (admin) tab ─────────────────────────────────────────── */}
+        {tab === "all" && isAdmin && (
+          adminFetch ? (
+            <div className="bg-white rounded-xl shadow-sm p-8 text-center" style={{ border: `1px solid ${C.lightBlue}` }}>
+              <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-3"
+                style={{ borderColor: C.medBlue, borderTopColor: "transparent" }} />
+              <p className="text-sm font-semibold" style={{ color: C.mutedText }}>Loading all records…</p>
+            </div>
+          ) : allRecords.length > 0 ? (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden" style={{ border: `1px solid ${C.lightBlue}` }}>
+              <div className="px-4 pt-4 pb-0 flex items-center gap-2">
+                <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: C.darkBlue }}>
+                  All Staff Attendance
+                </h2>
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full text-white"
+                  style={{ backgroundColor: C.darkBlue }}>
+                  {allRecords.length}
+                </span>
+              </div>
+
+              {/* Desktop admin table */}
+              <div className="hidden md:block mt-3 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ backgroundColor: C.bg, borderBottom: `1px solid ${C.divider}` }}>
+                      {["#", "Staff", "Date", "Punch In", "Punch Out", "Duration", "Status", "Notes"].map(h => (
+                        <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 whitespace-nowrap"
+                          style={{ color: C.medBlue }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allRecords.map((s, i) => (
+                      <AdminRow key={s.id || i} entry={s} idx={i} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile admin list */}
+              <div className="md:hidden mt-2">
+                {allRecords.map((s, i) => (
+                  <AdminMobileCard key={s.id || i} entry={s} idx={i} />
+                ))}
+              </div>
+
+              <div className="px-4 py-3" style={{ borderTop: `1px solid ${C.divider}` }}>
+                <span className="text-xs" style={{ color: C.dimText }}>
+                  {allRecords.length} record{allRecords.length !== 1 ? "s" : ""} total
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm p-8 text-center" style={{ border: `1px solid ${C.lightBlue}` }}>
+              <div className="text-4xl mb-3">👥</div>
+              <p className="text-sm font-semibold" style={{ color: C.mutedText }}>No records found</p>
+              <p className="text-xs mt-1" style={{ color: C.dimText }}>No staff attendance data available yet.</p>
+            </div>
+          )
+        )}
+
+      </main>
+
+      {/* Camera modal */}
+      {modal && (
+        <CameraModal
+          type={modal}
+          loading={loading}
+          onClose={() => !loading && setModal(null)}
           onSubmit={handlePunch}
+        />
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
         />
       )}
     </div>
