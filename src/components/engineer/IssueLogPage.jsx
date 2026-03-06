@@ -1,10 +1,20 @@
 "use client";
-import { useState } from "react";
-import { AlertTriangle, Upload, Plus, Trash2, CheckCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { AlertTriangle, Upload, CheckCircle } from "lucide-react";
 import {
   PageHeader, Card, SectionHead, Label, inputStyle, SubmitBtn,
-  FONTS, DEPARTMENTS, PROJECTS,
+  FONTS,
 } from "./shared";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+
+const getToken = () =>
+  typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+
+const authHeaders = () => ({
+  Authorization: `Bearer ${getToken()}`,
+});
 
 const SEVERITIES = [
   { label: "Low",      color: "#34C759", bg: "rgba(52,199,89,0.1)"   },
@@ -13,36 +23,69 @@ const SEVERITIES = [
   { label: "Critical", color: "#9B1C1C", bg: "rgba(155,28,28,0.1)"   },
 ];
 
-const RECENT_ISSUES = [
-  { id: "ISS-014", description: "Gel coat delamination on section B", dept: "Production",    severity: "High",   date: "Today"       },
-  { id: "ISS-013", description: "Missing anchor bolts – Wave pool",   dept: "Logistics",     severity: "Medium", date: "Yesterday"   },
-  { id: "ISS-012", description: "Incorrect fiberglass thickness",     dept: "QC / Quality",  severity: "High",   date: "Feb 22"      },
-];
-
 const sevColorMap = { Low: "#34C759", Medium: "#FF9500", High: "#FF3B30", Critical: "#9B1C1C" };
+
+const STATIC_DEPARTMENTS = [
+  { _id: "1", name: "IT" },
+  { _id: "2", name: "Maintenance" },
+  { _id: "3", name: "HR" },
+  { _id: "4", name: "Operations" },
+  { _id: "5", name: "Security" },
+  { _id: "6", name: "Administration" },
+  { _id: "7", name: "Other" },
+];
 
 export default function IssueLogPage() {
   const [form, setForm] = useState({
     project: "", description: "", department: "",
     severity: "Medium", proposedSolution: "", photos: [],
   });
-  const [submitted, setSubmitted] = useState(false);
-  const [loading,   setLoading]   = useState(false);
+  const [submitted,    setSubmitted]    = useState(false);
+  const [loading,      setLoading]      = useState(false);
+  const [projects,     setProjects]     = useState([]);
+  const [recentIssues, setRecentIssues] = useState([]);
+
+  const cfg = { headers: authHeaders() };
+
+  const fetchRecentIssues = () =>
+    axios.get(`${API_BASE}/issues`, cfg)
+      .then(r => setRecentIssues(r.data.slice(0, 3)))
+      .catch(console.error);
+
+  useEffect(() => {
+    axios.get(`${API_BASE}/projects`, cfg).then(r => setProjects(r.data)).catch(console.error);
+    fetchRecentIssues();
+  }, []);
 
   const upd = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
   const handlePhoto = (e) => {
     const files = Array.from(e.target.files);
-    const previews = files.map(f => ({ name: f.name, url: URL.createObjectURL(f) }));
+    const previews = files.map(f => ({ name: f.name, url: URL.createObjectURL(f), file: f }));
     setForm(f => ({ ...f, photos: [...f.photos, ...previews] }));
   };
   const removePhoto = (name) => setForm(f => ({ ...f, photos: f.photos.filter(p => p.name !== name) }));
 
   const handleSubmit = async () => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1400));
-    setLoading(false);
-    setSubmitted(true);
+    try {
+      const fd = new FormData();
+      fd.append("project",               form.project);
+      fd.append("problemDescription",    form.description);
+      fd.append("responsibleDepartment", form.department);
+      fd.append("severity",              form.severity);
+      fd.append("proposedSolution",      form.proposedSolution);
+      form.photos.forEach(p => fd.append("photos", p.file));
+
+      await axios.post(`${API_BASE}/issues`, fd, { headers: authHeaders() });
+
+      await fetchRecentIssues();
+      setSubmitted(true);
+    } catch (err) {
+      console.error("Failed to submit issue:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const selectedSev = SEVERITIES.find(s => s.label === form.severity);
@@ -100,7 +143,7 @@ export default function IssueLogPage() {
               <select style={{ ...inputStyle, cursor: "pointer" }}
                 value={form.project} onChange={e => upd("project", e.target.value)}>
                 <option value="">Select project</option>
-                {PROJECTS.map(p => <option key={p.id} value={p.id}>{p.id} — {p.name}</option>)}
+                {projects.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
               </select>
             </div>
 
@@ -122,7 +165,9 @@ export default function IssueLogPage() {
                 <select style={{ ...inputStyle, cursor: "pointer" }}
                   value={form.department} onChange={e => upd("department", e.target.value)}>
                   <option value="">Select department</option>
-                  {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+                  {STATIC_DEPARTMENTS.map(d => (
+                    <option key={d._id} value={d.name}>{d.name}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -215,20 +260,26 @@ export default function IssueLogPage() {
           <Card style={{ padding: "22px" }}>
             <SectionHead icon={<AlertTriangle size={16} color="#BDE8F5" />} title="Recent Issues" subtitle="Last 30 days" />
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {RECENT_ISSUES.map(issue => (
-                <div key={issue.id} style={{
+              {recentIssues.map(issue => (
+                <div key={issue._id} style={{
                   padding: "12px 14px", borderRadius: 11,
                   background: "rgba(73,136,196,0.04)",
                   border: "1px solid rgba(73,136,196,0.1)",
                 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ color: "#1C4D8D", fontSize: 11, fontWeight: 700 }}>{issue.id}</span>
-                    <span style={{ background: `${sevColorMap[issue.severity]}18`, color: sevColorMap[issue.severity], padding: "1px 8px", borderRadius: 99, fontSize: 10, fontWeight: 700 }}>{issue.severity}</span>
+                    <span style={{ color: "#1C4D8D", fontSize: 11, fontWeight: 700 }}>
+                      {issue._id.slice(-6).toUpperCase()}
+                    </span>
+                    <span style={{ background: `${sevColorMap[issue.severity]}18`, color: sevColorMap[issue.severity], padding: "1px 8px", borderRadius: 99, fontSize: 10, fontWeight: 700 }}>
+                      {issue.severity}
+                    </span>
                   </div>
-                  <div style={{ color: "#0F2854", fontSize: 12, fontWeight: 600, marginBottom: 3 }}>{issue.description}</div>
+                  <div style={{ color: "#0F2854", fontSize: 12, fontWeight: 600, marginBottom: 3 }}>
+                    {issue.problemDescription}
+                  </div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "#4988C4", fontSize: 11 }}>{issue.dept}</span>
-                    <span style={{ color: "#4988C4", fontSize: 11 }}>{issue.date}</span>
+                    <span style={{ color: "#4988C4", fontSize: 11 }}>{issue.responsibleDepartment}</span>
+                    <span style={{ color: "#4988C4", fontSize: 11 }}>{new Date(issue.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>
               ))}
@@ -239,14 +290,14 @@ export default function IssueLogPage() {
           <Card style={{ padding: "20px 22px" }}>
             <div style={{ color: "#0F2854", fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Department Reference</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {DEPARTMENTS.map(d => (
-                <div key={d} style={{
+              {STATIC_DEPARTMENTS.map(d => (
+                <div key={d._id} style={{
                   display: "flex", alignItems: "center", gap: 8,
                   padding: "7px 10px", borderRadius: 8,
                   background: "rgba(73,136,196,0.04)",
                 }}>
                   <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4988C4", flexShrink: 0 }} />
-                  <span style={{ color: "#1C4D8D", fontSize: 12 }}>{d}</span>
+                  <span style={{ color: "#1C4D8D", fontSize: 12 }}>{d.name}</span>
                 </div>
               ))}
             </div>
