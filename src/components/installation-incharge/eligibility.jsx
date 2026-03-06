@@ -1,15 +1,6 @@
 "use client";
-import { useState } from "react";
-
-const PROJECTS = [
-  { id: "PRJ-2415", name: "AquaZone Riyadh", client: "Gulf Leisure", engineer: "Sara Hassan", submitted: "22 Feb 2026" },
-  { id: "PRJ-2418", name: "WaveWorld Cairo", client: "Nile Parks Co.", engineer: "Karim Nour", submitted: "21 Feb 2026" },
-  { id: "PRJ-2420", name: "SplashCity Malta", client: "Euro Aqua Ltd", engineer: "Lena Weber", submitted: "20 Feb 2026" },
-  { id: "PRJ-2422", name: "TidalPark Muscat", client: "Oman Leisure", engineer: "Unassigned", submitted: "19 Feb 2026" },
-  { id: "PRJ-2431", name: "BlueLake Athens", client: "Hellas Aqua", engineer: "Nadia Farouq", submitted: "18 Feb 2026" },
-  { id: "PRJ-2435", name: "FlowPark Doha", client: "Qatar Parks Ltd", engineer: "Omar Siddiq", submitted: "17 Feb 2026" },
-];
-
+import { useState, useEffect } from "react";
+import axiosInstance from "@/lib/axios";
 const CHECKS = [
   {
     key: "material",
@@ -69,9 +60,7 @@ function CheckBox({ checked, onChange }) {
       onClick={onChange}
       aria-pressed={checked}
       className={`w-5 h-5 sm:w-6 sm:h-6 rounded-md flex items-center justify-center shrink-0 transition-all duration-200 cursor-pointer ${
-        checked
-          ? "bg-blue-800 border-0 shadow-md shadow-blue-200"
-          : "bg-white border-2 border-slate-300"
+        checked ? "bg-blue-800 border-0 shadow-md shadow-blue-200" : "bg-white border-2 border-slate-300"
       }`}
     >
       {checked && (
@@ -83,7 +72,6 @@ function CheckBox({ checked, onChange }) {
   );
 }
 
-// Mobile card for each project
 function ProjectCard({ project, pChecks, onToggle }) {
   const doneCount = CHECKS.filter((c) => pChecks[c.key]).length;
   const eligibility = getEligibilityStatus(pChecks);
@@ -91,7 +79,6 @@ function ProjectCard({ project, pChecks, onToggle }) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-      {/* Top row */}
       <div className="flex items-start justify-between mb-3">
         <div>
           <p className="text-xs font-bold text-blue-700">{project.id}</p>
@@ -105,44 +92,29 @@ function ProjectCard({ project, pChecks, onToggle }) {
           <span className="text-xs text-gray-400">{doneCount}/{CHECKS.length} checks</span>
         </div>
       </div>
-
-      {/* Progress bar */}
       <div className="h-1.5 bg-gray-100 rounded-full mb-3 overflow-hidden">
-        <div
-          className="h-full bg-blue-700 rounded-full transition-all duration-500"
-          style={{ width: `${progress}%` }}
-        />
+        <div className="h-full bg-blue-700 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
       </div>
-
-      {/* Engineer & date */}
       <div className="flex items-center gap-3 mb-4 text-xs text-gray-500">
-        <span className={project.engineer === "Unassigned" ? "text-red-500 font-bold" : ""}>
-          {project.engineer}
-        </span>
+        <span className={project.engineer === "Unassigned" ? "text-red-500 font-bold" : ""}>{project.engineer}</span>
         <span className="text-gray-300">·</span>
         <span>{project.submitted}</span>
       </div>
-
-      {/* Checklist items */}
       <div className="grid grid-cols-2 gap-2">
         {CHECKS.map((c) => (
-          <button
-            key={c.key}
-            onClick={() => onToggle(project.id, c.key)}
-            className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all duration-200 text-left ${
-              pChecks[c.key]
-                ? "bg-blue-50 border-blue-200"
-                : "bg-gray-50 border-gray-100 hover:border-gray-200"
-            }`}
-          >
+          <div
+  key={c.key}
+  onClick={() => onToggle(project.id, c.key)}
+  className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all duration-200 text-left cursor-pointer ${
+    pChecks[c.key] ? "bg-blue-50 border-blue-200" : "bg-gray-50 border-gray-100 hover:border-gray-200"
+  }`}
+>
             <CheckBox checked={pChecks[c.key]} onChange={() => {}} />
             <div className="flex flex-col min-w-0">
-              <span className={`text-blue-500 mb-0.5 ${pChecks[c.key] ? "text-blue-600" : "text-gray-400"}`}>
-                {c.icon}
-              </span>
+              <span className={`mb-0.5 ${pChecks[c.key] ? "text-blue-600" : "text-gray-400"}`}>{c.icon}</span>
               <span className="text-[10px] font-medium text-gray-600 leading-tight">{c.label}</span>
             </div>
-          </button>
+          </div>
         ))}
       </div>
     </div>
@@ -150,16 +122,35 @@ function ProjectCard({ project, pChecks, onToggle }) {
 }
 
 export default function EligibilityChecklist() {
-  const [checks, setChecks] = useState(() =>
-    Object.fromEntries(
-      PROJECTS.map((p) => [
-        p.id,
-        { material: false, foundation: false, customer: false, acceptance: false },
-      ])
-    )
-  );
+  const [projects, setProjects] = useState([]);
+  const [checks, setChecks] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+
+  useEffect(() => {
+    axiosInstance.get("/projects")
+  .then(({ data }) => {
+    const mapped = data.map((p) => ({
+      id: p._id,
+      name: p.name,
+      client: p.clientName,
+      engineer: p.assignedEngineers?.length > 0 ? p.assignedEngineers[0].name : "Unassigned",
+      submitted: new Date(p.createdAt).toLocaleDateString("en-GB", {
+        day: "2-digit", month: "short", year: "numeric",
+      }),
+    }));
+    setProjects(mapped);
+    setChecks(
+      Object.fromEntries(
+        mapped.map((p) => [p.id, { material: false, foundation: false, customer: false, acceptance: false }])
+      )
+    );
+  })
+  .catch((err) => setError(err.response?.data?.message || err.message))
+  .finally(() => setLoading(false));
+  }, []);
 
   const toggle = (projectId, key) => {
     setChecks((prev) => ({
@@ -168,45 +159,61 @@ export default function EligibilityChecklist() {
     }));
   };
 
-  const totalEligible = PROJECTS.filter((p) => CHECKS.every((c) => checks[p.id][c.key])).length;
-  const totalChecksCompleted = PROJECTS.reduce(
-    (acc, p) => acc + CHECKS.filter((c) => checks[p.id][c.key]).length, 0
+  const totalEligible = projects.filter((p) => CHECKS.every((c) => checks[p.id]?.[c.key])).length;
+  const totalChecksCompleted = projects.reduce(
+    (acc, p) => acc + CHECKS.filter((c) => checks[p.id]?.[c.key]).length, 0
   );
 
-  const filtered = PROJECTS.filter((p) => {
+  const filtered = projects.filter((p) => {
     const matchSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.id.toLowerCase().includes(search.toLowerCase()) ||
       p.client.toLowerCase().includes(search.toLowerCase());
     if (!matchSearch) return false;
-    if (filter === "eligible") return CHECKS.every((c) => checks[p.id][c.key]);
-    if (filter === "incomplete") return !CHECKS.every((c) => checks[p.id][c.key]);
+    if (filter === "eligible") return CHECKS.every((c) => checks[p.id]?.[c.key]);
+    if (filter === "incomplete") return !CHECKS.every((c) => checks[p.id]?.[c.key]);
     return true;
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-blue-700 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-400">Loading projects...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
+          <p className="text-red-500 font-semibold mb-1">Failed to load projects</p>
+          <p className="text-sm text-gray-400">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const now = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-blue-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-        {/* Header */}
         <div className="mb-6">
-          <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-0.5">
-            Wednesday, 25 February 2026
-          </p>
+          <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-0.5">{now}</p>
           <h1 className="text-xl sm:text-2xl font-bold text-blue-950">Eligibility Checklist</h1>
         </div>
 
-        {/* Summary Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
           {[
-            { label: "Total Projects", value: PROJECTS.length, accent: "border-blue-700" },
+            { label: "Total Projects", value: projects.length, accent: "border-blue-700" },
             { label: "Fully Eligible", value: totalEligible, accent: "border-emerald-500" },
-            { label: "In Progress", value: PROJECTS.length - totalEligible, accent: "border-amber-400" },
-            {
-              label: "Checks Completed",
-              value: `${totalChecksCompleted} / ${PROJECTS.length * CHECKS.length}`,
-              accent: "border-blue-400",
-            },
+            { label: "In Progress", value: projects.length - totalEligible, accent: "border-amber-400" },
+            { label: "Checks Completed", value: `${totalChecksCompleted} / ${projects.length * CHECKS.length}`, accent: "border-blue-400" },
           ].map((s) => (
             <div key={s.label} className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border-t-4 ${s.accent}`}>
               <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{s.label}</p>
@@ -215,14 +222,9 @@ export default function EligibilityChecklist() {
           ))}
         </div>
 
-        {/* Toolbar */}
         <div className="flex flex-col sm:flex-row gap-3 mb-5">
-          {/* Search */}
           <div className="relative flex-1">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
-            >
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
             </svg>
             <input
@@ -232,14 +234,8 @@ export default function EligibilityChecklist() {
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white text-blue-950 outline-none focus:border-blue-400 transition-colors"
             />
           </div>
-
-          {/* Filter pills */}
           <div className="flex gap-1 bg-blue-100/60 rounded-xl p-1 w-full sm:w-auto">
-            {[
-              { key: "all", label: "All" },
-              { key: "eligible", label: "Eligible" },
-              { key: "incomplete", label: "Incomplete" },
-            ].map((f) => (
+            {[{ key: "all", label: "All" }, { key: "eligible", label: "Eligible" }, { key: "incomplete", label: "Incomplete" }].map((f) => (
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
@@ -287,10 +283,7 @@ export default function EligibilityChecklist() {
                     const doneCount = CHECKS.filter((c) => pChecks[c.key]).length;
                     const eligibility = getEligibilityStatus(pChecks);
                     return (
-                      <tr
-                        key={project.id}
-                        className={`border-t border-gray-50 hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? "bg-slate-50/50" : ""}`}
-                      >
+                      <tr key={project.id} className={`border-t border-gray-50 hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? "bg-slate-50/50" : ""}`}>
                         <td className="px-4 py-3.5">
                           <p className="font-bold text-blue-700 text-xs">{project.id}</p>
                           <p className="text-gray-800 font-medium text-xs mt-0.5">{project.name}</p>
@@ -309,9 +302,7 @@ export default function EligibilityChecklist() {
                         ))}
                         <td className="px-4 py-3.5 text-center">
                           <div className="flex flex-col items-center gap-1">
-                            <span className={`${eligibility.cls} text-xs font-semibold px-2.5 py-0.5 rounded-full`}>
-                              {eligibility.label}
-                            </span>
+                            <span className={`${eligibility.cls} text-xs font-semibold px-2.5 py-0.5 rounded-full`}>{eligibility.label}</span>
                             <span className="text-[11px] text-gray-400">{doneCount}/{CHECKS.length}</span>
                           </div>
                         </td>
@@ -324,7 +315,7 @@ export default function EligibilityChecklist() {
           </div>
         </div>
 
-        {/* Mobile & Tablet Cards */}
+        {/* Mobile Cards */}
         <div className="flex flex-col gap-3 lg:hidden">
           {filtered.length === 0 ? (
             <div className="bg-white rounded-2xl p-10 text-center text-sm text-gray-400 shadow-sm">
@@ -332,19 +323,13 @@ export default function EligibilityChecklist() {
             </div>
           ) : (
             filtered.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                pChecks={checks[project.id]}
-                onToggle={toggle}
-              />
+              <ProjectCard key={project.id} project={project} pChecks={checks[project.id]} onToggle={toggle} />
             ))
           )}
         </div>
 
-        {/* Footer */}
         <p className="mt-6 text-xs text-gray-400 text-right">
-          Data refreshed · 25 Feb 2026, 09:41 AM
+          Data refreshed · {new Date().toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
         </p>
       </div>
     </div>
