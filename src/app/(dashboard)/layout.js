@@ -74,7 +74,7 @@ const ROLE_NAVIGATION = {
   ],
   support: [
     { href: "/support", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/support/search", icon: Search, label: "Search" },
+    { href: "/support/search", icon: Search, label: "Complaint History" },
     { href: "/support/log", icon: FilePlus, label: "Log Complaint" },
     { href: "/support/detail", icon: FileText, label: "Complaint Detail" },
     { href: "/support/service", icon: Wrench, label: "Service Execution" },
@@ -180,7 +180,7 @@ const ROLE_NAVIGATION = {
       icon: Send,
       label: "Installation Request",
     },
-    { href: "/marketingCoordinator/attendance",           icon: UserCheck,       label: "Attendance"           },
+    { href: "/marketingCoordinator/attendance", icon: UserCheck, label: "Attendance" },
   ],
 };
 

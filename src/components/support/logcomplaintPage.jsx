@@ -1,18 +1,23 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Search, MapPin, Package, Layers, HardHat, Palette,
   FileText, AlignLeft, AlertTriangle, Camera, Video,
-  Plus, X, CheckCircle, ChevronLeft, ChevronRight, Send,
+  Plus, X, CheckCircle, ChevronLeft, ChevronRight, Send, Loader2,
 } from "lucide-react";
 import { mockProjects, PageHeader, Card, inputStyle, labelStyle } from "./shared";
+import axiosInstance from "../../lib/axios";
+
+const getToken = () =>
+  typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+const authCfg = () => ({ headers: { Authorization: `Bearer ${getToken()}` } });
 
 // ── Mock fallback ─────────────────────────────────────────────────────────────
 const _mockProjects = (typeof mockProjects !== "undefined" ? mockProjects : [
-  { id: "PRJ-2401", client: "AquaPark Dubai",    location: "Dubai",     items: ["Waterslide Alpha", "Lazy River Flume", "Body Slide 360"] },
-  { id: "PRJ-2389", client: "Blue Lagoon Resort", location: "Maldives",  items: ["Wave Pool Panel B", "Speed Slide Mini"] },
-  { id: "PRJ-2412", client: "Ocean World",        location: "Singapore", items: ["Funnel Ride X2", "Master Blaster"] },
-  { id: "PRJ-2376", client: "SunSplash Inc.",     location: "Florida",   items: ["Speed Slide Pro"] },
+  { id: "PRJ-2401", client: "AquaPark Dubai", location: "Dubai", items: ["Waterslide Alpha", "Lazy River Flume", "Body Slide 360"] },
+  { id: "PRJ-2389", client: "Blue Lagoon Resort", location: "Maldives", items: ["Wave Pool Panel B", "Speed Slide Mini"] },
+  { id: "PRJ-2412", client: "Ocean World", location: "Singapore", items: ["Funnel Ride X2", "Master Blaster"] },
+  { id: "PRJ-2376", client: "SunSplash Inc.", location: "Florida", items: ["Speed Slide Pro"] },
 ]);
 
 const STEPS = ["Select Project", "Select Item", "Complaint Details", "Required Materials"];
@@ -46,7 +51,7 @@ function StepBar({ step }) {
       <div className="stepbar">
         {STEPS.map((label, i) => {
           const s = i + 1;
-          const done   = step > s;
+          const done = step > s;
           const active = step === s;
           return (
             <div key={s} style={{ display: "flex", alignItems: "center" }}>
@@ -91,27 +96,52 @@ function IconInput({ icon: Icon, ...props }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function LogComplaintPage() {
-  const [step, setStep]       = useState(1);
-  const [form, setForm]       = useState({
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState({
     project: null, item: "", batchNo: "BT-2024-117", contractor: "AquaBuild LLC", gelCoat: "GC-003-A",
     title: "", desc: "", severity: "Medium", materials: [],
   });
-  const [mat, setMat]         = useState({ name: "", qty: "", cost: "" });
+  const [mat, setMat] = useState({ name: "", qty: "", cost: "" });
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [projects, setProjects] = useState(_mockProjects);
+  const [searchQ, setSearchQ] = useState("");
+
+  const fetchProjects = useCallback(async () => {
+    try {
+      const r = await axiosInstance.get("/projects", authCfg());
+      const data = Array.isArray(r.data) ? r.data : r.data.projects || [];
+      if (data.length > 0)
+        setProjects(data.map(p => ({ id: p._id, client: p.clientName || p.name, name: p.name, location: p.location || "—", items: p.items || [] })));
+    } catch { /* keep mock */ }
+  }, []);
+
+  useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
   const upd = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
-  const addMaterial = () => {
-    if (!mat.name) return;
-    setForm(f => ({ ...f, materials: [...f.materials, { ...mat }] }));
-    setMat({ name: "", qty: "", cost: "" });
-  };
+  const addMaterial = () => { if (!mat.name) return; setForm(f => ({ ...f, materials: [...f.materials, { ...mat }] })); setMat({ name: "", qty: "", cost: "" }); };
   const removeMaterial = idx => setForm(f => ({ ...f, materials: f.materials.filter((_, i) => i !== idx) }));
 
-  const resetAll = () => {
-    setSubmitted(false); setStep(1);
-    setForm({ project: null, item: "", batchNo: "BT-2024-117", contractor: "AquaBuild LLC", gelCoat: "GC-003-A", title: "", desc: "", severity: "Medium", materials: [] });
+  const handleSubmit = async () => {
+    if (!form.title.trim()) return setSubmitError("Please enter a complaint title.");
+    setLoading(true); setSubmitError(null);
+    try {
+      await axiosInstance.post("/complaints", {
+        title: form.title.trim(),
+        description: form.desc.trim() || form.title.trim(),
+        project: form.project?.id || undefined,
+        priority: form.severity.toLowerCase(),
+        status: "open",
+      }, authCfg());
+      setSubmitted(true);
+    } catch (err) {
+      setSubmitError(err.response?.data?.message || "Submission failed. Please retry.");
+    } finally { setLoading(false); }
   };
+
+  const resetAll = () => { setSubmitted(false); setStep(1); setSubmitError(null); setForm({ project: null, item: "", batchNo: "BT-2024-117", contractor: "AquaBuild LLC", gelCoat: "GC-003-A", title: "", desc: "", severity: "Medium", materials: [] }); };
 
   // ── Success screen ────────────────────────────────────────────────────────
   if (submitted) return (
@@ -128,7 +158,7 @@ export default function LogComplaintPage() {
           </div>
           <div style={{ color: "#0F2854", fontSize: 20, fontWeight: 800, marginBottom: 8 }}>Complaint Submitted!</div>
           <div style={{ color: "#4988C4", fontSize: 13, marginBottom: 24 }}>
-            Complaint ID <strong>CMP-009</strong> has been created for {form.project?.client}.
+            <strong>{form.title}</strong> has been logged for review.
           </div>
           <button onClick={resetAll} style={{ background: "#0F2854", color: "#BDE8F5", border: "none", padding: "10px 24px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>
             <Plus size={14} /> Log Another Complaint
@@ -279,24 +309,26 @@ export default function LogComplaintPage() {
             <div>
               <div style={{ color: "#0F2854", fontWeight: 700, fontSize: 16, marginBottom: 20 }}>Step 1 — Select Project</div>
               <div style={{ marginBottom: 16 }}>
-                <label style={_labelStyle}>SEARCH BY PROJECT NUMBER</label>
-                <IconInput icon={Search} placeholder="Type to search..." />
+                <label style={_labelStyle}>SEARCH BY PROJECT NAME OR NUMBER</label>
+                <IconInput icon={Search} placeholder="Type to search…" value={searchQ} onChange={e => setSearchQ(e.target.value)} />
               </div>
               <div className="project-grid">
-                {_mockProjects.map(p => (
-                  <div key={p.id} onClick={() => upd("project", p)} style={{
-                    padding: "14px 16px", borderRadius: 10, cursor: "pointer",
-                    border: `2px solid ${form.project?.id === p.id ? "#0F2854" : "rgba(73,136,196,0.2)"}`,
-                    background: form.project?.id === p.id ? "rgba(15,40,84,0.04)" : "#fff",
-                    transition: "all 0.2s",
-                  }}>
-                    <div style={{ color: "#1C4D8D", fontWeight: 700, fontSize: 12, marginBottom: 2 }}>{p.id}</div>
-                    <div style={{ color: "#0F2854", fontWeight: 600, fontSize: 13 }}>{p.client}</div>
-                    <div style={{ color: "#4988C4", fontSize: 11, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                      <MapPin size={11} /> {p.location}
+                {projects
+                  .filter(p => !searchQ || (p.client || p.name || "").toLowerCase().includes(searchQ.toLowerCase()))
+                  .map(p => (
+                    <div key={p.id} onClick={() => upd("project", p)} style={{
+                      padding: "14px 16px", borderRadius: 10, cursor: "pointer",
+                      border: `2px solid ${form.project?.id === p.id ? "#0F2854" : "rgba(73,136,196,0.2)"}`,
+                      background: form.project?.id === p.id ? "rgba(15,40,84,0.04)" : "#fff",
+                      transition: "all 0.2s",
+                    }}>
+                      <div style={{ color: "#1C4D8D", fontWeight: 700, fontSize: 12, marginBottom: 2 }}>{String(p.id).slice(-6).toUpperCase()}</div>
+                      <div style={{ color: "#0F2854", fontWeight: 600, fontSize: 13 }}>{p.name || p.client}</div>
+                      <div style={{ color: "#4988C4", fontSize: 11, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                        <MapPin size={11} /> {p.location}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
               {form.project && (
                 <div style={{ background: "rgba(52,199,89,0.08)", border: "1px solid rgba(52,199,89,0.3)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#1C4D8D", display: "flex", alignItems: "center", gap: 6 }}>
@@ -510,8 +542,14 @@ export default function LogComplaintPage() {
                 </>
               )}
 
-              <button onClick={() => setSubmitted(true)} className="btn-submit">
-                <Send size={15} /> Submit Complaint
+              {submitError && (
+                <div style={{ background: "rgba(255,59,48,0.06)", border: "1px solid rgba(255,59,48,0.2)", borderRadius: 8, padding: "10px 14px", color: "#FF3B30", fontSize: 12, marginBottom: 10 }}>
+                  ⚠ {submitError}
+                </div>
+              )}
+              <button onClick={handleSubmit} disabled={loading} className="btn-submit">
+                {loading ? <Loader2 size={15} style={{ animation: "spin 0.8s linear infinite" }} /> : <Send size={15} />}
+                {loading ? "Submitting…" : "Submit Complaint"}
               </button>
             </div>
           )}

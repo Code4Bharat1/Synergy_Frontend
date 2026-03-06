@@ -1,32 +1,64 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PageHeader, Card, inputStyle, labelStyle } from "./shared";
 import PunchModal from "./Punchmodal";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import axiosInstance from "../../lib/axios";
 
-export default function ServiceExecutionPage() {
+const getToken = () => typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+const authCfg = () => ({ headers: { Authorization: `Bearer ${getToken()}` } });
+
+function ServiceExecutionContent() {
+  const params = useSearchParams();
+  const complaintId = params.get("id");
+
   // ── punch state ─────────────────────────────────────────────────────────────
   const [showPunchModal, setShowPunchModal] = useState(false);
-  const [punchType,      setPunchType]      = useState("in");
-  const [punchInData,    setPunchInData]    = useState(null);
-  const [punchOutData,   setPunchOutData]   = useState(null);
+  const [punchType, setPunchType] = useState("in");
+  const [punchInData, setPunchInData] = useState(null);
+  const [punchOutData, setPunchOutData] = useState(null);
 
-  // ── service form state ───────────────────────────────────────────────────────
-  const [resolved,    setResolved]    = useState(false);
-  const [workDesc,    setWorkDesc]    = useState("");
-  const [material,    setMaterial]    = useState("");
+  // ── complaint + service state ───────────────────────────────────────────
+  const [complaint, setComplaint] = useState(null);
+  const [resolved, setResolved] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const [resolveErr, setResolveErr] = useState(null);
+  const [workDesc, setWorkDesc] = useState("");
+  const [material, setMaterial] = useState("");
   const [replacement, setReplacement] = useState("No replacement");
 
-  const punchedIn  = !!punchInData;
+  // fetch complaint on mount if id is present
+  useEffect(() => {
+    if (!complaintId) return;
+    axiosInstance.get(`/complaints/${complaintId}`, authCfg())
+      .then(r => setComplaint(r.data.data || r.data))
+      .catch(() => { });
+  }, [complaintId]);
+
+  const handleResolve = async () => {
+    setResolving(true); setResolveErr(null);
+    try {
+      if (complaintId) {
+        await axiosInstance.patch(`/complaints/${complaintId}`, { status: "resolved" }, authCfg());
+      }
+      setResolved(true);
+    } catch (err) {
+      setResolveErr(err.response?.data?.message || "Failed to mark resolved.");
+    } finally { setResolving(false); }
+  };
+
+  const punchedIn = !!punchInData;
   const punchedOut = !!punchOutData;
 
-  const openPunchIn  = () => { setPunchType("in");  setShowPunchModal(true); };
+  const openPunchIn = () => { setPunchType("in"); setShowPunchModal(true); };
   const openPunchOut = () => { setPunchType("out"); setShowPunchModal(true); };
 
   const handlePunchSubmit = (data) => {
-    if (punchType === "in")  setPunchInData(data);
-    else                     setPunchOutData(data);
+    if (punchType === "in") setPunchInData(data);
+    else setPunchOutData(data);
     setShowPunchModal(false);
   };
 
@@ -43,7 +75,8 @@ export default function ServiceExecutionPage() {
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
       <div style={{
         width: 30, height: 30, borderRadius: 8, background: "#0F2854",
-        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
+        display: "flex", alignItems: "center", justifyCenter: "center", fontSize: 14,
+        display: "flex", alignItems: "center", justifyContent: "center"
       }}>{icon}</div>
       <span style={{ color: "#0F2854", fontWeight: 700, fontSize: 14 }}>{text}</span>
     </div>
@@ -67,17 +100,17 @@ export default function ServiceExecutionPage() {
 
   return (
     <div>
-       <div style={{ marginBottom: 12 }}>
-          <Link href="/support/" style={{ color: "#4988C4", fontSize: 13, cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <ArrowLeft size={14} /> Back to Home
-          </Link>
-        </div>
+      <div style={{ marginBottom: 12 }}>
+        <Link href="/support/" style={{ color: "#4988C4", fontSize: 13, cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5 }}>
+          <ArrowLeft size={14} /> Back to Home
+        </Link>
+      </div>
       <PageHeader
         eyebrow="Field"
         title="Service Execution"
-        subtitle="CMP-001 · Waterslide Alpha · AquaPark Dubai"
+        subtitle={complaint ? `${complaint.title} · ${complaint.project?.name || "No Project"}` : "Service Execution"}
       />
- 
+
       {/* ── Punch In / Out Card ─────────────────────────────────────────────── */}
       <Card style={{
         padding: "22px", marginBottom: 16,
@@ -93,9 +126,9 @@ export default function ServiceExecutionPage() {
           {/* status + selfie previews */}
           <div style={{ flex: 1 }}>
             <div style={{ color: "#0F2854", fontWeight: 700, fontSize: 15, marginBottom: 8 }}>
-              {!punchedIn    ? "📍 Punch In (Mandatory)"
-               : !punchedOut ? "✅ Punched In · Work in Progress"
-               :               "🏁 Punched Out · Session Ended"}
+              {!punchedIn ? "📍 Punch In (Mandatory)"
+                : !punchedOut ? "✅ Punched In · Work in Progress"
+                  : "🏁 Punched Out · Session Ended"}
             </div>
 
             {punchedIn && (
@@ -105,14 +138,18 @@ export default function ServiceExecutionPage() {
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   {punchInData.photo && (
                     <img src={punchInData.photo} alt="in-selfie"
-                      style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover",
-                               border: "2px solid rgba(52,199,89,0.5)" }} />
+                      style={{
+                        width: 44, height: 44, borderRadius: 10, objectFit: "cover",
+                        border: "2px solid rgba(52,199,89,0.5)"
+                      }} />
                   )}
                   <div>
                     <div style={{ color: "#34C759", fontSize: 10, fontWeight: 700, marginBottom: 2 }}>PUNCH IN</div>
                     <div style={{ color: "#0F2854", fontSize: 13, fontWeight: 700 }}>{formatTime(punchInData)}</div>
-                    <div style={{ color: "#4988C4", fontSize: 10, marginTop: 2, maxWidth: 200,
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div style={{
+                      color: "#4988C4", fontSize: 10, marginTop: 2, maxWidth: 200,
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                    }}>
                       📍 {typeof punchInData.location === "string" ? punchInData.location : "Location captured"}
                     </div>
                   </div>
@@ -123,14 +160,18 @@ export default function ServiceExecutionPage() {
                   <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                     {punchOutData.photo && (
                       <img src={punchOutData.photo} alt="out-selfie"
-                        style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover",
-                                 border: "2px solid rgba(73,136,196,0.5)" }} />
+                        style={{
+                          width: 44, height: 44, borderRadius: 10, objectFit: "cover",
+                          border: "2px solid rgba(73,136,196,0.5)"
+                        }} />
                     )}
                     <div>
                       <div style={{ color: "#4988C4", fontSize: 10, fontWeight: 700, marginBottom: 2 }}>PUNCH OUT</div>
                       <div style={{ color: "#0F2854", fontSize: 13, fontWeight: 700 }}>{formatTime(punchOutData)}</div>
-                      <div style={{ color: "#4988C4", fontSize: 10, marginTop: 2, maxWidth: 200,
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div style={{
+                        color: "#4988C4", fontSize: 10, marginTop: 2, maxWidth: 200,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                      }}>
                         📍 {typeof punchOutData.location === "string" ? punchOutData.location : "Location captured"}
                       </div>
                     </div>
@@ -167,7 +208,7 @@ export default function ServiceExecutionPage() {
       </Card>
 
       {/* ── Service Work (gated) ────────────────────────────────────────────── */}
-      <div style={{ opacity: punchedIn ? 1 : 0.38, pointerEvents: punchedIn ? "auto" : "none", transition: "opacity 0.3s",  }}>
+      <div style={{ opacity: punchedIn ? 1 : 0.38, pointerEvents: punchedIn ? "auto" : "none", transition: "opacity 0.3s", }}>
 
         <Card style={{ padding: "24px", marginBottom: 16 }}>
           {sectionTitle("🛠", "Service Work Details")}
@@ -196,7 +237,7 @@ export default function ServiceExecutionPage() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               {uploadBox("BEFORE PHOTOS *", "📷", "Upload before-service photos")}
-              {uploadBox("AFTER PHOTOS *",  "📸", "Upload after-service photos")}
+              {uploadBox("AFTER PHOTOS *", "📸", "Upload after-service photos")}
             </div>
           </div>
         </Card>
@@ -204,7 +245,7 @@ export default function ServiceExecutionPage() {
         <Card style={{ padding: "24px", marginBottom: 16 }}>
           {sectionTitle("📁", "Document Uploads")}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            {uploadBox("SERVICE REPORT *",        "📄", "Upload signed service report (PDF)")}
+            {uploadBox("SERVICE REPORT *", "📄", "Upload signed service report (PDF)")}
             {uploadBox("CUSTOMER SIGNATURE COPY", "✍️", "Upload customer-signed copy")}
           </div>
         </Card>
@@ -224,8 +265,8 @@ export default function ServiceExecutionPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
                 {[
                   ["Resolution Days", resolutionDays(), "#4988C4"],
-                  ["Resolved By",     "Service Admin",  "#0F2854"],
-                  ["Analytics",       "✓ Updated",      "#34C759"],
+                  ["Resolved By", "Service Admin", "#0F2854"],
+                  ["Analytics", "✓ Updated", "#34C759"],
                 ].map(([k, v, col]) => (
                   <div key={k} style={{ background: "rgba(189,232,245,0.1)", borderRadius: 8, padding: "12px 14px" }}>
                     <div style={{ color: "#4988C4", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>{k.toUpperCase()}</div>
@@ -242,11 +283,15 @@ export default function ServiceExecutionPage() {
                   System will auto-calculate resolution days and update all analytics.
                 </div>
               </div>
-              <button onClick={() => setResolved(true)} style={{
+              {resolveErr && <div style={{ color: "#FF3B30", fontSize: 12, marginRight: 12 }}>⚠ {resolveErr}</div>}
+              <button onClick={handleResolve} disabled={resolving} style={{
                 background: "linear-gradient(135deg, #34C759, #2EA44F)", color: "#fff",
                 border: "none", padding: "11px 24px", borderRadius: 10,
-                fontSize: 13, fontWeight: 700, cursor: "pointer",
-              }}>✓ Resolve Complaint</button>
+                fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6
+              }}>
+                {resolving ? <Loader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} /> : null}
+                ✓ Resolve Complaint
+              </button>
             </div>
           )}
         </Card>
@@ -270,6 +315,15 @@ export default function ServiceExecutionPage() {
           onSubmit={handlePunchSubmit}
         />
       )}
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
+  );
+}
+
+export default function ServiceExecutionPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 32, color: "#4988C4", fontFamily: "'DM Sans',sans-serif" }}>Loading…</div>}>
+      <ServiceExecutionContent />
+    </Suspense>
   );
 }

@@ -1,47 +1,24 @@
 "use client";
+import { useState, useEffect, useCallback } from "react";
 import {
   TrendingUp, Layers, HardHat, RefreshCw,
-  Clock, Zap, BarChart2, AlertTriangle,
+  Clock, Zap, BarChart2, AlertTriangle, Loader2,
 } from "lucide-react";
-import { PageHeader} from "./shared";
+import { PageHeader } from "./shared";
+import axiosInstance from "../../lib/axios";
+
+const getToken = () => typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+const authCfg = () => ({ headers: { Authorization: `Bearer ${getToken()}` } });
+const daysSince = d => Math.floor((Date.now() - new Date(d)) / 86400000);
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   DATA
+   STATIC fallback data (used when no real data available)
 ───────────────────────────────────────────────────────────────────────────── */
-const byProject = [
+const FALLBACK_BY_PROJECT = [
   { label: "PRJ-2401 — AquaPark Dubai", count: 8 },
   { label: "PRJ-2412 — Ocean World", count: 9 },
-  { label: "PRJ-2376 — SunSplash Inc.", count: 6 },
-  { label: "PRJ-2389 — Blue Lagoon", count: 4 },
-  { label: "PRJ-2398 — Aqua Universe", count: 3 },
 ];
-
-const batchFailure = [
-  { batch: "BT-2024-117", rate: 72 },
-  { batch: "BT-2024-102", rate: 55 },
-  { batch: "BT-2024-089", rate: 34 },
-  { batch: "BT-2024-095", rate: 18 },
-];
-
-const byItem = [
-  { item: "Funnel Ride X2", count: 7, severity: "Critical" },
-  { item: "Waterslide Alpha", count: 5, severity: "Critical" },
-  { item: "Master Blaster", count: 4, severity: "High" },
-  { item: "Body Slide 360", count: 3, severity: "High" },
-  { item: "Wave Pool Panel B", count: 3, severity: "Medium" },
-  { item: "Speed Slide Pro", count: 2, severity: "Low" },
-];
-
-const contractors = [
-  { name: "AquaBuild LLC", rate: 12.4 },
-  { name: "WaterTech Pro", rate: 8.7 },
-  { name: "SlideWorks Co.", rate: 5.2 },
-  { name: "AquaForm Ltd.", rate: 3.1 },
-];
-
-const monthlyResolved = [8, 14, 11, 19, 15, 22, 18, 25, 21, 28, 20, 47];
-const months = ["Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb"];
-const maxResolved = Math.max(...monthlyResolved);
+const FALLBACK_RESOLVED = [8, 14, 11, 19, 15, 22, 18, 25, 21, 28, 20, 47];
 
 const SEVERITY_STYLES = {
   Critical: { bg: "#FF3B30", text: "#fff" },
@@ -391,20 +368,100 @@ export default function AnalyticsPage() {
   const batchColor = r => r > 60 ? "#FF3B30" : r > 40 ? "#FF9500" : "#34C759";
   const contractorColor = r => r > 10 ? "#FF3B30" : r > 7 ? "#FF9500" : "#34C759";
 
-  const projMax = Math.max(...byProject.map(d => d.count));
+  // ── Live data from backend ──────────────────────────────────────────
+  const [complaints, setComplaints] = useState([]);
+  const [dataReady, setDataReady] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const r = await axiosInstance.get("/complaints", authCfg());
+      setComplaints(Array.isArray(r.data) ? r.data : r.data.data || []);
+    } catch { /* use fallback static data */ }
+    setDataReady(true);
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // ── Derived stats ─────────────────────────────────────────────────
+  const open = complaints.filter(c => c.status === "open").length;
+  const inProgress = complaints.filter(c => c.status === "in-progress").length;
+  const resolved = complaints.filter(c => c.status === "resolved" || c.status === "closed").length;
+  const critical = complaints.filter(c => c.priority === "critical").length;
+  const avgDays = complaints.length
+    ? (complaints.reduce((s, c) => s + daysSince(c.createdAt), 0) / complaints.length).toFixed(1)
+    : "—";
+
+  // By-project chart data from real complaints
+  const byProjectMap = {};
+  complaints.forEach(c => {
+    const name = c.project?.name || "Unassigned";
+    byProjectMap[name] = (byProjectMap[name] || 0) + 1;
+  });
+  const byProject = Object.keys(byProjectMap).length > 0
+    ? Object.entries(byProjectMap).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([label, count]) => ({ label, count }))
+    : FALLBACK_BY_PROJECT;
+
+  // Monthly Resolution Analytics (Real Data)
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const resolutionMap = {};
+  // Initialize last 12 months with 0
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    resolutionMap[monthNames[d.getMonth()]] = 0;
+  }
+
+  complaints.forEach(c => {
+    if (c.status === "resolved" || c.status === "closed") {
+      const d = new Date(c.updatedAt || c.createdAt);
+      const m = monthNames[d.getMonth()];
+      if (resolutionMap[m] !== undefined) resolutionMap[m]++;
+    }
+  });
+
+  const months = Object.keys(resolutionMap);
+  const monthlyResolved = Object.values(resolutionMap);
+  const maxResolved = Math.max(...monthlyResolved, 10); // min 10 for scale
+
+  // By-priority
+  const byPriority = ["critical", "high", "medium", "low"].map(p => ({
+    item: p.charAt(0).toUpperCase() + p.slice(1),
+    count: complaints.filter(c => c.priority === p).length,
+    severity: p.charAt(0).toUpperCase() + p.slice(1),
+  })).filter(x => x.count > 0);
+
+  const projMax = Math.max(...byProject.map(d => d.count), 5);
 
   const kpis = [
-    { label: "Avg Response Time", value: "2.4d", sub: "Time to first action", color: "#4988C4", icon: Clock },
-    { label: "Batch Failure Rate", value: "23%", sub: "Across all batches", color: "#FF3B30", icon: AlertTriangle },
-    { label: "Contractor Defect Rate", value: "8.7%", sub: "AquaBuild LLC highest", color: "#FF9500", icon: HardHat },
-    { label: "Repeat Complaints", value: "12", sub: "Same item, same issue", color: "#9747FF", icon: RefreshCw },
-    { label: "Avg Resolution Time", value: "6.8d", sub: "All resolved complaints", color: "#1C4D8D", icon: TrendingUp },
-    { label: "First-Visit Fix Rate", value: "68%", sub: "Resolved in 1 site visit", color: "#34C759", icon: Zap },
+    { label: "Active Complaints", value: dataReady ? (open + inProgress) : "–", sub: "Currently in system", color: "#FF3B30", icon: Clock },
+    { label: "Resolved Total", value: dataReady ? resolved : "–", sub: "All time resolved", color: "#34C759", icon: Zap },
+    { label: "Critical Priority", value: dataReady ? critical : "–", sub: "Requires attention", color: "#FF3B30", icon: AlertTriangle },
+    { label: "Completion Rate", value: dataReady && complaints.length ? Math.round((resolved / complaints.length) * 100) + "%" : "—", sub: "Lifetime resolution", color: "#4988C4", icon: TrendingUp },
+    { label: "Total Received", value: dataReady ? complaints.length : "–", sub: "All complaints", color: "#1C4D8D", icon: BarChart2 },
+    { label: "Avg Resolution", value: dataReady ? avgDays + "d" : "–", sub: "System average", color: "#9747FF", icon: RefreshCw },
+  ];
+
+  const batchFailure = [
+    { batch: "BT-2024-117", rate: 72 },
+    { batch: "BT-2024-102", rate: 55 },
+    { batch: "BT-2024-089", rate: 34 },
+    { batch: "BT-2024-095", rate: 18 },
+  ];
+  const contractors = [
+    { name: "AquaBuild LLC", rate: 12.4 },
+    { name: "WaterTech Pro", rate: 8.7 },
+    { name: "SlideWorks Co.", rate: 5.2 },
+    { name: "AquaForm Ltd.", rate: 3.1 },
+  ];
+  const byItem = byPriority.length > 0 ? byPriority : [
+    { item: "Funnel Ride X2", count: 7, severity: "Critical" },
+    { item: "Waterslide Alpha", count: 5, severity: "Critical" },
+    { item: "Master Blaster", count: 4, severity: "High" },
   ];
 
   return (
     <>
-      <style>{ RWD}</style>
+      <style>{RWD}</style>
 
       {/* ── Page Header ──────────────────────────────────────────────────── */}
       <div className="an-page-header">

@@ -1,52 +1,56 @@
 "use client";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
 import {
   ArrowLeft, FileText, Wrench, Camera, Package,
   Settings, PenLine, MapPin, User, Hash, Calendar,
-  Clock, Layers, HardHat, Palette,
+  Clock, Layers, HardHat, Palette, Loader2,
 } from "lucide-react";
-import { mockComplaints, SeverityBadge, StatusBadge, Card } from "./shared";
+import axiosInstance from "../../lib/axios";
 
-// ── Inline badge fallbacks ────────────────────────────────────────────────────
-function SeverityBadgeFallback({ level }) {
+const getToken = () => typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+const authCfg = () => ({ headers: { Authorization: `Bearer ${getToken()}` } });
+const daysSince = d => Math.floor((Date.now() - new Date(d)) / 86400000);
+
+// ── Badge Components ─────────────────────────────────────────────────────────
+function SeverityBadge({ level }) {
   const map = {
-    Critical: { bg: "#FF3B30", text: "#fff" },
-    High:     { bg: "#FF9500", text: "#fff" },
-    Medium:   { bg: "#FFCC00", text: "#0F2854" },
-    Low:      { bg: "#34C759", text: "#fff" },
+    critical: { bg: "#FF3B30", text: "#fff" },
+    high: { bg: "#FF9500", text: "#fff" },
+    medium: { bg: "#FFCC00", text: "#0F2854" },
+    low: { bg: "#34C759", text: "#fff" },
   };
-  const c = map[level] || map.Low;
+  const c = map[level?.toLowerCase()] || map.low;
   return (
-    <span style={{ background: c.bg, color: c.text, padding: "2px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, display: "inline-block", whiteSpace: "nowrap" }}>
-      {level}
-    </span>
+    <span style={{
+      background: c.bg, color: c.text,
+      padding: "2px 10px", borderRadius: 99,
+      fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
+      display: "inline-block", whiteSpace: "nowrap",
+    }}>{level}</span>
   );
 }
-function StatusBadgeFallback({ status }) {
+
+function StatusBadge({ status }) {
   const map = {
-    "Open":         { bg: "rgba(255,59,48,0.12)",  border: "#FF3B30", text: "#FF3B30" },
-    "Under Review": { bg: "rgba(255,149,0,0.12)",  border: "#FF9500", text: "#FF9500" },
-    "Resolved":     { bg: "rgba(52,199,89,0.12)",  border: "#34C759", text: "#34C759" },
+    "open": { bg: "rgba(255,59,48,0.12)", border: "#FF3B30", text: "#FF3B30" },
+    "in-progress": { bg: "rgba(255,149,0,0.12)", border: "#FF9500", text: "#FF9500" },
+    "resolved": { bg: "rgba(52,199,89,0.12)", border: "#34C759", text: "#34C759" },
+    "closed": { bg: "rgba(73,136,196,0.12)", border: "#4988C4", text: "#4988C4" },
   };
-  const c = map[status] || map["Open"];
+  const c = map[status?.toLowerCase()] || map["open"];
+  const label = status === "in-progress" ? "Under Review" : status;
   return (
-    <span style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.text, padding: "2px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600, display: "inline-block", whiteSpace: "nowrap" }}>
-      {status}
-    </span>
+    <span style={{
+      background: c.bg, border: `1px solid ${c.border}`, color: c.text,
+      padding: "2px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
+      display: "inline-block", whiteSpace: "nowrap",
+    }}>{label}</span>
   );
 }
-const SB  = typeof SeverityBadge !== "undefined" ? SeverityBadge : SeverityBadgeFallback;
-const STB = typeof StatusBadge   !== "undefined" ? StatusBadge   : StatusBadgeFallback;
 
-// ── Mock data fallback ────────────────────────────────────────────────────────
-const _mock = (typeof mockComplaints !== "undefined" ? mockComplaints : [
-  { id: "CMP-001", projectNo: "PRJ-2401", item: "Waterslide Alpha",  severity: "Critical", status: "Open",         daysOpen: 14, client: "AquaPark Dubai",    location: "Dubai"    },
-  { id: "CMP-002", projectNo: "PRJ-2389", item: "Wave Pool Panel B", severity: "High",     status: "Under Review", daysOpen: 7,  client: "Blue Lagoon Resort", location: "Maldives" },
-]);
-
-// ── InfoRow ───────────────────────────────────────────────────────────────────
+// ── InfoRow helper ─────────────────────────────────────────────────────────────
 function InfoRow({ label, value, icon: Icon }) {
   return (
     <div style={{
@@ -61,19 +65,38 @@ function InfoRow({ label, value, icon: Icon }) {
   );
 }
 
-// ── Main content ─────────────────────────────────────────────────────────────
+// ── Main content (fetches by ID from backend) ───────────────────────────────────────
 function ComplaintDetailContent() {
   const params = useSearchParams();
   const id = params.get("id");
-  const c = _mock.find(x => x.id === id) || _mock[0];
 
-  const loggedDate = new Date(Date.now() - c.daysOpen * 86400000)
-    .toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const [c, setC] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!id) { setError("No complaint ID in URL."); setLoading(false); return; }
+    axiosInstance.get(`/complaints/${id}`, authCfg())
+      .then(r => {
+        const data = r.data.data || r.data;
+        setC(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching complaint:", err);
+        setError("Complaint not found.");
+      });
+  }, [id]);
+
+  if (loading) return <div style={{ padding: 32, color: "#4988C4", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 8 }}><Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} /> Loading complaint…<style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>;
+  if (error || !c) return <div style={{ padding: 32, color: "#FF3B30", fontFamily: "'DM Sans',sans-serif" }}>⚠ {error || "Complaint not found."} <Link href="/support/search" style={{ color: "#4988C4", marginLeft: 12 }}>← Back</Link></div>;
+
+  const loggedDate = new Date(c.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
   const materials = [
-    ["Gel Coat Resin",   "5 kg",  "$240", "Dispatched"],
+    ["Gel Coat Resin", "5 kg", "$240", "Dispatched"],
     ["Fiberglass Cloth", "10 m²", "$180", "Pending"],
-    ["Hardener",         "2 L",   "$60",  "Pending"],
+    ["Hardener", "2 L", "$60", "Pending"],
   ];
 
   return (
@@ -225,12 +248,12 @@ function ComplaintDetailContent() {
             <div style={{ color: "#4988C4", fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>
               Complaint Detail
             </div>
-            <h1 style={{ color: "#0F2854", fontSize: "clamp(20px, 4vw, 26px)", fontWeight: 800, margin: 0 }}>{c.id}</h1>
-            <p style={{ color: "#4988C4", fontSize: 13, margin: "4px 0 0" }}>{c.item} · {c.projectNo} · {c.client}</p>
+            <h1 style={{ color: "#0F2854", fontSize: "clamp(20px, 4vw, 26px)", fontWeight: 800, margin: 0 }}>{c.title}</h1>
+            <p style={{ color: "#4988C4", fontSize: 13, margin: "4px 0 0" }}>{c.project?.name || "—"} · {c.priority} priority</p>
           </div>
           <div className="dp-badges">
-            <SB level={c.severity} />
-            <STB status={c.status} />
+            <SeverityBadge level={c.priority} />
+            <StatusBadge status={c.status} />
           </div>
         </div>
 
@@ -243,13 +266,10 @@ function ComplaintDetailContent() {
               <div className="card-icon"><FileText size={15} /></div>
               <span className="card-title">Basic Information</span>
             </div>
-            <InfoRow label="Project Number" value={c.projectNo}       icon={Hash}    />
-            <InfoRow label="Client Name"    value={c.client}          icon={User}    />
-            <InfoRow label="Location"       value={c.location || "—"} icon={MapPin}  />
-            <InfoRow label="Item"           value={c.item}            icon={Package} />
-            <InfoRow label="Batch Number"   value="BT-2024-117"       icon={Layers}  />
-            <InfoRow label="Contractor"     value="AquaBuild LLC"     icon={HardHat} />
-            <InfoRow label="Gel Coat Batch" value="GC-003-A"          icon={Palette} />
+            <InfoRow label="Project" value={c.project?.name || "—"} icon={Hash} />
+            <InfoRow label="Logged By" value={c.loggedBy?.name || "—"} icon={User} />
+            <InfoRow label="Status" value={c.status} icon={Clock} />
+            <InfoRow label="Priority" value={c.priority} icon={Package} />
           </div>
 
           {/* Complaint Info */}
@@ -265,24 +285,23 @@ function ComplaintDetailContent() {
                 color: "#0F2854", fontSize: 13, lineHeight: 1.6,
                 background: "rgba(189,232,245,0.1)", padding: "12px 14px", borderRadius: 8,
               }}>
-                Gel coat delamination observed across 3 panels. Surface cracking visible near joints.
-                Issue likely related to batch GC-003-A. Reported by site inspector during routine check.
+                {c.description || "No detailed description provided."}
               </div>
             </div>
 
             <div className="stat-row">
               <div className="stat-item">
                 <span className="stat-label">Severity</span>
-                <SB level={c.severity} />
+                <SeverityBadge level={c.priority} />
               </div>
               <div className="stat-item">
                 <span className="stat-label">Status</span>
-                <STB status={c.status} />
+                <StatusBadge status={c.status} />
               </div>
               <div className="stat-item">
                 <span className="stat-label">Days Open</span>
-                <span style={{ color: c.daysOpen > 10 ? "#FF3B30" : "#34C759", fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", gap: 4 }}>
-                  <Clock size={13} /> {c.daysOpen}d
+                <span style={{ color: daysSince(c.createdAt) > 10 ? "#FF3B30" : "#34C759", fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", gap: 4 }}>
+                  <Clock size={13} /> {daysSince(c.createdAt)}d
                 </span>
               </div>
             </div>
@@ -376,7 +395,7 @@ function ComplaintDetailContent() {
 
         {/* ── Actions ── */}
         <div className="action-row">
-          <Link href="/support/service" className="btn-primary">
+          <Link href={`/support/service?id=${id}`} className="btn-primary">
             <Settings size={15} /> Start Service Execution
           </Link>
           <button className="btn-secondary">
