@@ -1,43 +1,58 @@
 "use client";
-import { Users, ShieldCheck, Activity, AlertTriangle, Clock, Settings } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Users, ShieldCheck, Activity, AlertTriangle, Clock, Settings, Loader, Briefcase } from "lucide-react";
 
-// ── Data ──────────────────────────────────────────────────────────────────────
-const STATS = [
-  { label: "Total Users",              value: "24",  sub: "3 added this week",        icon: Users,        color: "bg-lightblue text-extra-blue"    },
-  { label: "Active Roles",             value: "6",   sub: "Admin, QC, Engineer…",     icon: ShieldCheck,  color: "bg-green-50 text-green-600"       },
-  { label: "System Health",            value: "99%", sub: "All services operational",  icon: Activity,     color: "bg-emerald-50 text-emerald-600"   },
-  { label: "Pending Role Assignments", value: "5",   sub: "Awaiting admin action",     icon: Clock,        color: "bg-amber-50 text-amber-600"       },
-];
+// Config
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const getToken = () => typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+const authHeaders = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${getToken()}`,
+});
 
-const AUDIT_LOGS = [
-  { id: 1, user: "Zaid",       action: "Created user Sara Malik",            time: "10 min ago",  type: "create"  },
-  { id: 2, user: "System",     action: "Role 'QC Inspector' assigned to Ahmad", time: "1 hr ago", type: "assign"  },
-  { id: 3, user: "Zaid",       action: "Deactivated user John Doe",          time: "2 hrs ago",   type: "warning" },
-  { id: 4, user: "System",     action: "Approval workflow updated",           time: "Yesterday",   type: "update"  },
-  { id: 5, user: "Priya Nair", action: "Password reset requested",            time: "Yesterday",   type: "warning" },
-];
+// API calls
+const api = {
+  async fetchDashboardData() {
+    const fetchApi = async (url) => {
+      try {
+        const res = await fetch(`${API_BASE}${url}`, { headers: authHeaders() });
+        if (!res.ok) {
+          console.error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+          return [];
+        }
+        const data = await res.json();
+        if (Array.isArray(data)) return data;
+        if (data && Array.isArray(data.users)) return data.users;
+        if (data && Array.isArray(data.projects)) return data.projects;
+        if (data && Array.isArray(data.documents)) return data.documents;
+        if (data && Array.isArray(data.complaints)) return data.complaints;
+        if (data && data.data && Array.isArray(data.data)) return data.data;
+        return [];
+      } catch (err) {
+        console.error(`Error fetching ${url}:`, err);
+        return [];
+      }
+    };
 
-const PENDING_ROLES = [
-  { id: 1, user: "Bilal Khan",   requestedRole: "QC Inspector",      project: "Greenfield Complex", since: "2 days ago" },
-  { id: 2, user: "Riya Sharma",  requestedRole: "Site Engineer",     project: "Harbor View Tower",  since: "1 day ago"  },
-  { id: 3, user: "Omar Sheikh",  requestedRole: "Complaint Handler",  project: "Westgate Mall",     since: "5 hrs ago"  },
-];
+    const [users, projects, documents, complaints] = await Promise.all([
+      fetchApi("/admin/users"),
+      fetchApi("/projects"),
+      fetchApi("/documents"),
+      fetchApi("/complaints")
+    ]);
 
-const WORKFLOW_CONFIGS = [
-  { name: "Inspection Approval",   steps: 3, status: "Active"   },
-  { name: "Trial Sign-off",        steps: 2, status: "Active"   },
-  { name: "Complaint Escalation",  steps: 4, status: "Draft"    },
-  { name: "Document Handover",     steps: 2, status: "Active"   },
-];
-
-const LOG_TYPE_STYLE = {
-  create:  "bg-blue-50 text-blue-600",
-  assign:  "bg-green-50 text-green-600",
-  warning: "bg-amber-50 text-amber-600",
-  update:  "bg-gray-100 text-gray-500",
+    return { users, projects, documents, complaints };
+  }
 };
 
-// ── Stat Card ─────────────────────────────────────────────────────────────────
+const LOG_TYPE_STYLE = {
+  critical: "bg-red-50 text-red-600",
+  high: "bg-amber-50 text-amber-600",
+  medium: "bg-blue-50 text-blue-600",
+  low: "bg-gray-100 text-gray-500",
+  open: "bg-amber-50 text-amber-600",
+};
+
 function StatCard({ label, value, sub, icon: Icon, color }) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-start gap-4">
@@ -53,61 +68,118 @@ function StatCard({ label, value, sub, icon: Icon, color }) {
   );
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
+  const [data, setData] = useState({ users: [], projects: [], documents: [], complaints: [] });
+  const [fetching, setFetching] = useState(true);
+
+  const loadData = useCallback(async () => {
+    setFetching(true);
+    const dashboardData = await api.fetchDashboardData();
+    setData(dashboardData);
+    setFetching(false);
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Derived stats
+  const totalUsers = data.users.length;
+  const activeRoles = new Set(data.users.map(u => u.role)).size;
+  const healthPercent = fetching ? "..." : "100%";
+  const pendingDocs = data.documents.filter(d => (d.status || "pending") === "pending").length;
+
+  // Pending tasks derived from documents (unverified/pending documents)
+  const pendingTasks = data.documents
+    .filter(d => (d.status || "pending") === "pending")
+    .slice(0, 5)
+    .map((doc, idx) => ({
+      id: doc._id || idx,
+      user: doc.uploadedBy?.name || doc.uploadedBy?.email || "User",
+      requestedRole: doc.documentType || "Document",
+      project: doc.project?.name || doc.project || "Unknown",
+      since: new Date(doc.createdAt).toLocaleDateString()
+    }));
+
+  const STATS = [
+    { label: "Total Users", value: totalUsers, sub: "Registered in system", icon: Users, color: "bg-lightblue text-extra-blue" },
+    { label: "Active Roles", value: activeRoles, sub: "Roles assigned", icon: ShieldCheck, color: "bg-green-50 text-green-600" },
+    { label: "System Health", value: healthPercent, sub: "All services operational", icon: Activity, color: "bg-emerald-50 text-emerald-600" },
+    { label: "Pending Verifications", value: pendingDocs, sub: "Documents awaiting review", icon: Clock, color: "bg-amber-50 text-amber-600" },
+  ];
+
+  // Replacing static Audit Logs with Complaints
+  const recentComplaints = data.complaints
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 5)
+    .map(c => ({
+      id: c._id,
+      user: c.loggedBy?.name || c.loggedBy?.email || "Unknown",
+      action: c.title || "Complaint log",
+      time: new Date(c.createdAt).toLocaleDateString(),
+      type: c.priority || "medium"
+    }));
+
+  // Replacing static Workflows with Recent/Active Projects
+  const activeProjectsList = data.projects
+    .filter(p => p.status !== "completed")
+    .slice(0, 5)
+    .map(p => ({
+      id: p._id,
+      name: p.name,
+      steps: p.assignedEngineers?.length || 0,
+      status: p.status
+    }));
+
+  if (fetching) return <div className="py-10 text-gray-500 text-sm flex gap-2 items-center"><Loader size={16} className="animate-spin" /> Loading dashboard...</div>;
+
   return (
     <div className="space-y-6">
-
-      {/* Header */}
       <div>
         <h2 className="text-lg font-bold text-extra-darkblue">Admin Dashboard</h2>
         <p className="text-sm text-gray-400 mt-0.5">System overview for managers</p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {STATS.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-        {/* Audit Log Alerts */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden h-fit">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <div className="flex items-center gap-2">
               <AlertTriangle size={15} className="text-amber-500" />
-              <h3 className="text-sm font-bold text-extra-darkblue">Audit Log</h3>
+              <h3 className="text-sm font-bold text-extra-darkblue">Recent Complaints</h3>
             </div>
-            <span className="text-xs text-gray-400">{AUDIT_LOGS.length} recent</span>
+            <span className="text-xs text-gray-400">{recentComplaints.length} recent</span>
           </div>
           <div className="divide-y divide-gray-50">
-            {AUDIT_LOGS.map(log => (
+            {recentComplaints.map(log => (
               <div key={log.id} className="flex items-start gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
-                <span className={`mt-0.5 text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${LOG_TYPE_STYLE[log.type]}`}>
+                <span className={`mt-0.5 text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${LOG_TYPE_STYLE[log.type] || LOG_TYPE_STYLE.medium}`}>
                   {log.type}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-extra-darkblue font-medium truncate">{log.action}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">by {log.user} · {log.time}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Logged by {log.user} · {log.time}</p>
                 </div>
               </div>
             ))}
+            {recentComplaints.length === 0 && (
+              <p className="px-5 py-6 text-sm text-center text-gray-400">No active complaints.</p>
+            )}
           </div>
         </div>
 
         <div className="space-y-5">
-
-          {/* Pending Role Assignments */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <Clock size={15} className="text-extra-blue" />
-                <h3 className="text-sm font-bold text-extra-darkblue">Pending Role Assignments</h3>
+                <h3 className="text-sm font-bold text-extra-darkblue">Pending Document Verifications</h3>
               </div>
-              <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{PENDING_ROLES.length}</span>
+              <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{pendingTasks.length}</span>
             </div>
-            <div className="divide-y divide-gray-50">
-              {PENDING_ROLES.map(r => (
+            <div className="divide-y divide-gray-50 max-h-60 overflow-y-auto">
+              {pendingTasks.map(r => (
                 <div key={r.id} className="flex items-center gap-3 px-5 py-3">
                   <div className="w-8 h-8 rounded-full bg-lightblue text-extra-blue flex items-center justify-center text-xs font-bold shrink-0">
                     {r.user.charAt(0)}
@@ -117,35 +189,38 @@ export default function AdminDashboard() {
                     <p className="text-xs text-gray-400">{r.requestedRole} · {r.project}</p>
                   </div>
                   <div className="flex gap-1.5 shrink-0">
-                    <button className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors">Approve</button>
-                    <button className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors">Reject</button>
+                    <a href="/admin/document" className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">Review</a>
                   </div>
                 </div>
               ))}
+              {pendingTasks.length === 0 && (
+                <p className="px-5 py-6 text-sm text-center text-gray-400">No pending verifications.</p>
+              )}
             </div>
           </div>
 
-          {/* Approval Workflow Configs */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
-              <Settings size={15} className="text-extra-blue" />
-              <h3 className="text-sm font-bold text-extra-darkblue">Approval Workflow Configs</h3>
+              <Briefcase size={15} className="text-extra-blue" />
+              <h3 className="text-sm font-bold text-extra-darkblue">Active Projects Tracker</h3>
             </div>
             <div className="divide-y divide-gray-50">
-              {WORKFLOW_CONFIGS.map(w => (
-                <div key={w.name} className="flex items-center justify-between px-5 py-3">
+              {activeProjectsList.map(w => (
+                <div key={w.id} className="flex items-center justify-between px-5 py-3">
                   <div>
                     <p className="text-sm font-semibold text-extra-darkblue">{w.name}</p>
-                    <p className="text-xs text-gray-400">{w.steps} steps</p>
+                    <p className="text-xs text-gray-400">{w.steps} engineers assigned</p>
                   </div>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${w.status === "Active" ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"}`}>
-                    {w.status}
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${w.status === "initiated" ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"}`}>
+                    {w.status.replace("-", " ")}
                   </span>
                 </div>
               ))}
+              {activeProjectsList.length === 0 && (
+                <p className="px-5 py-6 text-sm text-center text-gray-400">No active projects.</p>
+              )}
             </div>
           </div>
-
         </div>
       </div>
     </div>
