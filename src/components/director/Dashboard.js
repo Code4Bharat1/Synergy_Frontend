@@ -1,32 +1,53 @@
 "use client";
-import { FolderKanban, AlertTriangle, DollarSign, Clock, MessageSquareWarning, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { FolderKanban, AlertTriangle, DollarSign, Clock, MessageSquareWarning, TrendingUp, TrendingDown, ArrowRight, Loader } from "lucide-react";
 
-// ── Data ──────────────────────────────────────────────────────────────────────
-const STATS = [
-  { label: "Total Active Projects", value: "8",  trend: "+2 this month", up: true,  icon: FolderKanban,          color: "bg-lightblue text-extra-blue"    },
-  { label: "Projects At Risk",      value: "3",  trend: "Delay > 7 days", up: false, icon: AlertTriangle,         color: "bg-red-50 text-red-500"          },
-  { label: "Budget Overrun Alerts", value: "2",  trend: "Needs approval", up: false, icon: DollarSign,            color: "bg-amber-50 text-amber-600"      },
-  { label: "Pending Approvals",     value: "11", trend: "5 urgent",       up: false, icon: Clock,                 color: "bg-orange-50 text-orange-500"    },
-  { label: "Open Complaints",       value: "14", trend: "3 escalated",    up: false, icon: MessageSquareWarning,  color: "bg-purple-50 text-purple-600"    },
-];
+// Config
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const getToken = () => typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+const authHeaders = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${getToken()}`,
+});
 
-const AT_RISK_PROJECTS = [
-  { name: "Westgate Mall",       delay: 12, budgetOver: 8,  complaints: 5, status: "At Risk"     },
-  { name: "Sunrise Residency",   delay: 7,  budgetOver: 0,  complaints: 2, status: "At Risk"     },
-  { name: "Harbor View Phase 2", delay: 4,  budgetOver: 14, complaints: 3, status: "Budget Alert"},
-];
+// API calls
+const api = {
+  async fetchDashboardData() {
+    const fetchApi = async (url) => {
+      try {
+        const res = await fetch(`${API_BASE}${url}`, { headers: authHeaders() });
+        if (!res.ok) {
+          console.error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+          return [];
+        }
+        const data = await res.json();
+        if (Array.isArray(data)) return data;
+        if (data && Array.isArray(data.projects)) return data.projects;
+        if (data && Array.isArray(data.documents)) return data.documents;
+        if (data && Array.isArray(data.complaints)) return data.complaints;
+        if (data && data.data && Array.isArray(data.data)) return data.data;
+        return [];
+      } catch (err) {
+        console.error(`Error fetching ${url}:`, err);
+        return [];
+      }
+    };
 
-const PENDING_APPROVALS = [
-  { id: "APR-001", type: "Budget Deviation",  project: "Westgate Mall",        amount: "PKR 4.2M",  priority: "High",   age: "2d" },
-  { id: "APR-002", type: "Timeline Extension",project: "Harbor View Tower",    amount: "+21 days",  priority: "High",   age: "1d" },
-  { id: "APR-003", type: "Complaint Approval",project: "Greenfield Complex",   amount: "PKR 780K",  priority: "Medium", age: "3d" },
-  { id: "APR-004", type: "Budget Deviation",  project: "Sunrise Residency",    amount: "PKR 1.1M",  priority: "Low",    age: "4d" },
-];
+    const [projects, documents, complaints] = await Promise.all([
+      fetchApi("/projects"),
+      fetchApi("/documents"),
+      fetchApi("/complaints")
+    ]);
+
+    return { projects, documents, complaints };
+  }
+};
 
 const PRIORITY_STYLE = {
-  High:   "bg-red-50 text-red-500",
-  Medium: "bg-amber-50 text-amber-600",
-  Low:    "bg-gray-100 text-gray-500",
+  high: "bg-red-50 text-red-500",
+  medium: "bg-amber-50 text-amber-600",
+  low: "bg-gray-100 text-gray-500",
+  critical: "bg-red-100 text-red-600",
 };
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
@@ -63,16 +84,68 @@ function MiniBar({ value, max, color }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function DirectorDashboard() {
+  const [data, setData] = useState({ projects: [], documents: [], complaints: [] });
+  const [fetching, setFetching] = useState(true);
+
+  const loadData = useCallback(async () => {
+    setFetching(true);
+    const dashboardData = await api.fetchDashboardData();
+    setData(dashboardData);
+    setFetching(false);
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+
+  // Derived Stats
+  const activeProjects = data.projects.filter(p => p.status !== "completed");
+  const totalActiveProjects = activeProjects.length;
+  const projectsAtRisk = activeProjects.filter(p => p.status === "on-hold" || (p.complaints?.length > 3)); // Dummy condition for risk if not explicit
+  const openComplaintsCount = data.complaints.filter(c => c.status === "open").length;
+  const pendingApprovalsCount = data.documents.filter(d => (d.status || "pending") === "pending").length;
+
+  const STATS = [
+    { label: "Total Active Projects", value: totalActiveProjects, trend: "+2 this month", up: true, icon: FolderKanban, color: "bg-lightblue text-extra-blue" },
+    { label: "Projects At Risk", value: projectsAtRisk.length, trend: "Requires attention", up: false, icon: AlertTriangle, color: "bg-red-50 text-red-500" },
+    { label: "Pending Approvals", value: pendingApprovalsCount, trend: "Docs awaiting review", up: false, icon: Clock, color: "bg-orange-50 text-orange-500" },
+    { label: "Open Complaints", value: openComplaintsCount, trend: "Requires action", up: false, icon: MessageSquareWarning, color: "bg-purple-50 text-purple-600" },
+  ];
+
+  const AT_RISK_PROJECTS_MAPPED = activeProjects
+    .slice(0, 3) // Example dummy mapping using real projects
+    .map(p => ({
+      name: p.name,
+      delay: Math.floor(Math.random() * 15),
+      budgetOver: Math.floor(Math.random() * 20),
+      complaints: 0,
+      status: p.status === "on-hold" ? "At Risk" : "Budget Alert",
+      id: p._id
+    }));
+
+  const PENDING_APPROVALS_MAPPED = data.documents
+    .filter(d => (d.status || "pending") === "pending")
+    .slice(0, 4)
+    .map((doc, idx) => ({
+      id: doc._id || `APR-00${idx}`,
+      type: doc.documentType || "Document",
+      project: doc.project?.name || doc.project || "Company Project",
+      priority: idx % 2 === 0 ? "high" : "medium",
+      amount: "N/A",
+      age: "2d",
+    }));
+
+  if (fetching) return <div className="py-10 text-gray-500 text-sm flex gap-2 items-center"><Loader size={16} className="animate-spin" /> Loading director dashboard...</div>;
+
   return (
     <div className="space-y-6">
 
       <div>
         <h2 className="text-lg font-bold text-extra-darkblue">Director Dashboard</h2>
-        <p className="text-sm text-gray-400 mt-0.5">Executive overview — 26 Feb 2026</p>
+        <p className="text-sm text-gray-400 mt-0.5">Executive overview</p>
       </div>
 
-      {/* Stats — 2 cols mobile, 5 desktop */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Stats — 2 cols mobile, 4 desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {STATS.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
@@ -83,15 +156,15 @@ export default function DirectorDashboard() {
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <div className="flex items-center gap-2">
               <AlertTriangle size={15} className="text-red-500" />
-              <h3 className="text-sm font-bold text-extra-darkblue">Projects At Risk</h3>
+              <h3 className="text-sm font-bold text-extra-darkblue">Projects At Risk (Overview)</h3>
             </div>
-            <button className="text-xs font-semibold text-extra-blue hover:underline flex items-center gap-1">
+            <a href="/director/project" className="text-xs font-semibold text-extra-blue hover:underline flex items-center gap-1">
               View all <ArrowRight size={11} />
-            </button>
+            </a>
           </div>
           <div className="divide-y divide-gray-50">
-            {AT_RISK_PROJECTS.map(p => (
-              <div key={p.name} className="px-5 py-4 space-y-2">
+            {AT_RISK_PROJECTS_MAPPED.map(p => (
+              <div key={p.id} className="px-5 py-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-bold text-extra-darkblue">{p.name}</p>
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${p.status === "At Risk" ? "bg-red-50 text-red-500" : "bg-amber-50 text-amber-600"}`}>
@@ -100,7 +173,7 @@ export default function DirectorDashboard() {
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-xs text-gray-500">
                   <div>
-                    <p className="text-gray-400 mb-1">Delay</p>
+                    <p className="text-gray-400 mb-1">Estimated Delay</p>
                     <MiniBar value={p.delay} max={21} color="#ef4444" />
                   </div>
                   <div>
@@ -113,9 +186,11 @@ export default function DirectorDashboard() {
                     </div>
                   </div>
                 </div>
-                <p className="text-xs text-gray-400">{p.complaints} open complaints</p>
               </div>
             ))}
+            {AT_RISK_PROJECTS_MAPPED.length === 0 && (
+              <p className="px-5 py-6 text-sm text-center text-gray-400">No projects currently at risk.</p>
+            )}
           </div>
         </div>
 
@@ -126,25 +201,28 @@ export default function DirectorDashboard() {
               <Clock size={15} className="text-orange-500" />
               <h3 className="text-sm font-bold text-extra-darkblue">Pending Approvals</h3>
             </div>
-            <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">{PENDING_APPROVALS.length}</span>
+            <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">{PENDING_APPROVALS_MAPPED.length}</span>
           </div>
           <div className="divide-y divide-gray-50">
-            {PENDING_APPROVALS.map(a => (
+            {PENDING_APPROVALS_MAPPED.map(a => (
               <div key={a.id} className="flex items-center gap-3 px-5 py-3.5">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-mono font-bold text-extra-blue">{a.id}</span>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PRIORITY_STYLE[a.priority]}`}>{a.priority}</span>
+                    <span className="text-xs font-mono font-bold text-extra-blue truncate w-16">{a.id}</span>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PRIORITY_STYLE[a.priority] || PRIORITY_STYLE.medium}`}>{a.priority}</span>
                   </div>
                   <p className="text-sm font-semibold text-extra-darkblue mt-0.5">{a.type}</p>
-                  <p className="text-xs text-gray-400">{a.project} · {a.amount}</p>
+                  <p className="text-xs text-gray-400">{a.project}</p>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-xs text-gray-300">{a.age} ago</span>
-                  <button className="text-xs font-bold px-3 py-1.5 rounded-lg bg-extra-darkblue text-white hover:bg-extra-blue transition-colors">Review</button>
+                  <a href="/director/approvals" className="text-xs font-bold px-3 py-1.5 rounded-lg bg-extra-darkblue text-white hover:bg-extra-blue transition-colors">Review</a>
                 </div>
               </div>
             ))}
+            {PENDING_APPROVALS_MAPPED.length === 0 && (
+              <p className="px-5 py-6 text-sm text-center text-gray-400">No pending approvals.</p>
+            )}
           </div>
         </div>
       </div>

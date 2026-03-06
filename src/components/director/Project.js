@@ -1,9 +1,9 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  X, AlertTriangle, AlertCircle, ChevronRight,
-  MessageSquareWarning, Plus, RefreshCw, Pencil,
-  Trash2, Loader2, CheckCircle2, Clock,
+  X, AlertCircle, ChevronRight,
+  Plus, RefreshCw, Pencil,
+  Trash2, Loader2, Clock,
 } from "lucide-react";
 import axiosInstance from "../../lib/axios";
 
@@ -39,8 +39,6 @@ const STATUS_LABELS = {
   "on-hold":      "On Hold",
 };
 
-const FILTER_OPTIONS = ["All", "initiated", "in-progress", "installation", "testing", "completed", "on-hold"];
-
 const EMPTY_FORM = {
   name: "",
   clientName: "",
@@ -52,7 +50,7 @@ const EMPTY_FORM = {
   endDate: "",
   assignedMarketingExecutive: "",
   assignedInstallationIncharge: "",
-  assignedEngineers: "",   // comma-separated IDs
+  assignedEngineers: [],   // array of IDs
 };
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -85,21 +83,80 @@ function Modal({ title, onClose, children }) {
   );
 }
 
+// ── User Select (single) ──────────────────────────────────────────────────────
+function UserSelect({ label, value, onChange, users, placeholder = "Select user" }) {
+  return (
+    <div>
+      <label className="text-xs font-semibold text-gray-600 mb-1 block">{label}</label>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+      >
+        <option value="">{placeholder}</option>
+        {users.map(u => (
+          <option key={u._id} value={u._id}>{u.name} — {u.email}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+// ── Engineers Multi-Select ────────────────────────────────────────────────────
+function EngineersSelect({ value, onChange, users }) {
+  const toggle = (id) => {
+    if (value.includes(id)) {
+      onChange(value.filter(v => v !== id));
+    } else {
+      onChange([...value, id]);
+    }
+  };
+
+  return (
+    <div>
+      <label className="text-xs font-semibold text-gray-600 mb-1 block">Engineers</label>
+      <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto divide-y divide-gray-50">
+        {users.length === 0 && (
+          <p className="text-xs text-gray-400 px-3 py-2">No engineers available</p>
+        )}
+        {users.map(u => (
+          <label key={u._id} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors">
+            <input
+              type="checkbox"
+              checked={value.includes(u._id)}
+              onChange={() => toggle(u._id)}
+              className="accent-blue-600"
+            />
+            <span className="text-sm text-gray-700">{u.name}</span>
+            <span className="text-xs text-gray-400 ml-auto">{u.email}</span>
+          </label>
+        ))}
+      </div>
+      {value.length > 0 && (
+        <p className="text-xs text-blue-600 mt-1">{value.length} engineer{value.length > 1 ? "s" : ""} selected</p>
+      )}
+    </div>
+  );
+}
+
 // ── Project Form ──────────────────────────────────────────────────────────────
-function ProjectForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel = "Submit" }) {
+function ProjectForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel = "Submit", users = [] }) {
   const [form, setForm] = useState(initial);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  // Split users by role for targeted dropdowns
+  const marketingUsers  = users.filter(u => u.role === "marketing_executive" || u.role === "admin" || true);
+  const inchargeUsers   = users.filter(u => u.role === "installation_incharge" || u.role === "admin" || true);
+  const engineerUsers   = users.filter(u => u.role === "engineer" || u.role === "admin" || true);
+  // ↑ Remove the `|| true` if you want strict role filtering
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Build payload — parse engineers as array, strip empty fields
     const payload = {};
     Object.entries(form).forEach(([k, v]) => {
-      if (v === "") return;
       if (k === "assignedEngineers") {
-        const ids = v.split(",").map(s => s.trim()).filter(Boolean);
-        if (ids.length) payload[k] = ids;
-      } else {
+        if (v.length) payload[k] = v;
+      } else if (v !== "") {
         payload[k] = v;
       }
     });
@@ -167,29 +224,31 @@ function ProjectForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel = "S
           placeholder="Brief project description" />
       </div>
 
+      {/* ── Assignments — now dropdowns with names ── */}
       <div className="border-t border-gray-100 pt-3 space-y-3">
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Assignments (User ObjectIds)</p>
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Assignments</p>
 
-        <div>
-          <label className="text-xs font-semibold text-gray-600 mb-1 block">Marketing Executive</label>
-          <input value={form.assignedMarketingExecutive} onChange={e => set("assignedMarketingExecutive", e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-            placeholder="MongoDB User ObjectId" />
-        </div>
+        <UserSelect
+          label="Marketing Executive"
+          value={form.assignedMarketingExecutive}
+          onChange={v => set("assignedMarketingExecutive", v)}
+          users={marketingUsers}
+          placeholder="Select marketing executive"
+        />
 
-        <div>
-          <label className="text-xs font-semibold text-gray-600 mb-1 block">Installation Incharge</label>
-          <input value={form.assignedInstallationIncharge} onChange={e => set("assignedInstallationIncharge", e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-            placeholder="MongoDB User ObjectId" />
-        </div>
+        <UserSelect
+          label="Installation Incharge"
+          value={form.assignedInstallationIncharge}
+          onChange={v => set("assignedInstallationIncharge", v)}
+          users={inchargeUsers}
+          placeholder="Select installation incharge"
+        />
 
-        <div>
-          <label className="text-xs font-semibold text-gray-600 mb-1 block">Engineers (comma-separated IDs)</label>
-          <input value={form.assignedEngineers} onChange={e => set("assignedEngineers", e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-            placeholder="id1, id2, id3" />
-        </div>
+        <EngineersSelect
+          value={form.assignedEngineers}
+          onChange={v => set("assignedEngineers", v)}
+          users={engineerUsers}
+        />
       </div>
 
       <button type="submit" disabled={loading}
@@ -205,9 +264,9 @@ function ProjectForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel = "S
 function DetailModal({ project: p, onClose }) {
   const [tab, setTab] = useState("overview");
   const tabs = [
-    { key: "overview",    label: "Overview"    },
-    { key: "team",        label: "Team"        },
-    { key: "timeline",    label: "Timeline"    },
+    { key: "overview", label: "Overview" },
+    { key: "team",     label: "Team"     },
+    { key: "timeline", label: "Timeline" },
   ];
 
   const statusStyle = STATUS_STYLE[p.status] || "bg-gray-100 text-gray-500";
@@ -218,7 +277,6 @@ function DetailModal({ project: p, onClose }) {
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col z-10">
 
-        {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0"
           style={{ background: "linear-gradient(135deg, #0F2854, #1C4D8D)" }}>
           <div>
@@ -233,7 +291,6 @@ function DetailModal({ project: p, onClose }) {
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-gray-100 px-2 overflow-x-auto shrink-0">
           {tabs.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
@@ -245,8 +302,6 @@ function DetailModal({ project: p, onClose }) {
         </div>
 
         <div className="overflow-y-auto flex-1 p-5 space-y-4">
-
-          {/* Overview */}
           {tab === "overview" && (
             <div className="space-y-4">
               {p.description && (
@@ -254,10 +309,10 @@ function DetailModal({ project: p, onClose }) {
               )}
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "Client",         value: p.clientName },
-                  { label: "Contact",        value: p.clientContact || "—" },
-                  { label: "Location",       value: p.location || "—" },
-                  { label: "Created By",     value: p.createdBy?.name || "—" },
+                  { label: "Client",     value: p.clientName },
+                  { label: "Contact",    value: p.clientContact || "—" },
+                  { label: "Location",   value: p.location || "—" },
+                  { label: "Created By", value: p.createdBy?.name || "—" },
                 ].map(i => (
                   <div key={i.label} className="bg-gray-50 rounded-xl p-3">
                     <p className="text-xs text-gray-400 mb-0.5">{i.label}</p>
@@ -268,10 +323,8 @@ function DetailModal({ project: p, onClose }) {
             </div>
           )}
 
-          {/* Team */}
           {tab === "team" && (
             <div className="space-y-3">
-              {/* Marketing Executive */}
               {p.assignedMarketingExecutive ? (
                 <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-100 bg-gray-50">
                   <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold shrink-0">
@@ -286,7 +339,6 @@ function DetailModal({ project: p, onClose }) {
                 <p className="text-xs text-gray-400 px-4">No marketing executive assigned</p>
               )}
 
-              {/* Installation Incharge */}
               {p.assignedInstallationIncharge ? (
                 <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-100 bg-gray-50">
                   <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-xs font-bold shrink-0">
@@ -301,7 +353,6 @@ function DetailModal({ project: p, onClose }) {
                 <p className="text-xs text-gray-400 px-4">No installation incharge assigned</p>
               )}
 
-              {/* Engineers */}
               {p.assignedEngineers?.length > 0 ? (
                 <div>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Engineers</p>
@@ -325,14 +376,13 @@ function DetailModal({ project: p, onClose }) {
             </div>
           )}
 
-          {/* Timeline */}
           {tab === "timeline" && (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: "Start Date",  value: p.startDate ? new Date(p.startDate).toLocaleDateString() : "—" },
-                  { label: "End Date",    value: p.endDate   ? new Date(p.endDate).toLocaleDateString()   : "—" },
-                  { label: "Created",     value: new Date(p.createdAt).toLocaleDateString() },
+                  { label: "Start Date", value: p.startDate ? new Date(p.startDate).toLocaleDateString() : "—" },
+                  { label: "End Date",   value: p.endDate   ? new Date(p.endDate).toLocaleDateString()   : "—" },
+                  { label: "Created",    value: new Date(p.createdAt).toLocaleDateString() },
                 ].map(i => (
                   <div key={i.label} className="bg-gray-50 rounded-xl p-3 text-center">
                     <p className="text-xs text-gray-400 mb-1">{i.label}</p>
@@ -341,7 +391,6 @@ function DetailModal({ project: p, onClose }) {
                 ))}
               </div>
 
-              {/* Status timeline visual */}
               <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Status Pipeline</p>
                 <div className="flex items-center gap-1 flex-wrap">
@@ -372,19 +421,30 @@ function DetailModal({ project: p, onClose }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ProjectOverview() {
-  const [projects, setProjects]       = useState([]);
-  const [loading, setLoading]         = useState(true);
+  const [projects, setProjects]           = useState([]);
+  const [users, setUsers]                 = useState([]);        // ← all users for dropdowns
+  const [loading, setLoading]             = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError]             = useState(null);
-  const [filter, setFilter]           = useState("All");
+  const [error, setError]                 = useState(null);
+  const [filter, setFilter]               = useState("All");
 
-  // Modals
   const [detailProject, setDetailProject] = useState(null);
   const [showCreate, setShowCreate]       = useState(false);
   const [editProject, setEditProject]     = useState(null);
   const [deleteTarget, setDeleteTarget]   = useState(null);
 
-  // ── Fetch ────────────────────────────────────────────────────────────────
+  // ── Fetch users for dropdowns ─────────────────────────────────────────────
+  // Change "/users" to whatever your backend endpoint is that returns all users
+  const fetchUsers = useCallback(async () => {
+    try {
+      const data = await apiFetch("admin/users");
+      setUsers(Array.isArray(data) ? data : data.users ?? []);
+    } catch {
+      // non-critical — dropdowns just won't show names
+    }
+  }, []);
+
+  // ── Fetch projects ────────────────────────────────────────────────────────
   const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
@@ -398,9 +458,12 @@ export default function ProjectOverview() {
     }
   }, []);
 
-  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+  useEffect(() => {
+    fetchProjects();
+    fetchUsers();
+  }, [fetchProjects, fetchUsers]);
 
-  // ── CRUD ─────────────────────────────────────────────────────────────────
+  // ── CRUD ──────────────────────────────────────────────────────────────────
   const handleCreate = async (payload) => {
     try {
       setActionLoading(true);
@@ -442,48 +505,51 @@ export default function ProjectOverview() {
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const filtered = filter === "All" ? projects : projects.filter(p => p.status === filter);
-
-  // Progress: derive rough % from status
   const statusProgress = { initiated: 5, "in-progress": 40, installation: 65, testing: 85, completed: 100, "on-hold": 0 };
+
+  // Build initial form values for editing — engineers as array of IDs
+  const buildEditInitial = (p) => ({
+    name:                         p.name || "",
+    clientName:                   p.clientName || "",
+    clientContact:                p.clientContact || "",
+    location:                     p.location || "",
+    status:                       p.status || "initiated",
+    description:                  p.description || "",
+    startDate:                    p.startDate ? p.startDate.slice(0, 10) : "",
+    endDate:                      p.endDate   ? p.endDate.slice(0, 10)   : "",
+    assignedMarketingExecutive:   p.assignedMarketingExecutive?._id || "",
+    assignedInstallationIncharge: p.assignedInstallationIncharge?._id || "",
+    assignedEngineers:            (p.assignedEngineers || []).map(e => e._id),
+  });
 
   return (
     <div className="space-y-5">
 
-      {/* Detail modal */}
       {detailProject && <DetailModal project={detailProject} onClose={() => setDetailProject(null)} />}
 
-      {/* Create modal */}
       {showCreate && (
         <Modal title="Create New Project" onClose={() => setShowCreate(false)}>
-          <ProjectForm onSubmit={handleCreate} loading={actionLoading} submitLabel="Create Project" />
-        </Modal>
-      )}
-
-      {/* Edit modal */}
-      {editProject && (
-        <Modal title="Edit Project" onClose={() => setEditProject(null)}>
           <ProjectForm
-            initial={{
-              name:                          editProject.name || "",
-              clientName:                    editProject.clientName || "",
-              clientContact:                 editProject.clientContact || "",
-              location:                      editProject.location || "",
-              status:                        editProject.status || "initiated",
-              description:                   editProject.description || "",
-              startDate:                     editProject.startDate ? editProject.startDate.slice(0, 10) : "",
-              endDate:                       editProject.endDate   ? editProject.endDate.slice(0, 10)   : "",
-              assignedMarketingExecutive:    editProject.assignedMarketingExecutive?._id || "",
-              assignedInstallationIncharge:  editProject.assignedInstallationIncharge?._id || "",
-              assignedEngineers:             (editProject.assignedEngineers || []).map(e => e._id).join(", "),
-            }}
-            onSubmit={handleUpdate}
+            onSubmit={handleCreate}
             loading={actionLoading}
-            submitLabel="Save Changes"
+            submitLabel="Create Project"
+            users={users}
           />
         </Modal>
       )}
 
-      {/* Delete confirm */}
+      {editProject && (
+        <Modal title="Edit Project" onClose={() => setEditProject(null)}>
+          <ProjectForm
+            initial={buildEditInitial(editProject)}
+            onSubmit={handleUpdate}
+            loading={actionLoading}
+            submitLabel="Save Changes"
+            users={users}
+          />
+        </Modal>
+      )}
+
       {deleteTarget && (
         <Modal title="Delete Project" onClose={() => setDeleteTarget(null)}>
           <div className="space-y-4">
@@ -523,7 +589,6 @@ export default function ProjectOverview() {
         </div>
       </div>
 
-      {/* Error */}
       {error && (
         <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
           <AlertCircle size={14} />
@@ -571,15 +636,14 @@ export default function ProjectOverview() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map(p => {
-            const progress = statusProgress[p.status] ?? 0;
+            const progress    = statusProgress[p.status] ?? 0;
             const statusLabel = STATUS_LABELS[p.status] || p.status;
-            const statusStyle = STATUS_STYLE[p.status] || "bg-gray-100 text-gray-500";
+            const statusStyle = STATUS_STYLE[p.status]  || "bg-gray-100 text-gray-500";
 
             return (
               <div key={p._id}
                 className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 cursor-pointer hover:border-blue-400 hover:shadow-md transition-all group relative">
 
-                {/* Action buttons — top right */}
                 <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                   <button onClick={e => { e.stopPropagation(); setEditProject(p); }}
                     className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
