@@ -1,7 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import axios from "axios";
 
+// ── Config ────────────────────────────────────
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+const api = axios.create({
+  baseURL: API_BASE,
+});
+
+// Attach token from localStorage on every request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("accessToken");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// ── Colors ────────────────────────────────────
 const C = {
   darkBlue:  "#0F2854",
   blue:      "#1C4D8D",
@@ -49,31 +65,39 @@ const Icon = {
       <line x1="7" y1="17" x2="17" y2="7" /><polyline points="7 7 17 7 17 17" />
     </svg>
   ),
+  Refresh: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+      <path d="M23 4v6h-6" /><path d="M1 20v-6h6" />
+      <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+    </svg>
+  ),
 };
 
-// ── Data ──────────────────────────────────────
-const initiatedProjects = [
-  { id: "PRJ-2415", name: "AquaZone Riyadh",  client: "Gulf Leisure",   submitted: "22 Feb 2026", status: "Pending Review",   risk: "Low"    },
-  { id: "PRJ-2418", name: "WaveWorld Cairo",   client: "Nile Parks Co.", submitted: "21 Feb 2026", status: "Docs Missing",     risk: "Medium" },
-  { id: "PRJ-2420", name: "SplashCity Malta",  client: "Euro Aqua Ltd",  submitted: "20 Feb 2026", status: "Pending Review",   risk: "Low"    },
-  { id: "PRJ-2422", name: "TidalPark Muscat",  client: "Oman Leisure",   submitted: "19 Feb 2026", status: "Under Assessment", risk: "High"   },
-  { id: "PRJ-2425", name: "AquaDome Karachi",  client: "Blue Wave Inc",  submitted: "18 Feb 2026", status: "Pending Review",   risk: "Low"    },
-];
+// ── Data helpers ──────────────────────────────
+const formatDate = (dateStr) => {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+};
 
-const pendingInstallations = [
-  { id: "INS-0842", name: "WaterPlex Dubai",  engineer: "Ahmed K.",   scheduled: "28 Feb 2026", type: "Full Install",  priority: "High"   },
-  { id: "INS-0845", name: "OceanPark Jeddah", engineer: "Sara M.",    scheduled: "01 Mar 2026", type: "Partial Setup", priority: "Medium" },
-  { id: "INS-0849", name: "AquaHub Istanbul", engineer: "Unassigned", scheduled: "03 Mar 2026", type: "Full Install",  priority: "High"   },
-  { id: "INS-0851", name: "SplashDome Lagos", engineer: "James O.",   scheduled: "05 Mar 2026", type: "Inspection",    priority: "Low"    },
-];
+// Map project status enum → readable installation type label
+const installTypeLabel = (status) => ({
+  "installation": "Full Install",
+  "testing":      "Inspection",
+  "in-progress":  "Partial Setup",
+}[status] || "Full Install");
 
-const followUpClients = [
-  { id: "PRJ-2398", client: "Horizon Parks",   contact: "Mr. Farooq", lastContact: "10 Feb 2026", reason: "Missing NOC document",      urgency: "High"   },
-  { id: "PRJ-2401", client: "AquaVentures",    contact: "Ms. Lina",   lastContact: "14 Feb 2026", reason: "Contract revision pending",  urgency: "Medium" },
-  { id: "PRJ-2407", client: "BlueSky Leisure", contact: "Mr. Tariq",  lastContact: "16 Feb 2026", reason: "Site survey confirmation",   urgency: "Low"    },
-  { id: "PRJ-2411", client: "Delta Parks",     contact: "Ms. Rana",   lastContact: "18 Feb 2026", reason: "Payment clearance pending",  urgency: "High"   },
-  { id: "PRJ-2414", client: "Coral Resorts",   contact: "Mr. Hamad",  lastContact: "20 Feb 2026", reason: "Engineer assignment needed", urgency: "Medium" },
-];
+// Derive engineer count across all projects
+const countAssignedEngineers = (projects) => {
+  const ids = new Set();
+  projects.forEach(p =>
+    (p.assignedEngineers || []).forEach(e =>
+      ids.add(typeof e === "object" ? e._id : e)
+    )
+  );
+  return ids.size;
+};
 
 // ── Helpers ───────────────────────────────────
 const levelBadge = (level) => ({
@@ -89,23 +113,51 @@ const statusBadge = (s) => ({
   "Full Install":     { bg: C.lightBlue, color: C.darkBlue },
   "Partial Setup":    { bg: "#d6ebf7",   color: C.blue     },
   "Inspection":       { bg: "#e8f3fb",   color: C.medBlue  },
+  "initiated":        { bg: C.lightBlue, color: C.darkBlue },
+  "in-progress":      { bg: "#d6ebf7",   color: C.blue     },
+  "installation":     { bg: C.lightBlue, color: C.darkBlue },
+  "testing":          { bg: "#e8f3fb",   color: C.medBlue  },
+  "completed":        { bg: "#d4edda",   color: "#155724"  },
+  "on-hold":          { bg: C.darkBlue,  color: C.white    },
 }[s] || { bg: C.lightBlue, color: C.darkBlue });
-
-const urgencyDot = { High: C.darkBlue, Medium: C.medBlue, Low: C.lightBlue };
 
 // ── Reusable atoms ────────────────────────────
 function Badge({ label, bg, color }) {
   return (
     <span
       style={{ backgroundColor: bg, color }}
-      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap"
+      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap capitalize"
     >
       {label}
     </span>
   );
 }
 
-function StatCard({ label, value, sub, icon: Ic, barColor, iconBg, iconColor, subColor }) {
+function SkeletonRow({ cols = 6 }) {
+  return (
+    <tr style={{ borderBottom: `1px solid ${C.divider}` }}>
+      {Array.from({ length: cols }).map((_, i) => (
+        <td key={i} className="px-4 py-3">
+          <div className="h-3 rounded animate-pulse" style={{ backgroundColor: C.lightBlue, width: `${60 + (i * 13) % 30}%` }} />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+function ErrorBanner({ message, onRetry }) {
+  return (
+    <div className="mx-4 my-3 px-3 py-2 rounded-lg flex items-center justify-between text-xs font-medium"
+      style={{ backgroundColor: "#fff0f0", color: "#b91c1c", border: "1px solid #fecaca" }}>
+      <span>⚠ {message}</span>
+      {onRetry && (
+        <button onClick={onRetry} className="ml-3 underline hover:no-underline">Retry</button>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ label, value, sub, icon: Ic, barColor, iconBg, iconColor, subColor, loading }) {
   return (
     <div className="relative bg-white rounded-xl p-4 flex flex-col gap-2 overflow-hidden shadow-sm"
       style={{ border: `1px solid ${C.lightBlue}` }}>
@@ -114,7 +166,11 @@ function StatCard({ label, value, sub, icon: Ic, barColor, iconBg, iconColor, su
         <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: C.dimText }}>{label}</span>
         <span className="p-1.5 rounded-lg" style={{ backgroundColor: iconBg, color: iconColor }}><Ic /></span>
       </div>
-      <div className="text-2xl font-bold tracking-tight" style={{ color: C.darkBlue }}>{value}</div>
+      {loading ? (
+        <div className="h-7 w-16 rounded animate-pulse" style={{ backgroundColor: C.lightBlue }} />
+      ) : (
+        <div className="text-2xl font-bold tracking-tight" style={{ color: C.darkBlue }}>{value}</div>
+      )}
       <div className="text-xs font-semibold" style={{ color: subColor }}>{sub}</div>
     </div>
   );
@@ -159,13 +215,22 @@ function HoverTr({ children }) {
   );
 }
 
-function SectionTitle({ title, count, countBg }) {
+function SectionTitle({ title, count, countBg, loading, onRefresh }) {
   return (
     <div className="px-4 pt-4 pb-0 flex items-center gap-2">
       <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: C.darkBlue }}>{title}</h2>
-      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: countBg, color: C.white }}>
-        {count}
-      </span>
+      {loading ? (
+        <div className="w-6 h-5 rounded-full animate-pulse" style={{ backgroundColor: C.lightBlue }} />
+      ) : (
+        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: countBg, color: C.white }}>
+          {count}
+        </span>
+      )}
+      {onRefresh && (
+        <button onClick={onRefresh} className="ml-auto p-1 rounded hover:opacity-60 transition-opacity" style={{ color: C.medBlue }}>
+          <Icon.Refresh />
+        </button>
+      )}
     </div>
   );
 }
@@ -179,22 +244,22 @@ function ViewAll() {
   );
 }
 
-// ── Mobile card for projects ──────────────────
+// ── Mobile cards ──────────────────────────────
 function MobileProjectCard({ p }) {
   const sb = statusBadge(p.status);
-  const rb = levelBadge(p.risk);
+  const rb = levelBadge("Medium");
   return (
     <div className="px-4 py-3 flex flex-col gap-2" style={{ borderBottom: `1px solid ${C.divider}` }}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <span className="text-xs font-bold" style={{ color: C.blue }}>{p.id}</span>
+          <span className="text-xs font-bold" style={{ color: C.blue }}>{p._id?.slice(-6).toUpperCase()}</span>
           <p className="text-sm font-semibold mt-0.5" style={{ color: C.darkBlue }}>{p.name}</p>
-          <p className="text-xs" style={{ color: C.mutedText }}>{p.client}</p>
+          <p className="text-xs" style={{ color: C.mutedText }}>{p.clientName}</p>
         </div>
-        <Badge label={p.risk} bg={rb.bg} color={rb.color} />
+        <Badge label="Medium" bg={rb.bg} color={rb.color} />
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs" style={{ color: C.dimText }}>{p.submitted}</span>
+        <span className="text-xs" style={{ color: C.dimText }}>{formatDate(p.createdAt)}</span>
         <Badge label={p.status} bg={sb.bg} color={sb.color} />
       </div>
     </div>
@@ -202,30 +267,88 @@ function MobileProjectCard({ p }) {
 }
 
 function MobileInstallCard({ p }) {
-  const sb = statusBadge(p.type);
-  const pb = levelBadge(p.priority);
+  const type = installTypeLabel(p.status);
+  const sb = statusBadge(type);
+  const pb = levelBadge("Medium");
+  const engineerName = p.assignedInstallationIncharge?.name || p.assignedEngineers?.[0]?.name || "Unassigned";
   return (
     <div className="px-4 py-3 flex flex-col gap-2" style={{ borderBottom: `1px solid ${C.divider}` }}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <span className="text-xs font-bold" style={{ color: C.blue }}>{p.id}</span>
+          <span className="text-xs font-bold" style={{ color: C.blue }}>{p._id?.slice(-6).toUpperCase()}</span>
           <p className="text-sm font-semibold mt-0.5" style={{ color: C.darkBlue }}>{p.name}</p>
-          <p className="text-xs" style={{ color: p.engineer === "Unassigned" ? C.darkBlue : C.mutedText }}>
-            {p.engineer === "Unassigned" ? "— Unassigned" : p.engineer}
+          <p className="text-xs" style={{ color: engineerName === "Unassigned" ? C.darkBlue : C.mutedText }}>
+            {engineerName === "Unassigned" ? "— Unassigned" : engineerName}
           </p>
         </div>
-        <Badge label={p.priority} bg={pb.bg} color={pb.color} />
+        <Badge label="Medium" bg={pb.bg} color={pb.color} />
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs" style={{ color: C.dimText }}>{p.scheduled}</span>
-        <Badge label={p.type} bg={sb.bg} color={sb.color} />
+        <span className="text-xs" style={{ color: C.dimText }}>{formatDate(p.startDate)}</span>
+        <Badge label={type} bg={sb.bg} color={sb.color} />
       </div>
     </div>
   );
 }
 
+// ── Custom hook ───────────────────────────────
+function useProjects(status) {
+  const [data, setData]       = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = status ? { status } : {};
+      const res = await api.get("/projects", { params });
+      // Support both { data: [...] } and [...] response shapes
+      const projects = Array.isArray(res.data) ? res.data : res.data.data ?? [];
+      setData(projects);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  }, [status]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  return { data, loading, error, refetch: fetch };
+}
+
+function useEngineers() {
+  const [data, setData]       = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get("/admin/engineers")
+      .then(res => setData(Array.isArray(res.data) ? res.data : res.data.data ?? []))
+      .catch(() => setData([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return { data, loading };
+}
+
 // ── Main ──────────────────────────────────────
 export default function Dashboard() {
+  const initiated    = useProjects("initiated");
+  const installation = useProjects("installation");
+  const engineers    = useEngineers();
+
+  const today = new Date().toLocaleDateString("en-GB", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+
+  // Stat helpers
+  const unassignedInstalls = installation.data.filter(
+    p => !p.assignedInstallationIncharge && (!p.assignedEngineers || p.assignedEngineers.length === 0)
+  ).length;
+
+  const assignedEngineersCount = countAssignedEngineers([...initiated.data, ...installation.data]);
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: C.bg }}>
       <main className="p-3 sm:p-0 md:p-5 space-y-4">
@@ -233,131 +356,182 @@ export default function Dashboard() {
         {/* Page heading */}
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: C.medBlue }}>
-            Wednesday, 25 Feb 2026 · All Sites Active
+            {today} · All Sites Active
           </p>
           <h1 className="text-xl font-bold mt-0.5" style={{ color: C.darkBlue }}>Service Team Dashboard</h1>
         </div>
 
         {/* Stat Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard label="Projects Initiated"    value="23" sub="+3 this week"       icon={Icon.Clipboard} barColor={C.darkBlue} iconBg={C.darkBlue} iconColor={C.white}    subColor={C.blue}    />
-          <StatCard label="Pending Installations" value="4"  sub="2 scheduled today"  icon={Icon.Wrench}    barColor={C.blue}     iconBg={C.blue}     iconColor={C.white}    subColor={C.blue}    />
-          <StatCard label="Client Follow-ups"     value="5"  sub="2 require action"   icon={Icon.Mail}      barColor={C.medBlue}  iconBg={C.medBlue}  iconColor={C.white}    subColor={C.medBlue} />
-          <StatCard label="Engineers Assigned"    value="21" sub="4 unassigned"        icon={Icon.Users}     barColor={C.lightBlue}iconBg={C.lightBlue}iconColor={C.darkBlue} subColor={C.medBlue} />
+          <StatCard
+            label="Projects Initiated"
+            value={initiated.data.length}
+            sub={`+${initiated.data.filter(p => {
+              const d = new Date(p.createdAt);
+              const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+              return d >= weekAgo;
+            }).length} this week`}
+            icon={Icon.Clipboard}
+            barColor={C.darkBlue} iconBg={C.darkBlue} iconColor={C.white} subColor={C.blue}
+            loading={initiated.loading}
+          />
+          <StatCard
+            label="Pending Installations"
+            value={installation.data.length}
+            sub={`${unassignedInstalls} unassigned`}
+            icon={Icon.Wrench}
+            barColor={C.blue} iconBg={C.blue} iconColor={C.white} subColor={C.blue}
+            loading={installation.loading}
+          />
+          <StatCard
+            label="Client Follow-ups"
+            value="—"
+            sub="Section coming soon"
+            icon={Icon.Mail}
+            barColor={C.medBlue} iconBg={C.medBlue} iconColor={C.white} subColor={C.medBlue}
+            loading={false}
+          />
+          <StatCard
+            label="Engineers Assigned"
+            value={engineers.loading ? "…" : engineers.data.length}
+            sub={`${assignedEngineersCount} on active projects`}
+            icon={Icon.Users}
+            barColor={C.lightBlue} iconBg={C.lightBlue} iconColor={C.darkBlue} subColor={C.medBlue}
+            loading={engineers.loading}
+          />
         </div>
 
         {/* Projects Initiated */}
         <Card footer={<ViewAll />}>
-          <SectionTitle title="Projects Initiated" count={initiatedProjects.length} countBg={C.darkBlue} />
+          <SectionTitle
+            title="Projects Initiated"
+            count={initiated.data.length}
+            countBg={C.darkBlue}
+            loading={initiated.loading}
+            onRefresh={initiated.refetch}
+          />
+
+          {initiated.error && <ErrorBanner message={initiated.error} onRetry={initiated.refetch} />}
 
           {/* Desktop table */}
           <div className="hidden md:block mt-3 overflow-x-auto">
             <table className="w-full text-sm">
               <thead><Thead cols={["Project ID", "Project Name", "Client", "Submitted", "Status", "Risk", ""]} /></thead>
               <tbody>
-                {initiatedProjects.map(p => {
-                  const sb = statusBadge(p.status);
-                  const rb = levelBadge(p.risk);
-                  return (
-                    <HoverTr key={p.id}>
-                      <td className="px-4 py-3 font-semibold whitespace-nowrap text-sm" style={{ color: C.blue }}>{p.id}</td>
-                      <td className="px-4 py-3 font-medium whitespace-nowrap text-sm" style={{ color: C.darkBlue }}>{p.name}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm" style={{ color: C.mutedText }}>{p.client}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: C.dimText }}>{p.submitted}</td>
-                      <td className="px-4 py-3 whitespace-nowrap"><Badge label={p.status} bg={sb.bg} color={sb.color} /></td>
-                      <td className="px-4 py-3 whitespace-nowrap"><Badge label={p.risk} bg={rb.bg} color={rb.color} /></td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <button className="text-xs font-semibold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: C.blue }}>
-                          Review <Icon.ChevronRight />
-                        </button>
-                      </td>
-                    </HoverTr>
-                  );
-                })}
+                {initiated.loading
+                  ? Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} cols={7} />)
+                  : initiated.data.length === 0 && !initiated.error
+                    ? (
+                      <tr><td colSpan={7} className="px-4 py-8 text-center text-sm" style={{ color: C.dimText }}>No initiated projects found</td></tr>
+                    )
+                    : initiated.data.map(p => {
+                      const sb = statusBadge(p.status);
+                      const rb = levelBadge("Medium");
+                      return (
+                        <HoverTr key={p._id}>
+                          <td className="px-4 py-3 font-semibold whitespace-nowrap text-sm font-mono" style={{ color: C.blue }}>
+                            {p._id?.slice(-6).toUpperCase()}
+                          </td>
+                          <td className="px-4 py-3 font-medium whitespace-nowrap text-sm" style={{ color: C.darkBlue }}>{p.name}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm" style={{ color: C.mutedText }}>{p.clientName}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: C.dimText }}>{formatDate(p.createdAt)}</td>
+                          <td className="px-4 py-3 whitespace-nowrap"><Badge label={p.status} bg={sb.bg} color={sb.color} /></td>
+                          <td className="px-4 py-3 whitespace-nowrap"><Badge label="Medium" bg={rb.bg} color={rb.color} /></td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <button className="text-xs font-semibold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: C.blue }}>
+                              Review <Icon.ChevronRight />
+                            </button>
+                          </td>
+                        </HoverTr>
+                      );
+                    })
+                }
               </tbody>
             </table>
           </div>
 
           {/* Mobile cards */}
           <div className="md:hidden mt-2">
-            {initiatedProjects.map(p => <MobileProjectCard key={p.id} p={p} />)}
+            {initiated.loading
+              ? Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="px-4 py-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
+                  <div className="h-3 rounded animate-pulse mb-2" style={{ backgroundColor: C.lightBlue, width: "40%" }} />
+                  <div className="h-4 rounded animate-pulse mb-1" style={{ backgroundColor: C.lightBlue, width: "70%" }} />
+                  <div className="h-3 rounded animate-pulse" style={{ backgroundColor: C.lightBlue, width: "50%" }} />
+                </div>
+              ))
+              : initiated.data.map(p => <MobileProjectCard key={p._id} p={p} />)
+            }
           </div>
         </Card>
 
-        {/* Bottom two panels */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {/* Pending Installations */}
+        <Card footer={<ViewAll />}>
+          <SectionTitle
+            title="Pending Installations"
+            count={installation.data.length}
+            countBg={C.blue}
+            loading={installation.loading}
+            onRefresh={installation.refetch}
+          />
 
-          {/* Pending Installations */}
-          <Card footer={<ViewAll />}>
-            <SectionTitle title="Pending Installations" count={pendingInstallations.length} countBg={C.blue} />
+          {installation.error && <ErrorBanner message={installation.error} onRetry={installation.refetch} />}
 
-            {/* Desktop table */}
-            <div className="hidden md:block mt-3 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><Thead cols={["ID", "Site", "Engineer", "Scheduled", "Type", "Priority"]} /></thead>
-                <tbody>
-                  {pendingInstallations.map(p => {
-                    const sb = statusBadge(p.type);
-                    const pb = levelBadge(p.priority);
-                    return (
-                      <HoverTr key={p.id}>
-                        <td className="px-4 py-3 font-semibold whitespace-nowrap text-sm" style={{ color: C.blue }}>{p.id}</td>
-                        <td className="px-4 py-3 font-medium whitespace-nowrap text-sm" style={{ color: C.darkBlue }}>{p.name}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm">
-                          {p.engineer === "Unassigned"
-                            ? <span className="text-xs font-bold" style={{ color: C.darkBlue }}>— Unassigned</span>
-                            : <span style={{ color: C.mutedText }}>{p.engineer}</span>}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: C.dimText }}>{p.scheduled}</td>
-                        <td className="px-4 py-3 whitespace-nowrap"><Badge label={p.type} bg={sb.bg} color={sb.color} /></td>
-                        <td className="px-4 py-3 whitespace-nowrap"><Badge label={p.priority} bg={pb.bg} color={pb.color} /></td>
-                      </HoverTr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          {/* Desktop table */}
+          <div className="hidden md:block mt-3 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><Thead cols={["ID", "Site", "Incharge", "Start Date", "Type", "Priority"]} /></thead>
+              <tbody>
+                {installation.loading
+                  ? Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} cols={6} />)
+                  : installation.data.length === 0 && !installation.error
+                    ? (
+                      <tr><td colSpan={6} className="px-4 py-8 text-center text-sm" style={{ color: C.dimText }}>No pending installations</td></tr>
+                    )
+                    : installation.data.map(p => {
+                      const type = installTypeLabel(p.status);
+                      const sb = statusBadge(type);
+                      const pb = levelBadge("Medium");
+                      const incharge = p.assignedInstallationIncharge?.name
+                        || p.assignedEngineers?.[0]?.name
+                        || "Unassigned";
+                      return (
+                        <HoverTr key={p._id}>
+                          <td className="px-4 py-3 font-semibold whitespace-nowrap text-sm font-mono" style={{ color: C.blue }}>
+                            {p._id?.slice(-6).toUpperCase()}
+                          </td>
+                          <td className="px-4 py-3 font-medium whitespace-nowrap text-sm" style={{ color: C.darkBlue }}>{p.name}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            {incharge === "Unassigned"
+                              ? <span className="text-xs font-bold" style={{ color: C.darkBlue }}>— Unassigned</span>
+                              : <span style={{ color: C.mutedText }}>{incharge}</span>}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: C.dimText }}>{formatDate(p.startDate)}</td>
+                          <td className="px-4 py-3 whitespace-nowrap"><Badge label={type} bg={sb.bg} color={sb.color} /></td>
+                          <td className="px-4 py-3 whitespace-nowrap"><Badge label="Medium" bg={pb.bg} color={pb.color} /></td>
+                        </HoverTr>
+                      );
+                    })
+                }
+              </tbody>
+            </table>
+          </div>
 
-            {/* Mobile cards */}
-            <div className="md:hidden mt-2">
-              {pendingInstallations.map(p => <MobileInstallCard key={p.id} p={p} />)}
-            </div>
-          </Card>
+          {/* Mobile cards */}
+          <div className="md:hidden mt-2">
+            {installation.loading
+              ? Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="px-4 py-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
+                  <div className="h-3 rounded animate-pulse mb-2" style={{ backgroundColor: C.lightBlue, width: "40%" }} />
+                  <div className="h-4 rounded animate-pulse mb-1" style={{ backgroundColor: C.lightBlue, width: "70%" }} />
+                  <div className="h-3 rounded animate-pulse" style={{ backgroundColor: C.lightBlue, width: "50%" }} />
+                </div>
+              ))
+              : installation.data.map(p => <MobileInstallCard key={p._id} p={p} />)
+            }
+          </div>
+        </Card>
 
-          {/* Client Follow-up */}
-          <Card footer={<ViewAll />}>
-            <SectionTitle title="Client Follow-up List" count={followUpClients.length} countBg={C.medBlue} />
-            <div className="mt-2">
-              {followUpClients.map((f, i) => {
-                const ub = levelBadge(f.urgency);
-                const dot = urgencyDot[f.urgency];
-                return (
-                  <div
-                    key={f.id}
-                    className="px-4 py-3 flex items-start gap-3 transition-colors"
-                    style={{ borderBottom: i < followUpClients.length - 1 ? `1px solid ${C.divider}` : "none" }}
-                    onMouseEnter={e => e.currentTarget.style.backgroundColor = C.bg}
-                    onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
-                  >
-                    <div className="mt-1.5 w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: dot }} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm" style={{ color: C.darkBlue }}>{f.client}</span>
-                        <span className="text-[11px] font-medium" style={{ color: C.dimText }}>{f.id}</span>
-                      </div>
-                      <p className="text-xs mt-0.5" style={{ color: C.mutedText }}>{f.contact} · {f.reason}</p>
-                    </div>
-                    <div className="flex-shrink-0 flex flex-col items-end gap-1">
-                      <Badge label={f.urgency} bg={ub.bg} color={ub.color} />
-                      <span className="text-[11px]" style={{ color: C.dimText }}>{f.lastContact}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-
-        </div>
       </main>
     </div>
   );

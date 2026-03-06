@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import axiosInstance from "@/lib/axios";
+
 
 const C = {
   darkBlue:  "#0F2854",
@@ -58,11 +60,6 @@ const Icon = {
       <line x1="6" y1="14" x2="18" y2="14" />
     </svg>
   ),
-  ChevronDown: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  ),
   MapPin: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
@@ -78,140 +75,78 @@ const Icon = {
       <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
     </svg>
   ),
+  Refresh: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+      <path d="M23 4v6h-6" /><path d="M1 20v-6h6" />
+      <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+    </svg>
+  ),
 };
 
-// ── Data ──────────────────────────────────────
-const projects = [
-  {
-    id: "PRJ-2415",
-    name: "AquaZone Riyadh",
-    client: "Gulf Leisure",
-    location: "Riyadh, SA",
-    engineer: "Ahmed K.",
-    progress: 72,
-    expectedDate: "12 Mar 2026",
-    daysLeft: 15,
-    trialStatus: "Scheduled",
-    trialDate: "10 Mar 2026",
-    phase: "Installation",
-  },
-  {
-    id: "PRJ-2418",
-    name: "WaveWorld Cairo",
-    client: "Nile Parks Co.",
-    location: "Cairo, EG",
-    engineer: "Sara M.",
-    progress: 45,
-    expectedDate: "28 Mar 2026",
-    daysLeft: 31,
-    trialStatus: "Pending",
-    trialDate: "—",
-    phase: "Wiring & Plumbing",
-  },
-  {
-    id: "PRJ-2420",
-    name: "SplashCity Malta",
-    client: "Euro Aqua Ltd",
-    location: "Valletta, MT",
-    engineer: "James O.",
-    progress: 90,
-    expectedDate: "04 Mar 2026",
-    daysLeft: 7,
-    trialStatus: "In Trial",
-    trialDate: "28 Feb 2026",
-    phase: "Final Testing",
-  },
-  {
-    id: "PRJ-2422",
-    name: "TidalPark Muscat",
-    client: "Oman Leisure",
-    location: "Muscat, OM",
-    engineer: "Unassigned",
-    progress: 18,
-    expectedDate: "15 Apr 2026",
-    daysLeft: 49,
-    trialStatus: "Not Started",
-    trialDate: "—",
-    phase: "Site Preparation",
-  },
-  {
-    id: "PRJ-2425",
-    name: "AquaDome Karachi",
-    client: "Blue Wave Inc",
-    location: "Karachi, PK",
-    engineer: "Tariq R.",
-    progress: 100,
-    expectedDate: "20 Feb 2026",
-    daysLeft: 0,
-    trialStatus: "Completed",
-    trialDate: "18 Feb 2026",
-    phase: "Completed",
-  },
-  {
-    id: "PRJ-2430",
-    name: "OceanPark Lagos",
-    client: "Horizon Parks",
-    location: "Lagos, NG",
-    engineer: "Lina B.",
-    progress: 60,
-    expectedDate: "20 Mar 2026",
-    daysLeft: 23,
-    trialStatus: "Scheduled",
-    trialDate: "18 Mar 2026",
-    phase: "Equipment Setup",
-  },
-];
+// ── Helpers ───────────────────────────────────
+const formatDate = (d) => {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+};
+
+const daysUntil = (dateStr) => {
+  if (!dateStr) return null;
+  const diff = new Date(dateStr) - new Date();
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+};
+
+// Map schema status → display phase label
+const phaseFromStatus = (status) => ({
+  initiated:    "Site Preparation",
+  "in-progress":"Wiring & Plumbing",
+  installation: "Installation",
+  testing:      "Final Testing",
+  completed:    "Completed",
+  "on-hold":    "Site Preparation",
+}[status] || "Site Preparation");
 
 // ── Trial badge ───────────────────────────────
-const trialBadge = (status) => ({
-  "Completed":   { bg: C.darkBlue,  color: C.white,     icon: Icon.CheckCircle },
-  "In Trial":    { bg: C.blue,      color: C.white,     icon: Icon.Flask       },
-  "Scheduled":   { bg: C.lightBlue, color: C.darkBlue,  icon: Icon.Calendar    },
-  "Pending":     { bg: "#d6ebf7",   color: C.blue,      icon: Icon.Clock       },
-  "Not Started": { bg: C.bg,        color: C.dimText,   icon: Icon.AlertCircle },
+const trialBadgeMap = (status) => ({
+  "Completed":   { bg: C.darkBlue,  color: C.white,    icon: Icon.CheckCircle },
+  "In Trial":    { bg: C.blue,      color: C.white,    icon: Icon.Flask       },
+  "Scheduled":   { bg: C.lightBlue, color: C.darkBlue, icon: Icon.Calendar    },
+  "Pending":     { bg: "#d6ebf7",   color: C.blue,     icon: Icon.Clock       },
+  "Not Started": { bg: C.bg,        color: C.dimText,  icon: Icon.AlertCircle },
 }[status] || { bg: C.bg, color: C.dimText, icon: Icon.Clock });
 
-// ── Progress bar ──────────────────────────────
+// ── Sub-components ────────────────────────────
 function ProgressBar({ value }) {
   const color =
     value === 100 ? C.darkBlue :
     value >= 75   ? C.blue     :
-    value >= 40   ? C.medBlue  :
-                    C.lightBlue;
+    value >= 40   ? C.medBlue  : C.lightBlue;
   return (
     <div className="flex items-center gap-3">
       <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: C.divider }}>
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${value}%`, backgroundColor: color }}
-        />
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${value}%`, backgroundColor: color }} />
       </div>
       <span className="text-sm font-bold w-10 text-right" style={{ color: C.darkBlue }}>{value}%</span>
     </div>
   );
 }
 
-// ── Badge ─────────────────────────────────────
 function TrialBadge({ status }) {
-  const s = trialBadge(status);
+  const s = trialBadgeMap(status);
   const Ic = s.icon;
   return (
-    <span
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap"
-      style={{ backgroundColor: s.bg, color: s.color }}
-    >
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap"
+      style={{ backgroundColor: s.bg, color: s.color }}>
       <Ic />{status}
     </span>
   );
 }
 
-// ── Days pill ─────────────────────────────────
 function DaysPill({ days, date }) {
   const urgent = days <= 7 && days > 0;
   const done   = days === 0;
   return (
     <div>
-      <p className="text-sm font-semibold" style={{ color: done ? C.blue : urgent ? C.darkBlue : C.darkBlue }}>{date}</p>
+      <p className="text-sm font-semibold" style={{ color: C.darkBlue }}>{date}</p>
       <p className="text-xs mt-0.5" style={{ color: done ? C.medBlue : urgent ? C.blue : C.dimText }}>
         {done ? "✓ Delivered" : `${days} days left`}
       </p>
@@ -219,8 +154,7 @@ function DaysPill({ days, date }) {
   );
 }
 
-// ── Stat card ─────────────────────────────────
-function StatCard({ label, value, sub, barColor, iconBg, iconColor, icon: Ic }) {
+function StatCard({ label, value, sub, barColor, iconBg, iconColor, icon: Ic, loading }) {
   return (
     <div className="relative bg-white rounded-xl p-5 flex flex-col gap-2 shadow-sm overflow-hidden"
       style={{ border: `1px solid ${C.lightBlue}` }}>
@@ -229,13 +163,15 @@ function StatCard({ label, value, sub, barColor, iconBg, iconColor, icon: Ic }) 
         <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.dimText }}>{label}</span>
         <span className="p-2 rounded-lg" style={{ backgroundColor: iconBg, color: iconColor }}><Ic /></span>
       </div>
-      <div className="text-3xl font-bold tracking-tight" style={{ color: C.darkBlue }}>{value}</div>
+      {loading
+        ? <div className="h-8 w-16 rounded animate-pulse" style={{ backgroundColor: C.lightBlue }} />
+        : <div className="text-3xl font-bold tracking-tight" style={{ color: C.darkBlue }}>{value}</div>
+      }
       <div className="text-xs font-semibold" style={{ color: C.medBlue }}>{sub}</div>
     </div>
   );
 }
 
-// ── Hover TR ──────────────────────────────────
 function HoverTr({ children, onClick, selected }) {
   const [hov, setHov] = useState(false);
   return (
@@ -255,29 +191,61 @@ function HoverTr({ children, onClick, selected }) {
   );
 }
 
-// ── Detail Drawer ─────────────────────────────
+function SkeletonRow() {
+  return (
+    <tr style={{ borderBottom: `1px solid ${C.divider}` }}>
+      {[60, 40, 30, 25].map((w, i) => (
+        <td key={i} className="px-5 py-4">
+          <div className="h-3 rounded animate-pulse" style={{ backgroundColor: C.lightBlue, width: `${w}%` }} />
+          <div className="h-3 rounded animate-pulse mt-1.5" style={{ backgroundColor: C.lightBlue, width: `${w * 0.6}%` }} />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+function ErrorBanner({ message, onRetry }) {
+  return (
+    <div className="mx-5 my-3 px-3 py-2 rounded-lg flex items-center justify-between text-xs font-medium"
+      style={{ backgroundColor: "#fff0f0", color: "#b91c1c", border: "1px solid #fecaca" }}>
+      <span>⚠ {message}</span>
+      {onRetry && <button onClick={onRetry} className="ml-3 underline hover:no-underline">Retry</button>}
+    </div>
+  );
+}
+
+// ── Detail Panel ──────────────────────────────
 function DetailPanel({ project, onClose }) {
   if (!project) return null;
-  const tb = trialBadge(project.trialStatus);
-  const Ic = tb.icon;
 
   const phases = ["Site Preparation", "Wiring & Plumbing", "Equipment Setup", "Installation", "Final Testing", "Completed"];
-  const currentPhaseIdx = phases.indexOf(project.phase);
+  // Use phase from schema if present, otherwise derive from status
+  const currentPhase = project.phase || phaseFromStatus(project.status);
+  const currentPhaseIdx = phases.indexOf(currentPhase);
+  const progress = project.progress ?? 0;
+  const trialStatus = project.trialStatus || "Not Started";
+  const days = project.endDate ? daysUntil(project.endDate) : null;
+
+  const incharge =
+    project.assignedInstallationIncharge?.name ||
+    project.assignedEngineers?.[0]?.name ||
+    "Unassigned";
 
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${C.lightBlue}` }}>
       {/* Header */}
-      <div className="px-6 py-4 flex items-start justify-between gap-3" style={{ borderBottom: `1px solid ${C.divider}`, backgroundColor: C.bg }}>
+      <div className="px-6 py-4 flex items-start justify-between gap-3"
+        style={{ borderBottom: `1px solid ${C.divider}`, backgroundColor: C.bg }}>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.medBlue }}>{project.id}</p>
+          <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.medBlue }}>
+            {project._id?.slice(-6).toUpperCase()}
+          </p>
           <h3 className="text-lg font-bold mt-0.5" style={{ color: C.darkBlue }}>{project.name}</h3>
-          <p className="text-sm mt-0.5" style={{ color: C.mutedText }}>{project.client}</p>
+          <p className="text-sm mt-0.5" style={{ color: C.mutedText }}>{project.clientName}</p>
         </div>
-        <button
-          onClick={onClose}
+        <button onClick={onClose}
           className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-70"
-          style={{ backgroundColor: C.lightBlue, color: C.darkBlue }}
-        >
+          style={{ backgroundColor: C.lightBlue, color: C.darkBlue }}>
           Close
         </button>
       </div>
@@ -288,22 +256,20 @@ function DetailPanel({ project, onClose }) {
         <div>
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-bold uppercase tracking-wide" style={{ color: C.darkBlue }}>Installation Progress</p>
-            <span className="text-2xl font-bold" style={{ color: C.darkBlue }}>{project.progress}%</span>
+            <span className="text-2xl font-bold" style={{ color: C.darkBlue }}>{progress}%</span>
           </div>
           <div className="w-full h-3 rounded-full overflow-hidden" style={{ backgroundColor: C.divider }}>
-            <div
-              className="h-full rounded-full transition-all duration-700"
+            <div className="h-full rounded-full transition-all duration-700"
               style={{
-                width: `${project.progress}%`,
+                width: `${progress}%`,
                 backgroundColor:
-                  project.progress === 100 ? C.darkBlue :
-                  project.progress >= 75   ? C.blue     :
-                  project.progress >= 40   ? C.medBlue  : C.lightBlue,
-              }}
-            />
+                  progress === 100 ? C.darkBlue :
+                  progress >= 75   ? C.blue     :
+                  progress >= 40   ? C.medBlue  : C.lightBlue,
+              }} />
           </div>
           <p className="text-xs mt-1.5 font-medium" style={{ color: C.mutedText }}>
-            Current phase: <span className="font-bold" style={{ color: C.blue }}>{project.phase}</span>
+            Current phase: <span className="font-bold" style={{ color: C.blue }}>{currentPhase}</span>
           </p>
         </div>
 
@@ -316,22 +282,18 @@ function DetailPanel({ project, onClose }) {
               const current = i === currentPhaseIdx;
               return (
                 <div key={phase} className="flex items-center gap-3">
-                  <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
                     style={{
                       backgroundColor: done ? C.darkBlue : current ? C.blue : C.divider,
                       color: done || current ? C.white : C.dimText,
-                    }}
-                  >
+                    }}>
                     {done ? "✓" : i + 1}
                   </div>
-                  <p
-                    className="text-sm font-medium"
-                    style={{ color: current ? C.darkBlue : done ? C.medBlue : C.dimText }}
-                  >
+                  <p className="text-sm font-medium" style={{ color: current ? C.darkBlue : done ? C.medBlue : C.dimText }}>
                     {phase}
                     {current && (
-                      <span className="ml-2 text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: C.lightBlue, color: C.blue }}>
+                      <span className="ml-2 text-[11px] font-bold px-1.5 py-0.5 rounded"
+                        style={{ backgroundColor: C.lightBlue, color: C.blue }}>
                         In Progress
                       </span>
                     )}
@@ -345,10 +307,30 @@ function DetailPanel({ project, onClose }) {
         {/* Meta grid */}
         <div className="grid grid-cols-2 gap-4">
           {[
-            { label: "Expected Completion", value: project.expectedDate, sub: project.daysLeft === 0 ? "Delivered" : `${project.daysLeft} days remaining`, icon: Icon.Calendar },
-            { label: "Trial Status", value: project.trialStatus, sub: project.trialDate !== "—" ? `Trial: ${project.trialDate}` : "Date not set", icon: Icon.Flask },
-            { label: "Location", value: project.location, sub: "Site address", icon: Icon.MapPin },
-            { label: "Engineer", value: project.engineer, sub: "Assigned lead", icon: Icon.User },
+            {
+              label: "Expected Completion",
+              value: formatDate(project.endDate),
+              sub: days === null ? "No date set" : days === 0 ? "Delivered" : `${days} days remaining`,
+              icon: Icon.Calendar,
+            },
+            {
+              label: "Trial Status",
+              value: trialStatus,
+              sub: project.trialDate ? `Trial: ${formatDate(project.trialDate)}` : "Date not set",
+              icon: Icon.Flask,
+            },
+            {
+              label: "Location",
+              value: project.location || "Not specified",
+              sub: "Site address",
+              icon: Icon.MapPin,
+            },
+            {
+              label: "Engineer",
+              value: incharge,
+              sub: "Assigned lead",
+              icon: Icon.User,
+            },
           ].map(({ label, value, sub, icon: MetaIc }) => (
             <div key={label} className="rounded-xl p-4" style={{ backgroundColor: C.bg, border: `1px solid ${C.divider}` }}>
               <div className="flex items-center gap-2 mb-1.5">
@@ -365,56 +347,105 @@ function DetailPanel({ project, onClose }) {
   );
 }
 
+// ── Hook ──────────────────────────────────────
+function useAllProjects() {
+  const [data, setData]       = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axiosInstance.get("/projects");
+      setData(Array.isArray(res.data) ? res.data : (res.data.data ?? []));
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to load projects");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+  return { data, loading, error, refetch: load };
+}
+
 // ── Main ──────────────────────────────────────
 export default function ProjectStatusTracking() {
-  const [selected, setSelected] = useState(projects[0]);
-  const [filter, setFilter] = useState("All");
-  const [search, setSearch] = useState("");
+  const { data: projects, loading, error, refetch } = useAllProjects();
+  const [selected, setSelected] = useState(null);
+  const [filter, setFilter]     = useState("All");
+  const [search, setSearch]     = useState("");
+
+  // Auto-select first project once loaded
+  useEffect(() => {
+    if (projects.length > 0 && !selected) setSelected(projects[0]);
+  }, [projects]);
 
   const filters = ["All", "In Trial", "Scheduled", "Pending", "Completed", "Not Started"];
 
   const filtered = projects.filter(p => {
-    const matchFilter = filter === "All" || p.trialStatus === filter;
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
-                        p.client.toLowerCase().includes(search.toLowerCase()) ||
-                        p.id.toLowerCase().includes(search.toLowerCase());
+    const ts = p.trialStatus || "Not Started";
+    const matchFilter = filter === "All" || ts === filter;
+    const matchSearch =
+      p.name?.toLowerCase().includes(search.toLowerCase()) ||
+      p.clientName?.toLowerCase().includes(search.toLowerCase()) ||
+      p._id?.toLowerCase().includes(search.toLowerCase());
     return matchFilter && matchSearch;
   });
 
-  // summary stats
-  const completed  = projects.filter(p => p.progress === 100).length;
-  const avgProgress = Math.round(projects.reduce((a, p) => a + p.progress, 0) / projects.length);
-  const inTrial    = projects.filter(p => p.trialStatus === "In Trial" || p.trialStatus === "Scheduled").length;
-  const overdue    = projects.filter(p => p.daysLeft <= 7 && p.daysLeft > 0).length;
+  // Stats
+  const completed   = projects.filter(p => p.status === "completed").length;
+  const avgProgress = projects.length
+    ? Math.round(projects.reduce((a, p) => a + (p.progress ?? 0), 0) / projects.length)
+    : 0;
+  const inTrial  = projects.filter(p => p.trialStatus === "In Trial" || p.trialStatus === "Scheduled").length;
+  const dueSoon  = projects.filter(p => {
+    const d = daysUntil(p.endDate);
+    return d !== null && d <= 7 && d > 0;
+  }).length;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: C.bg }}>
-
-      
       <main className="p-4 md:p-6 space-y-6">
-<div className="mb-6">
+
+        <div className="mb-6">
           <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-0.5">
-            Wednesday, 25 Feb 2026 · All Sites Active
+            {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · All Sites Active
           </p>
-          <h1 className="text-xl sm:text-2xl font-bold text-blue-950">Project Tracking Status</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl sm:text-2xl font-bold text-blue-950">Project Tracking Status</h1>
+            <button onClick={refetch} className="p-2 rounded-lg hover:opacity-60 transition-opacity" style={{ color: C.medBlue, backgroundColor: C.white, border: `1px solid ${C.lightBlue}` }}>
+              <Icon.Refresh />
+            </button>
+          </div>
         </div>
+
+        {error && (
+          <div className="px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-between"
+            style={{ backgroundColor: "#fff0f0", color: "#b91c1c", border: "1px solid #fecaca" }}>
+            <span>⚠ {error}</span>
+            <button onClick={refetch} className="underline ml-3">Retry</button>
+          </div>
+        )}
+
         {/* Stat Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Avg. Progress"     value={`${avgProgress}%`} sub="Across all projects"   barColor={C.darkBlue} iconBg={C.darkBlue} iconColor={C.white}    icon={Icon.Wrench}      />
-          <StatCard label="Completed"         value={completed}         sub="Fully delivered"        barColor={C.blue}     iconBg={C.blue}     iconColor={C.white}    icon={Icon.CheckCircle} />
-          <StatCard label="Trial Active"      value={inTrial}           sub="In trial or scheduled"  barColor={C.medBlue}  iconBg={C.medBlue}  iconColor={C.white}    icon={Icon.Flask}       />
-          <StatCard label="Due Soon"          value={overdue}           sub="Within 7 days"          barColor={C.lightBlue}iconBg={C.lightBlue}iconColor={C.darkBlue} icon={Icon.AlertCircle} />
+          <StatCard label="Avg. Progress" value={`${avgProgress}%`} sub="Across all projects"  barColor={C.darkBlue}  iconBg={C.darkBlue}  iconColor={C.white}    icon={Icon.Wrench}       loading={loading} />
+          <StatCard label="Completed"     value={completed}         sub="Fully delivered"       barColor={C.blue}      iconBg={C.blue}      iconColor={C.white}    icon={Icon.CheckCircle}  loading={loading} />
+          <StatCard label="Trial Active"  value={inTrial}           sub="In trial or scheduled" barColor={C.medBlue}   iconBg={C.medBlue}   iconColor={C.white}    icon={Icon.Flask}        loading={loading} />
+          <StatCard label="Due Soon"      value={dueSoon}           sub="Within 7 days"         barColor={C.lightBlue} iconBg={C.lightBlue} iconColor={C.darkBlue} icon={Icon.AlertCircle}  loading={loading} />
         </div>
 
         {/* Table + Detail split */}
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
 
-          {/* Table — 3 cols wide */}
+          {/* Table */}
           <div className="xl:col-span-3 bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col"
             style={{ border: `1px solid ${C.lightBlue}` }}>
 
-            {/* Table toolbar */}
-            <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
+            <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3"
+              style={{ borderBottom: `1px solid ${C.divider}` }}>
               <div className="flex items-center gap-2 flex-1">
                 <span style={{ color: C.medBlue }}><Icon.Filter /></span>
                 <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: C.darkBlue }}>All Projects</h2>
@@ -422,7 +453,6 @@ export default function ProjectStatusTracking() {
                   {filtered.length}
                 </span>
               </div>
-              {/* Search inline */}
               <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 w-full sm:w-44"
                 style={{ backgroundColor: C.bg, border: `1px solid ${C.lightBlue}` }}>
                 <span style={{ color: C.medBlue }}><Icon.Search /></span>
@@ -439,16 +469,13 @@ export default function ProjectStatusTracking() {
             {/* Filter pills */}
             <div className="px-5 py-3 flex gap-2 overflow-x-auto" style={{ borderBottom: `1px solid ${C.divider}` }}>
               {filters.map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
+                <button key={f} onClick={() => setFilter(f)}
                   className="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all"
                   style={{
                     backgroundColor: filter === f ? C.darkBlue : C.bg,
                     color:           filter === f ? C.white     : C.mutedText,
                     border: `1px solid ${filter === f ? C.darkBlue : C.divider}`,
-                  }}
-                >
+                  }}>
                   {f}
                 </button>
               ))}
@@ -460,45 +487,54 @@ export default function ProjectStatusTracking() {
                 <thead>
                   <tr style={{ backgroundColor: C.bg, borderBottom: `1px solid ${C.divider}` }}>
                     {["Project", "Progress", "Due Date", "Trial"].map(h => (
-                      <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-5 py-3 whitespace-nowrap" style={{ color: C.medBlue }}>
-                        {h}
-                      </th>
+                      <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-5 py-3 whitespace-nowrap"
+                        style={{ color: C.medBlue }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(p => (
-                    <HoverTr key={p.id} onClick={() => setSelected(p)} selected={selected?.id === p.id}>
-                      <td className="px-5 py-4">
-                        <p className="font-bold text-sm" style={{ color: C.blue }}>{p.id}</p>
-                        <p className="text-xs font-medium mt-0.5" style={{ color: C.darkBlue }}>{p.name}</p>
-                        <p className="text-xs mt-0.5" style={{ color: C.dimText }}>{p.client}</p>
-                      </td>
-                      <td className="px-5 py-4 min-w-[140px]">
-                        <ProgressBar value={p.progress} />
-                        <p className="text-[11px] mt-1" style={{ color: C.dimText }}>{p.phase}</p>
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <DaysPill days={p.daysLeft} date={p.expectedDate} />
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <TrialBadge status={p.trialStatus} />
-                      </td>
-                    </HoverTr>
-                  ))}
-                  {filtered.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="text-center py-12 text-sm" style={{ color: C.dimText }}>
-                        No projects match your search.
-                      </td>
-                    </tr>
-                  )}
+                  {loading
+                    ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
+                    : filtered.length === 0
+                      ? (
+                        <tr><td colSpan={4} className="text-center py-12 text-sm" style={{ color: C.dimText }}>
+                          No projects match your search.
+                        </td></tr>
+                      )
+                      : filtered.map(p => {
+                          const days = daysUntil(p.endDate);
+                          const phase = p.phase || phaseFromStatus(p.status);
+                          const trialStatus = p.trialStatus || "Not Started";
+                          return (
+                            <HoverTr key={p._id} onClick={() => setSelected(p)} selected={selected?._id === p._id}>
+                              <td className="px-5 py-4">
+                                <p className="font-bold text-sm font-mono" style={{ color: C.blue }}>{p._id?.slice(-6).toUpperCase()}</p>
+                                <p className="text-xs font-medium mt-0.5" style={{ color: C.darkBlue }}>{p.name}</p>
+                                <p className="text-xs mt-0.5" style={{ color: C.dimText }}>{p.clientName}</p>
+                              </td>
+                              <td className="px-5 py-4 min-w-[140px]">
+                                <ProgressBar value={p.progress ?? 0} />
+                                <p className="text-[11px] mt-1" style={{ color: C.dimText }}>{phase}</p>
+                              </td>
+                              <td className="px-5 py-4 whitespace-nowrap">
+                                {p.endDate
+                                  ? <DaysPill days={days} date={formatDate(p.endDate)} />
+                                  : <span className="text-xs" style={{ color: C.dimText }}>No date set</span>
+                                }
+                              </td>
+                              <td className="px-5 py-4 whitespace-nowrap">
+                                <TrialBadge status={trialStatus} />
+                              </td>
+                            </HoverTr>
+                          );
+                        })
+                  }
                 </tbody>
               </table>
             </div>
           </div>
 
-          {/* Detail panel — 2 cols wide */}
+          {/* Detail panel */}
           <div className="xl:col-span-2">
             {selected
               ? <DetailPanel project={selected} onClose={() => setSelected(null)} />
