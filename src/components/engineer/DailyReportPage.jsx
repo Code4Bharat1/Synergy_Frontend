@@ -1,13 +1,18 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   UserCheck, TrendingUp, AlertCircle,
   Plus, Trash2, CheckCircle,
 } from "lucide-react";
 import {
   PageHeader, Card, SectionHead, Label, inputStyle, SubmitBtn,
-   PROJECTS, ITEMS_BY_PROJECT,
+  PROJECTS as MOCK_PROJECTS, ITEMS_BY_PROJECT, FONTS,
 } from "./shared";
+import axiosInstance from "../../lib/axios";
+
+const getToken = () =>
+  typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+const authCfg = () => ({ headers: { Authorization: `Bearer ${getToken()}` } });
 
 /* ─────────────────────────────────────────────────────────────────────────────
    RESPONSIVE CSS
@@ -278,15 +283,15 @@ const RWD = `
    PUNCH MODAL
 ───────────────────────────────────────────────────────────────────────────── */
 function PunchModal({ type = "in", onClose, onSubmit }) {
-  const [formData,        setFormData]        = useState({ location: "", notes: "", photo: null });
+  const [formData, setFormData] = useState({ location: "", notes: "", photo: null });
   const [currentLocation, setCurrentLocation] = useState(null);
   const [loadingLocation, setLoadingLocation] = useState(true);
-  const [currentTime,     setCurrentTime]     = useState(new Date());
-  const [isSubmitting,    setIsSubmitting]     = useState(false);
-  const [cameraStream,    setCameraStream]     = useState(null);
-  const [showCamera,      setShowCamera]       = useState(true);
-  const [cameraError,     setCameraError]      = useState(false);
-  const videoRef  = useRef(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const [showCamera, setShowCamera] = useState(true);
+  const [cameraError, setCameraError] = useState(false);
+  const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -314,7 +319,7 @@ function PunchModal({ type = "in", onClose, onSubmit }) {
         const { latitude: lat, longitude: lng } = pos.coords;
         setCurrentLocation({ lat, lng });
         try {
-          const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
           const data = await res.json();
           setFormData(p => ({ ...p, location: data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}` }));
         } catch {
@@ -529,9 +534,9 @@ const ISSUE_SEVERITIES = ["Minor", "Moderate", "Major", "Blocking"];
 const sevColor = { Minor: "#34C759", Moderate: "#FF9500", Major: "#FF3B30", Blocking: "#9B1C1C" };
 
 const STEPS = [
-  { n: 1, label: "Attendance",      icon: UserCheck   },
-  { n: 2, label: "Progress Update", icon: TrendingUp  },
-  { n: 3, label: "Issues",          icon: AlertCircle },
+  { n: 1, label: "Attendance", icon: UserCheck },
+  { n: 2, label: "Progress Update", icon: TrendingUp },
+  { n: 3, label: "Issues", icon: AlertCircle },
 ];
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -543,41 +548,112 @@ export default function DailyReportPage() {
   });
 
   const [showPunchModal, setShowPunchModal] = useState(false);
-  const [punchType,      setPunchType]      = useState("in");
-  const [punchInData,    setPunchInData]    = useState(null);
-  const [punchOutData,   setPunchOutData]   = useState(null);
-  const [entries,        setEntries]        = useState([{ id: 1, project: "", item: "", qty: "", unit: "pcs", notes: "" }]);
-  const [issues,         setIssues]         = useState([{ id: 1, description: "", severity: "Minor", blocksWork: false }]);
-  const [submitted,      setSubmitted]      = useState(false);
-  const [loading,        setLoading]        = useState(false);
-  const [step,           setStep]           = useState(1);
+  const [punchType, setPunchType] = useState("in");
+  const [punchInData, setPunchInData] = useState(null);
+  const [punchOutData, setPunchOutData] = useState(null);
+  const [entries, setEntries] = useState([{ id: 1, project: "", item: "", qty: "", unit: "pcs", notes: "" }]);
+  const [issues, setIssues] = useState([{ id: 1, description: "", severity: "Minor", blocksWork: false }]);
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(1);
+  const [projects, setProjects] = useState(MOCK_PROJECTS);
+  const [submitError, setSubmitError] = useState(null);
 
-  const punchedIn  = !!punchInData;
+  // ── Fetch real projects on mount ────────────────────────────────────────────
+  const fetchProjects = useCallback(async () => {
+    try {
+      const r = await axiosInstance.get("/projects", authCfg());
+      const data = Array.isArray(r.data) ? r.data : r.data.projects || [];
+      if (data.length > 0) setProjects(data);
+    } catch {
+      // fallback: keep MOCK_PROJECTS already set
+    }
+  }, []);
+
+  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+
+  const punchedIn = !!punchInData;
   const punchedOut = !!punchOutData;
 
-  const openPunchIn  = () => { setPunchType("in");  setShowPunchModal(true); };
+  const openPunchIn = () => { setPunchType("in"); setShowPunchModal(true); };
   const openPunchOut = () => { setPunchType("out"); setShowPunchModal(true); };
   const handlePunchSubmit = (data) => {
     if (punchType === "in") setPunchInData(data);
-    else                    setPunchOutData(data);
+    else setPunchOutData(data);
     setShowPunchModal(false);
   };
 
   const fmt = (d) =>
     d ? new Date(d.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "";
 
-  const addEntry    = () => setEntries(e => [...e, { id: Date.now(), project: "", item: "", qty: "", unit: "pcs", notes: "" }]);
+  const addEntry = () => setEntries(e => [...e, { id: Date.now(), project: "", item: "", qty: "", unit: "pcs", notes: "" }]);
   const removeEntry = (id) => setEntries(e => e.filter(x => x.id !== id));
-  const upEntry     = (id, k, v) => setEntries(e => e.map(x => x.id === id ? { ...x, [k]: v } : x));
+  const upEntry = (id, k, v) => setEntries(e => e.map(x => x.id === id ? { ...x, [k]: v } : x));
 
-  const addIssue    = () => setIssues(i => [...i, { id: Date.now(), description: "", severity: "Minor", blocksWork: false }]);
+  const addIssue = () => setIssues(i => [...i, { id: Date.now(), description: "", severity: "Minor", blocksWork: false }]);
   const removeIssue = (id) => setIssues(i => i.filter(x => x.id !== id));
-  const upIssue     = (id, k, v) => setIssues(i => i.map(x => x.id === id ? { ...x, [k]: v } : x));
+  const upIssue = (id, k, v) => setIssues(i => i.map(x => x.id === id ? { ...x, [k]: v } : x));
 
   const handleSubmit = async () => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1600));
-    setLoading(false); setSubmitted(true);
+    setSubmitError(null);
+    try {
+      // Build the payload matching the backend Report schema
+      const validEntries = entries.filter(e => e.project && e.qty);
+      const validIssues = issues.filter(i => i.description.trim());
+
+      // Pick any project from progress entries (first one), or leave blank
+      const primaryProject = validEntries[0]?.project || undefined;
+
+      const payload = {
+        project: primaryProject,
+        reportType: "Daily",
+        status: "Submitted",
+        date: new Date().toISOString(),
+        progressEntries: validEntries.map(e => ({
+          item: e.item || "General Work",
+          qty: String(e.qty),
+          unit: e.unit,
+          notes: e.notes,
+        })),
+        punchLog: {
+          punchIn: punchInData ? {
+            time: punchInData.timestamp,
+            location: typeof punchInData.location === "string" ? punchInData.location : "Location captured",
+          } : undefined,
+          punchOut: punchOutData ? {
+            time: punchOutData.timestamp,
+            location: typeof punchOutData.location === "string" ? punchOutData.location : "Location captured",
+          } : undefined,
+        },
+        remarks: validIssues.map(i => `[${i.severity}] ${i.description}`).join(" | ") || "",
+      };
+
+      await axiosInstance.post("/reports/add-daily", payload, authCfg());
+
+      // Also log blocking issues separately to /issues endpoint
+      const blockingIssues = validIssues.filter(i => i.blocksWork);
+      if (blockingIssues.length > 0) {
+        await Promise.allSettled(
+          blockingIssues.map(issue =>
+            axiosInstance.post("/issues", {
+              project: primaryProject,
+              problemDescription: issue.description,
+              severity: issue.severity === "Blocking" ? "Critical" :
+                issue.severity === "Major" ? "High" :
+                  issue.severity === "Moderate" ? "Medium" : "Low",
+              responsibleDepartment: "Engineering",
+            }, authCfg())
+          )
+        );
+      }
+
+      setSubmitted(true);
+    } catch (err) {
+      setSubmitError(err.response?.data?.message || "Submission failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   /* ── Submitted screen ──────────────────────────────────────────────────── */
@@ -595,8 +671,8 @@ export default function DailyReportPage() {
         </p>
         <div className="dr-success-card">
           {[
-            ["Punch In",     fmt(punchInData)  || "—"],
-            ["Punch Out",    fmt(punchOutData) || "—"],
+            ["Punch In", fmt(punchInData) || "—"],
+            ["Punch Out", fmt(punchOutData) || "—"],
             ["Items Logged", `${entries.filter(e => e.project && e.item).length} entries`],
             ["Issues Filed", `${issues.filter(i => i.description).length} issues`],
           ].map(([k, v]) => (
@@ -637,7 +713,7 @@ export default function DailyReportPage() {
       {/* ════════════════ STEP BAR ════════════════ */}
       <div className="dr-steps">
         {STEPS.map((s, i) => {
-          const active   = step === s.n;
+          const active = step === s.n;
           const complete = step > s.n;
           return (
             <button
@@ -708,9 +784,9 @@ export default function DailyReportPage() {
                 {/* Left: status + thumb + info */}
                 <div className="dr-punch-info">
                   <div style={{ color: "#0F2854", fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
-                    {!punchedIn    ? "📍 Punch In Required"
-                     : !punchedOut ? "✅ Punched In · Work in Progress"
-                     :               "🏁 Session Complete"}
+                    {!punchedIn ? "📍 Punch In Required"
+                      : !punchedOut ? "✅ Punched In · Work in Progress"
+                        : "🏁 Session Complete"}
                   </div>
 
                   {!punchedIn && (
@@ -725,8 +801,10 @@ export default function DailyReportPage() {
                       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                         {punchInData.photo && (
                           <img src={punchInData.photo} alt="punch-in"
-                            style={{ width: 44, height: 44, borderRadius: 9, objectFit: "cover",
-                              border: "2px solid rgba(52,199,89,0.5)", flexShrink: 0 }} />
+                            style={{
+                              width: 44, height: 44, borderRadius: 9, objectFit: "cover",
+                              border: "2px solid rgba(52,199,89,0.5)", flexShrink: 0
+                            }} />
                         )}
                         <div style={{ minWidth: 0 }}>
                           <div style={{ color: "#34C759", fontSize: 10, fontWeight: 700, marginBottom: 2 }}>PUNCH IN</div>
@@ -746,8 +824,10 @@ export default function DailyReportPage() {
                         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                           {punchOutData.photo && (
                             <img src={punchOutData.photo} alt="punch-out"
-                              style={{ width: 44, height: 44, borderRadius: 9, objectFit: "cover",
-                                border: "2px solid rgba(73,136,196,0.5)", flexShrink: 0 }} />
+                              style={{
+                                width: 44, height: 44, borderRadius: 9, objectFit: "cover",
+                                border: "2px solid rgba(73,136,196,0.5)", flexShrink: 0
+                              }} />
                           )}
                           <div style={{ minWidth: 0 }}>
                             <div style={{ color: "#4988C4", fontSize: 10, fontWeight: 700, marginBottom: 2 }}>PUNCH OUT</div>
@@ -854,8 +934,10 @@ export default function DailyReportPage() {
                         value={entry.project}
                         onChange={e => upEntry(entry.id, "project", e.target.value)}>
                         <option value="">Select project</option>
-                        {PROJECTS.map(p => (
-                          <option key={p.id} value={p.id}>{p.id} — {p.name}</option>
+                        {projects.map(p => (
+                          <option key={p._id || p.id} value={p._id || p.id}>
+                            {p.name}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -1031,11 +1113,11 @@ export default function DailyReportPage() {
               </div>
               <div className="dr-summary-row">
                 {[
-                  ["Punch In",  fmt(punchInData)  || "Not set"],
+                  ["Punch In", fmt(punchInData) || "Not set"],
                   ["Punch Out", fmt(punchOutData) || "Not set"],
-                  ["Entries",   entries.filter(e => e.project).length + " items"],
-                  ["Issues",    issues.filter(i => i.description).length + " logged"],
-                  ["Date",      new Date().toLocaleDateString("en-GB")],
+                  ["Entries", entries.filter(e => e.project).length + " items"],
+                  ["Issues", issues.filter(i => i.description).length + " logged"],
+                  ["Date", new Date().toLocaleDateString("en-GB")],
                 ].map(([k, v]) => (
                   <div key={k} className="dr-summary-item">
                     <div style={{ color: "#4988C4", fontSize: 10, fontWeight: 600 }}>
@@ -1047,6 +1129,15 @@ export default function DailyReportPage() {
               </div>
             </div>
 
+            {submitError && (
+              <div style={{
+                marginTop: 14, padding: "10px 14px", borderRadius: 9,
+                background: "rgba(255,59,48,0.06)", border: "1px solid rgba(255,59,48,0.22)",
+                color: "#FF3B30", fontSize: 13,
+              }}>
+                ⚠ {submitError}
+              </div>
+            )}
             <div className="dr-nav">
               <button className="dr-back-btn" onClick={() => setStep(2)}>← Back</button>
               <SubmitBtn loading={loading} color="green" onClick={handleSubmit}>

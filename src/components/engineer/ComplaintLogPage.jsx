@@ -1,71 +1,127 @@
 "use client";
-import { useState } from "react";
-import { MessageSquare, Plus, Trash2, CheckCircle, Package } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { MessageSquare, Plus, Trash2, CheckCircle, Package, Loader2, AlertCircle } from "lucide-react";
 import {
   PageHeader, Card, SectionHead, Label, inputStyle, SubmitBtn,
-  FONTS, PROJECTS, ITEMS_BY_PROJECT,
+  FONTS, PROJECTS as MOCK_PROJECTS, ITEMS_BY_PROJECT,
 } from "./shared";
+import axiosInstance from "../../lib/axios";
 
-const SEVERITY_OPTS = ["Low", "Medium", "High", "Critical"];
-const SEVERITY_COLORS = { Low: "#34C759", Medium: "#FF9500", High: "#FF3B30", Critical: "#9B1C1C" };
-const MATERIAL_UNITS  = ["pcs", "kg", "m", "m²", "litre", "set", "lot"];
+// ── API helpers ────────────────────────────────────────────────────────────────
+const getToken = () =>
+  typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 
-// 4-step flow
+const authCfg = () => ({ headers: { Authorization: `Bearer ${getToken()}` } });
+
+const SEVERITY_OPTS = ["low", "medium", "high", "critical"];
+const SEVERITY_LABELS = { low: "Low", medium: "Medium", high: "High", critical: "Critical" };
+const SEVERITY_COLORS = { low: "#34C759", medium: "#FF9500", high: "#FF3B30", critical: "#9B1C1C" };
+const MATERIAL_UNITS = ["pcs", "kg", "m", "m²", "litre", "set", "lot"];
+
 const STEPS = [
   { n: 1, label: "Select Project" },
-  { n: 2, label: "Select Item"    },
+  { n: 2, label: "Select Item" },
   { n: 3, label: "Complaint Info" },
-  { n: 4, label: "Materials"      },
+  { n: 4, label: "Materials" },
 ];
 
 export default function ComplaintLogPage() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    project: "", item: "",
-    batch: "", contractor: "", gelCoat: "",
-    title: "", description: "", severity: "Medium",
-    photos: [],
+    project: "", item: "", title: "", description: "", severity: "medium", photos: [],
   });
   const [materials, setMaterials] = useState([
     { id: 1, name: "", qty: "", unit: "pcs", urgent: false },
   ]);
   const [submitted, setSubmitted] = useState(false);
-  const [loading,   setLoading]   = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [recentComplaints, setRecentComplaints] = useState([]);
+  const [error, setError] = useState(null);
 
   const upd = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
-  // project metadata (simulated)
-  const PROJECT_META = {
-    "PRJ-2401": { batch: "BATCH-2024-A3", contractor: "Gulf Build Co.", gelCoat: "GC-7700 White" },
-    "PRJ-2389": { batch: "BATCH-2024-B1", contractor: "Island Works Ltd.", gelCoat: "GC-5500 Aqua" },
-    "PRJ-2376": { batch: "BATCH-2024-C2", contractor: "SunTech Corp.",    gelCoat: "GC-6600 Blue"  },
-    "PRJ-2412": { batch: "BATCH-2024-D1", contractor: "Pacific Builders",  gelCoat: "GC-8800 Teal"  },
-  };
+  // ── Fetch projects + recent complaints ────────────────────────────────────────
+  const fetchProjects = useCallback(async () => {
+    try {
+      setProjectsLoading(true);
+      const r = await axiosInstance.get("/projects", authCfg());
+      const data = Array.isArray(r.data) ? r.data : r.data.projects || [];
+      setProjects(data.length > 0 ? data : MOCK_PROJECTS);
+    } catch {
+      setProjects(MOCK_PROJECTS);
+    } finally {
+      setProjectsLoading(false);
+    }
+  }, []);
 
-  const selectProject = (id) => {
-    const meta = PROJECT_META[id] || {};
-    setForm(f => ({ ...f, project: id, item: "", batch: meta.batch || "", contractor: meta.contractor || "", gelCoat: meta.gelCoat || "" }));
-    setStep(2);
-  };
+  const fetchRecentComplaints = useCallback(async () => {
+    try {
+      const r = await axiosInstance.get("/complaints", authCfg());
+      const data = Array.isArray(r.data) ? r.data : [];
+      setRecentComplaints(data.slice(0, 3));
+    } catch {
+      setRecentComplaints([]);
+    }
+  }, []);
 
-  const addMat  = () => setMaterials(m => [...m, { id: Date.now(), name: "", qty: "", unit: "pcs", urgent: false }]);
+  useEffect(() => {
+    fetchProjects();
+    fetchRecentComplaints();
+  }, [fetchProjects, fetchRecentComplaints]);
+
+  const selectedProject = projects.find(p => (p._id || p.id) === form.project);
+
+  // ── Material helpers ──────────────────────────────────────────────────────────
+  const addMat = () => setMaterials(m => [...m, { id: Date.now(), name: "", qty: "", unit: "pcs", urgent: false }]);
   const removeMat = (id) => setMaterials(m => m.filter(x => x.id !== id));
-  const updMat  = (id, key, val) => setMaterials(m => m.map(x => x.id === id ? { ...x, [key]: val } : x));
+  const updMat = (id, key, val) => setMaterials(m => m.map(x => x.id === id ? { ...x, [key]: val } : x));
 
   const handlePhoto = (e) => {
     const files = Array.from(e.target.files).map(f => ({ name: f.name, url: URL.createObjectURL(f) }));
     setForm(f => ({ ...f, photos: [...f.photos, ...files] }));
   };
 
-  const handleSubmit = async () => {
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 1500));
-    setLoading(false);
-    setSubmitted(true);
+  const selectProject = (id) => {
+    setForm(f => ({ ...f, project: id, item: "" }));
+    setStep(2);
   };
 
-  const selectedProject = PROJECTS.find(p => p.id === form.project);
+  // ── Submit complaint to backend ───────────────────────────────────────────────
+  const handleSubmit = async () => {
+    if (!form.title.trim()) return setError("Please enter a complaint title.");
+    if (!form.description.trim()) return setError("Please enter a description.");
 
+    setLoading(true);
+    setError(null);
+    try {
+      await axiosInstance.post("/complaints", {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        project: form.project || undefined,
+        priority: form.severity,
+        status: "open",
+      }, authCfg());
+
+      await fetchRecentComplaints();
+      setSubmitted(true);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to submit complaint. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setSubmitted(false);
+    setStep(1);
+    setForm({ project: "", item: "", title: "", description: "", severity: "medium", photos: [] });
+    setMaterials([{ id: 1, name: "", qty: "", unit: "pcs", urgent: false }]);
+    setError(null);
+  };
+
+  // ── Success screen ────────────────────────────────────────────────────────────
   if (submitted) return (
     <>
       <style>{FONTS}</style>
@@ -75,25 +131,27 @@ export default function ComplaintLogPage() {
         <p style={{ color: "#4988C4", fontSize: 14, marginBottom: 24 }}>Your complaint has been submitted to the service team for review.</p>
         <div style={{ background: "#fff", border: "1px solid rgba(73,136,196,0.15)", borderRadius: 12, padding: "16px 20px", marginBottom: 22, textAlign: "left" }}>
           {[
-            ["Project",   selectedProject?.name || form.project],
-            ["Item",      form.item],
-            ["Severity",  form.severity],
+            ["Project", selectedProject?.name || form.project || "—"],
+            ["Item", form.item || "—"],
+            ["Severity", SEVERITY_LABELS[form.severity]],
             ["Materials", `${materials.filter(m => m.name).length} items requested`],
-          ].map(([k,v]) => (
+          ].map(([k, v]) => (
             <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(73,136,196,0.07)" }}>
               <span style={{ color: "#4988C4", fontSize: 12 }}>{k}</span>
               <span style={{ color: "#0F2854", fontSize: 12, fontWeight: 700 }}>{v}</span>
             </div>
           ))}
         </div>
-        <button onClick={() => { setSubmitted(false); setStep(1); setForm({ project:"",item:"",batch:"",contractor:"",gelCoat:"",title:"",description:"",severity:"Medium",photos:[] }); setMaterials([{id:1,name:"",qty:"",unit:"pcs",urgent:false}]); }} style={{
+        <button onClick={resetForm} style={{
           background: "#0F2854", color: "#BDE8F5", border: "none",
-          padding: "10px 22px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif",
+          padding: "10px 22px", borderRadius: 10, fontSize: 13, fontWeight: 700,
+          cursor: "pointer", fontFamily: "'DM Sans',sans-serif",
         }}>Log Another Complaint</button>
       </div>
     </>
   );
 
+  // ── Main render ───────────────────────────────────────────────────────────────
   return (
     <>
       <style>{FONTS}</style>
@@ -103,10 +161,22 @@ export default function ComplaintLogPage() {
         subtitle="4-step complaint submission wizard"
       />
 
-      {/* ── Step bar ──────────────────────────────────────────────────────── */}
+      {error && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8, marginBottom: 16,
+          background: "rgba(255,59,48,0.06)", border: "1px solid rgba(255,59,48,0.2)",
+          borderRadius: 10, padding: "10px 14px",
+        }}>
+          <AlertCircle size={14} color="#FF3B30" />
+          <span style={{ color: "#FF3B30", fontSize: 13 }}>{error}</span>
+          <button onClick={() => setError(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#FF3B30", fontSize: 16 }}>×</button>
+        </div>
+      )}
+
+      {/* ── Step bar ──────────────────────────────────────────────────── */}
       <div style={{ display: "flex", marginBottom: 26, background: "#fff", borderRadius: 13, overflow: "hidden", border: "1px solid rgba(73,136,196,0.15)", boxShadow: "0 2px 10px rgba(15,40,84,0.05)" }}>
         {STEPS.map((s, i) => {
-          const active   = step === s.n;
+          const active = step === s.n;
           const complete = step > s.n;
           return (
             <div key={s.n} onClick={() => complete && setStep(s.n)} style={{
@@ -134,28 +204,41 @@ export default function ComplaintLogPage() {
       {step === 1 && (
         <Card style={{ padding: "26px", animation: "fadeUp 0.3s ease" }}>
           <SectionHead icon={<MessageSquare size={16} color="#BDE8F5" />} title="Select Project" />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12 }}>
-            {PROJECTS.map(p => (
-              <button key={p.id} onClick={() => selectProject(p.id)} style={{
-                padding: "16px 18px", borderRadius: 13,
-                border: "1.5px solid rgba(73,136,196,0.2)",
-                background: "rgba(73,136,196,0.04)",
-                cursor: "pointer", textAlign: "left",
-                transition: "all 0.2s", fontFamily: "'DM Sans',sans-serif",
-              }}
-                onMouseEnter={e => { e.currentTarget.style.background = "rgba(73,136,196,0.1)"; e.currentTarget.style.borderColor = "#4988C4"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "rgba(73,136,196,0.04)"; e.currentTarget.style.borderColor = "rgba(73,136,196,0.2)"; }}
-              >
-                <div style={{ color: "#1C4D8D", fontSize: 11, fontWeight: 700, marginBottom: 4 }}>{p.id}</div>
-                <div style={{ color: "#0F2854", fontSize: 14, fontWeight: 700 }}>{p.name}</div>
-                <div style={{ color: "#4988C4", fontSize: 11, marginTop: 4 }}>📍 {p.location}</div>
-                <div style={{ marginTop: 10, background: "rgba(73,136,196,0.1)", borderRadius: 99, height: 4 }}>
-                  <div style={{ height: 4, borderRadius: 99, background: "#4988C4", width: `${p.progress}%` }} />
-                </div>
-                <div style={{ color: "#4988C4", fontSize: 10, marginTop: 3, textAlign: "right" }}>{p.progress}% complete</div>
-              </button>
-            ))}
-          </div>
+          {projectsLoading ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#4988C4", padding: "20px 0" }}>
+              <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} /> Loading projects…
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12 }}>
+              {projects.map(p => {
+                const id = p._id || p.id;
+                return (
+                  <button key={id} onClick={() => selectProject(id)} style={{
+                    padding: "16px 18px", borderRadius: 13,
+                    border: "1.5px solid rgba(73,136,196,0.2)",
+                    background: "rgba(73,136,196,0.04)",
+                    cursor: "pointer", textAlign: "left",
+                    transition: "all 0.2s", fontFamily: "'DM Sans',sans-serif",
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(73,136,196,0.1)"; e.currentTarget.style.borderColor = "#4988C4"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(73,136,196,0.04)"; e.currentTarget.style.borderColor = "rgba(73,136,196,0.2)"; }}
+                  >
+                    <div style={{ color: "#1C4D8D", fontSize: 11, fontWeight: 700, marginBottom: 4 }}>{id?.toString().slice(-6).toUpperCase()}</div>
+                    <div style={{ color: "#0F2854", fontSize: 14, fontWeight: 700 }}>{p.name}</div>
+                    {p.location && <div style={{ color: "#4988C4", fontSize: 11, marginTop: 4 }}>📍 {p.location}</div>}
+                    {p.progress !== undefined && (
+                      <>
+                        <div style={{ marginTop: 10, background: "rgba(73,136,196,0.1)", borderRadius: 99, height: 4 }}>
+                          <div style={{ height: 4, borderRadius: 99, background: "#4988C4", width: `${p.progress}%` }} />
+                        </div>
+                        <div style={{ color: "#4988C4", fontSize: 10, marginTop: 3, textAlign: "right" }}>{p.progress}% complete</div>
+                      </>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </Card>
       )}
 
@@ -163,21 +246,6 @@ export default function ComplaintLogPage() {
       {step === 2 && (
         <Card style={{ padding: "26px", animation: "fadeUp 0.3s ease" }}>
           <SectionHead icon={<MessageSquare size={16} color="#BDE8F5" />} title="Select Item" subtitle={selectedProject?.name} />
-
-          {/* auto-loaded metadata */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
-            {[
-              ["Batch No.",   form.batch],
-              ["Contractor",  form.contractor],
-              ["Gel Coat",    form.gelCoat],
-            ].map(([k, v]) => (
-              <div key={k} style={{ background: "rgba(189,232,245,0.15)", borderRadius: 10, padding: "10px 14px" }}>
-                <div style={{ color: "#4988C4", fontSize: 10, fontWeight: 600, marginBottom: 3 }}>{k.toUpperCase()}</div>
-                <div style={{ color: "#0F2854", fontSize: 13, fontWeight: 700 }}>{v}</div>
-              </div>
-            ))}
-          </div>
-
           <Label required>Item / Component</Label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10 }}>
             {(ITEMS_BY_PROJECT[form.project] || []).map(item => (
@@ -190,8 +258,18 @@ export default function ComplaintLogPage() {
                 fontFamily: "'DM Sans',sans-serif",
               }}>{item}</button>
             ))}
+            {/* If no predefined items, show a text input + continue button */}
+            {(ITEMS_BY_PROJECT[form.project] || []).length === 0 && (
+              <div style={{ gridColumn: "1/-1" }}>
+                <p style={{ color: "#4988C4", fontSize: 12, marginBottom: 10 }}>No predefined items for this project. Enter manually:</p>
+                <input style={inputStyle} placeholder="Enter item / component name…"
+                  value={form.item} onChange={e => upd("item", e.target.value)} />
+                <div style={{ marginTop: 12 }}>
+                  <SubmitBtn onClick={() => setStep(3)}>Continue to Complaint →</SubmitBtn>
+                </div>
+              </div>
+            )}
           </div>
-
           <div style={{ marginTop: 20 }}>
             <button onClick={() => setStep(1)} style={{
               background: "transparent", border: "1px solid rgba(73,136,196,0.3)",
@@ -205,7 +283,8 @@ export default function ComplaintLogPage() {
       {/* ══ STEP 3: COMPLAINT DETAILS ══ */}
       {step === 3 && (
         <Card style={{ padding: "26px", animation: "fadeUp 0.3s ease" }}>
-          <SectionHead icon={<MessageSquare size={16} color="#BDE8F5" />} title="Complaint Details" subtitle={`${selectedProject?.name} · ${form.item}`} />
+          <SectionHead icon={<MessageSquare size={16} color="#BDE8F5" />} title="Complaint Details"
+            subtitle={`${selectedProject?.name || "Project"} · ${form.item || "Item"}`} />
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
@@ -223,18 +302,19 @@ export default function ComplaintLogPage() {
             {/* Severity */}
             <div>
               <Label required>Severity</Label>
-              <div style={{ display: "flex", gap: 10 }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 {SEVERITY_OPTS.map(s => {
                   const col = SEVERITY_COLORS[s];
                   const active = form.severity === s;
                   return (
                     <button key={s} onClick={() => upd("severity", s)} style={{
-                      flex: 1, padding: "10px", borderRadius: 10, border: "none", cursor: "pointer",
+                      flex: 1, minWidth: 72, padding: "10px", borderRadius: 10, border: "none",
+                      cursor: "pointer",
                       background: active ? col : `${col}12`,
                       color: active ? "#fff" : col,
                       fontSize: 12, fontWeight: 700, transition: "all 0.15s",
                       fontFamily: "'DM Sans',sans-serif",
-                    }}>{s}</button>
+                    }}>{SEVERITY_LABELS[s]}</button>
                   );
                 })}
               </div>
@@ -283,7 +363,7 @@ export default function ComplaintLogPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
             {/* header */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 70px 80px 32px", gap: 10 }}>
-              {["Material Name","Qty","Unit","Urgent",""].map(h => (
+              {["Material Name", "Qty", "Unit", "Urgent", ""].map(h => (
                 <div key={h} style={{ color: "#4988C4", fontSize: 10, fontWeight: 600, letterSpacing: 0.5 }}>{h.toUpperCase()}</div>
               ))}
             </div>
@@ -324,6 +404,23 @@ export default function ComplaintLogPage() {
           }}>
             <Plus size={14} /> Add Material
           </button>
+
+          {/* Recent complaints sidebar */}
+          {recentComplaints.length > 0 && (
+            <div style={{ marginTop: 20, padding: "14px 16px", background: "rgba(73,136,196,0.04)", borderRadius: 11, border: "1px solid rgba(73,136,196,0.1)" }}>
+              <div style={{ color: "#0F2854", fontSize: 12, fontWeight: 700, marginBottom: 10 }}>Recent Complaints</div>
+              {recentComplaints.map(c => (
+                <div key={c._id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(73,136,196,0.07)" }}>
+                  <span style={{ color: "#0F2854", fontSize: 12, fontWeight: 600 }}>{c.title}</span>
+                  <span style={{
+                    background: `${SEVERITY_COLORS[c.priority] || "#4988C4"}18`,
+                    color: SEVERITY_COLORS[c.priority] || "#4988C4",
+                    padding: "1px 8px", borderRadius: 99, fontSize: 10, fontWeight: 700,
+                  }}>{SEVERITY_LABELS[c.priority] || c.priority}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div style={{ marginTop: 22, display: "flex", justifyContent: "space-between" }}>
             <button onClick={() => setStep(3)} style={{

@@ -22,30 +22,30 @@ const apiFetch = async (path, { method = "GET", body } = {}) => {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DOC_TYPES = {
-  "qc":           { label: "QC",             color: "bg-blue-50 text-blue-600",    dot: "#3b82f6" },
-  "installation": { label: "Installation",   color: "bg-purple-50 text-purple-600",dot: "#9333ea" },
-  "reference":    { label: "Reference",      color: "bg-gray-100 text-gray-600",   dot: "#6b7280" },
-  "daily-report": { label: "Daily Report",   color: "bg-green-50 text-green-600",  dot: "#16a34a" },
-  "trail-qc":     { label: "Trial QC",       color: "bg-amber-50 text-amber-600",  dot: "#d97706" },
-  "other":        { label: "Other",          color: "bg-gray-100 text-gray-500",   dot: "#9ca3af" },
+  "qc": { label: "QC", color: "bg-blue-50 text-blue-600", dot: "#3b82f6" },
+  "installation": { label: "Installation", color: "bg-purple-50 text-purple-600", dot: "#9333ea" },
+  "reference": { label: "Reference", color: "bg-gray-100 text-gray-600", dot: "#6b7280" },
+  "daily-report": { label: "Daily Report", color: "bg-green-50 text-green-600", dot: "#16a34a" },
+  "trail-qc": { label: "Trial QC", color: "bg-amber-50 text-amber-600", dot: "#d97706" },
+  "other": { label: "Other", color: "bg-gray-100 text-gray-500", dot: "#9ca3af" },
 };
 
 const STATUS_META = {
-  pending:  { label: "Pending",  color: "bg-amber-50 text-amber-600"  },
-  approved: { label: "Approved", color: "bg-green-50 text-green-600"  },
-  rejected: { label: "Rejected", color: "bg-red-50 text-red-500"      },
+  pending: { label: "Pending", color: "bg-amber-50 text-amber-600" },
+  approved: { label: "Approved", color: "bg-green-50 text-green-600" },
+  rejected: { label: "Rejected", color: "bg-red-50 text-red-500" },
 };
 
 const MAX_FILES = 5;
 
 const FILE_ICONS = {
-  "pdf":  { icon: "📄", color: "text-red-500",    bg: "bg-red-50"    },
-  "doc":  { icon: "📝", color: "text-blue-500",   bg: "bg-blue-50"   },
-  "docx": { icon: "📝", color: "text-blue-500",   bg: "bg-blue-50"   },
-  "xlsx": { icon: "📊", color: "text-green-500",  bg: "bg-green-50"  },
-  "xls":  { icon: "📊", color: "text-green-500",  bg: "bg-green-50"  },
-  "png":  { icon: "🖼️", color: "text-purple-500", bg: "bg-purple-50" },
-  "jpg":  { icon: "🖼️", color: "text-purple-500", bg: "bg-purple-50" },
+  "pdf": { icon: "📄", color: "text-red-500", bg: "bg-red-50" },
+  "doc": { icon: "📝", color: "text-blue-500", bg: "bg-blue-50" },
+  "docx": { icon: "📝", color: "text-blue-500", bg: "bg-blue-50" },
+  "xlsx": { icon: "📊", color: "text-green-500", bg: "bg-green-50" },
+  "xls": { icon: "📊", color: "text-green-500", bg: "bg-green-50" },
+  "png": { icon: "🖼️", color: "text-purple-500", bg: "bg-purple-50" },
+  "jpg": { icon: "🖼️", color: "text-purple-500", bg: "bg-purple-50" },
   "jpeg": { icon: "🖼️", color: "text-purple-500", bg: "bg-purple-50" },
 };
 
@@ -55,6 +55,9 @@ const formatSize = (bytes) => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
+
+// A URL is "real" if it starts with http/https
+const isRealUrl = (url) => typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"));
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 function Badge({ text, colorClass }) {
@@ -77,11 +80,11 @@ function Modal({ title, onClose, children }) {
 
 // ── Upload Document Form ──────────────────────────────────────────────────────
 function UploadDocumentForm({ onSubmit, loading }) {
-  const [title, setTitle]             = useState("");
-  const [documentType, setDocType]    = useState("other");
-  const [files, setFiles]             = useState([]); // { file, name, size, ext }
-  const [dragOver, setDragOver]       = useState(false);
-  const fileInputRef                  = useState(null);
+  const [title, setTitle] = useState("");
+  const [documentType, setDocType] = useState("other");
+  const [files, setFiles] = useState([]); // { file, name, size, ext }
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useState(null);
 
   const addFiles = (incoming) => {
     const arr = Array.from(incoming);
@@ -215,7 +218,7 @@ function UploadDocumentForm({ onSubmit, loading }) {
       </button>
 
       <p className="text-xs text-center text-gray-400">
-        📌 File storage (Cloudinary) will be connected soon — metadata saved for now.
+        📌 File hosting (Cloudinary) will be connected soon — document metadata is saved now.
       </p>
     </form>
   );
@@ -298,15 +301,22 @@ function DocumentDetail({ doc }) {
 
       <div>
         <p className="text-xs font-semibold text-gray-400 mb-2">Document Link</p>
-        <a
-          href={doc.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-semibold bg-blue-50 px-4 py-2.5 rounded-lg w-fit transition-colors"
-        >
-          <ExternalLink size={13} />
-          Open Document
-        </a>
+        {isRealUrl(doc.url) ? (
+          <a
+            href={doc.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-semibold bg-blue-50 px-4 py-2.5 rounded-lg w-fit transition-colors"
+          >
+            <ExternalLink size={13} />
+            Open Document
+          </a>
+        ) : (
+          <div className="flex items-center gap-2 text-amber-600 text-sm font-semibold bg-amber-50 px-4 py-2.5 rounded-lg w-fit border border-amber-100">
+            <Clock size={13} />
+            Upload Pending — file not yet hosted
+          </div>
+        )}
       </div>
     </div>
   );
@@ -407,21 +417,21 @@ function RecentDocuments({ documents, onView }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function DocumentsPage() {
-  const [documents, setDocuments]         = useState([]);
-  const [loading, setLoading]             = useState(true);
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError]                 = useState(null);
+  const [error, setError] = useState(null);
 
   // Filters
-  const [filterType, setFilterType]       = useState("all");
-  const [filterStatus, setFilterStatus]   = useState("all");
-  const [search, setSearch]               = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [search, setSearch] = useState("");
 
   // Modals
-  const [showCreate, setShowCreate]       = useState(false);
-  const [viewDoc, setViewDoc]             = useState(null);
-  const [editDoc, setEditDoc]             = useState(null);
-  const [deleteTarget, setDeleteTarget]   = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [viewDoc, setViewDoc] = useState(null);
+  const [editDoc, setEditDoc] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchDocuments = useCallback(async () => {
@@ -509,8 +519,8 @@ export default function DocumentsPage() {
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = {
-    total:    documents.length,
-    pending:  documents.filter(d => d.status === "pending").length,
+    total: documents.length,
+    pending: documents.filter(d => d.status === "pending").length,
     approved: documents.filter(d => d.status === "approved").length,
     rejected: documents.filter(d => d.status === "rejected").length,
   };
@@ -535,9 +545,9 @@ export default function DocumentsPage() {
         <Modal title="Edit Document" onClose={() => setEditDoc(null)}>
           <EditDocumentForm
             initial={{
-              title:        editDoc.title || "",
+              title: editDoc.title || "",
               documentType: editDoc.documentType || "other",
-              status:       editDoc.status || "pending",
+              status: editDoc.status || "pending",
             }}
             onSubmit={handleUpdate}
             loading={actionLoading}
@@ -596,10 +606,10 @@ export default function DocumentsPage() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total",    value: stats.total,    color: "text-blue-600"  },
-          { label: "Pending",  value: stats.pending,  color: "text-amber-600" },
+          { label: "Total", value: stats.total, color: "text-blue-600" },
+          { label: "Pending", value: stats.pending, color: "text-amber-600" },
           { label: "Approved", value: stats.approved, color: "text-green-600" },
-          { label: "Rejected", value: stats.rejected, color: "text-red-500"   },
+          { label: "Rejected", value: stats.rejected, color: "text-red-500" },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -691,10 +701,16 @@ export default function DocumentsPage() {
                               className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors" title="View">
                               <Eye size={13} />
                             </button>
-                            <a href={d.url} target="_blank" rel="noopener noreferrer"
-                              className="p-1.5 rounded-lg hover:bg-green-50 text-gray-400 hover:text-green-600 transition-colors" title="Open">
-                              <ExternalLink size={13} />
-                            </a>
+                            {isRealUrl(d.url) ? (
+                              <a href={d.url} target="_blank" rel="noopener noreferrer"
+                                className="p-1.5 rounded-lg hover:bg-green-50 text-gray-400 hover:text-green-600 transition-colors" title="Open Document">
+                                <ExternalLink size={13} />
+                              </a>
+                            ) : (
+                              <span className="p-1.5 rounded-lg text-gray-200 cursor-not-allowed" title="File not yet uploaded">
+                                <ExternalLink size={13} />
+                              </span>
+                            )}
                             <button onClick={() => setEditDoc(d)}
                               className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors" title="Edit">
                               <Pencil size={13} />
