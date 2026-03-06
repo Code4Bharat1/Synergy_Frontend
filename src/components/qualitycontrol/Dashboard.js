@@ -1,16 +1,7 @@
 "use client";
-import { ClipboardList, Clock, CheckCircle2, XCircle, ArrowRight, FileText } from "lucide-react";
-
-const PENDING_INSPECTIONS = [
-  { id: "INS-001", project: "Block A – Level 3 Electrical", site: "Greenfield Complex", due: "26 Feb 2026", priority: "High"   },
-  { id: "INS-002", project: "Block B – Plumbing Rough-in",  site: "Greenfield Complex", due: "27 Feb 2026", priority: "Medium" },
-  { id: "INS-003", project: "Roof Waterproofing Phase 2",   site: "Harbor View Tower",  due: "28 Feb 2026", priority: "High"   },
-];
-
-const TRIALS = [
-  { id: "TRL-001", project: "HVAC Trial – Zone 4",   site: "Harbor View Tower",  submittedBy: "Ahmad Raza", submitted: "24 Feb 2026" },
-  { id: "TRL-002", project: "Sprinkler System Trial", site: "Greenfield Complex", submittedBy: "James K.",   submitted: "23 Feb 2026" },
-];
+import { useState, useEffect } from "react";
+import { ClipboardList, Clock, CheckCircle2, XCircle, ArrowRight, FileText, Loader2 } from "lucide-react";
+import axiosInstance from "@/lib/axios";
 
 const PRIORITY_STYLES = {
   High:   "bg-red-50 text-red-600",
@@ -24,6 +15,15 @@ const PRIORITY_DOT = {
   Low:    "bg-green-500",
 };
 
+function priorityFromStatus(status) {
+  return { initiated: "Low", "in-progress": "High", installation: "High", testing: "Medium", completed: "Low", "on-hold": "Medium" }[status] || "Medium";
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 function PriorityBadge({ priority }) {
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${PRIORITY_STYLES[priority]}`}>
@@ -33,14 +33,16 @@ function PriorityBadge({ priority }) {
   );
 }
 
-function StatCard({ label, value, sub, icon: Icon, colorClass }) {
+function StatCard({ label, value, sub, icon: Icon, colorClass, loading }) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-3 shadow-sm">
       <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${colorClass}`}>
         <Icon size={18} />
       </div>
       <div className="min-w-0">
-        <p className="text-2xl font-bold text-extra-darkblue">{value}</p>
+        <p className="text-2xl font-bold text-blue-950">
+          {loading ? <Loader2 size={20} className="animate-spin text-gray-300 mt-1" /> : value}
+        </p>
         <p className="text-sm font-medium text-gray-700 mt-0.5 leading-tight">{label}</p>
         <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
       </div>
@@ -48,112 +50,205 @@ function StatCard({ label, value, sub, icon: Icon, colorClass }) {
   );
 }
 
-// ── Mobile Inspection Card ────────────────────────────────────────────────────
 function InspectionCard({ row }) {
+  const priority = priorityFromStatus(row.status);
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-mono font-bold text-extra-blue">{row.id}</span>
-        <PriorityBadge priority={row.priority} />
+        <span className="text-xs font-mono font-bold text-blue-500">{row._id.slice(-6).toUpperCase()}</span>
+        <PriorityBadge priority={priority} />
       </div>
-      <p className="text-sm font-semibold text-extra-darkblue leading-snug">{row.project}</p>
+      <p className="text-sm font-semibold text-blue-950 leading-snug">{row.name}</p>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-400">
-        <span>{row.site}</span>
-        <span>Due: <strong className="text-gray-600">{row.due}</strong></span>
+        <span>{row.clientName}</span>
+        <span>{row.location || "—"}</span>
       </div>
     </div>
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
 export default function QCDashboard() {
+  const [qcReports,  setQcReports]  = useState([]);
+  const [loading,    setLoading]    = useState(true);
+
+  useEffect(() => {
+    axiosInstance.get("/report/view-qc")
+      .then(res => {
+        const data = Array.isArray(res.data) ? res.data : (res.data.data ?? []);
+        setQcReports(data);
+      })
+      .catch(() => setQcReports([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Derived stats
+  const total      = qcReports.length;
+  const approved   = qcReports.filter(r => r.status === "Approved").length;
+  const rejected   = qcReports.filter(r => r.status === "Rejected").length;
+  const pending    = qcReports.filter(r => !r.status || r.status === "Pending").length;
+
+  // Pending = reports with any null checks (not fully reviewed)
+  const needsReview = qcReports.filter(r =>
+    Array.isArray(r.qcChecks) && r.qcChecks.some(c => c.state === null)
+  );
+
+  // Recent reports (last 5)
+  const recentReports = [...qcReports]
+    .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))
+    .slice(0, 5);
+
+  const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
   return (
     <div className="space-y-6">
 
       {/* Header */}
       <div>
-        <h2 className="text-lg font-bold text-extra-darkblue">QC Dashboard</h2>
-        <p className="text-sm text-gray-400 mt-0.5">Wednesday, 25 February 2026</p>
+        <h2 className="text-lg font-bold text-blue-950">QC Dashboard</h2>
+        <p className="text-sm text-gray-400 mt-0.5">{today}</p>
       </div>
 
-      {/* Stat Cards — 2 cols mobile, 4 desktop */}
+      {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Pending Inspections" value="4" sub="Due this week"     icon={ClipboardList} colorClass="bg-lightblue text-extra-blue"  />
-        <StatCard label="Awaiting Approval"   value="2" sub="Trial submissions" icon={Clock}         colorClass="bg-blue-50 text-medium-blue"   />
-        <StatCard label="Completed Today"     value="3" sub="Signed off"        icon={CheckCircle2}  colorClass="bg-green-50 text-green-600"    />
-        <StatCard label="Rejected / Flagged"  value="1" sub="Needs rework"      icon={XCircle}       colorClass="bg-red-50 text-red-500"        />
+        <StatCard label="Total QC Reports"   value={total}    sub="All time"         icon={ClipboardList} colorClass="bg-blue-50 text-blue-500"   loading={loading} />
+        <StatCard label="Needs Re-review"    value={needsReview.length} sub="Pending items"  icon={Clock}         colorClass="bg-amber-50 text-amber-500" loading={loading} />
+        <StatCard label="Approved"           value={approved} sub="Signed off"       icon={CheckCircle2}  colorClass="bg-green-50 text-green-600"  loading={loading} />
+        <StatCard label="Rejected / Flagged" value={rejected} sub="Needs rework"     icon={XCircle}       colorClass="bg-red-50 text-red-500"      loading={loading} />
       </div>
 
-      {/* Pending Inspections */}
+      {/* Needs Re-review */}
+      {needsReview.length > 0 && (
+        <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-4 border-b border-amber-100 bg-amber-50/40">
+            <h3 className="text-sm font-bold text-blue-950">⏳ Needs Re-review</h3>
+            <span className="text-xs font-semibold text-amber-600 bg-amber-100 px-2.5 py-1 rounded-full">
+              {needsReview.length} report{needsReview.length > 1 ? "s" : ""}
+            </span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {needsReview.map(r => {
+              const pendingCount = r.qcChecks.filter(c => c.state === null).length;
+              const passedCount  = r.qcChecks.filter(c => c.state === true).length;
+              const project      = r.project;
+              return (
+                <div key={r._id} className="flex items-start gap-3 px-4 py-4 hover:bg-gray-50 transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-500 flex items-center justify-center shrink-0 mt-0.5">
+                    <ClipboardList size={16} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-blue-950 leading-snug">
+                      {typeof project === "object" ? project?.name : `Report ${r._id.slice(-6).toUpperCase()}`}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {passedCount} passed · {pendingCount} pending · {formatDate(r.date || r.createdAt)}
+                    </p>
+                  </div>
+                  <a
+                    href="/quality-control/inspection"
+                    className="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full shrink-0 hover:bg-blue-100 transition-colors"
+                  >
+                    Review
+                  </a>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Recent QC Reports */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
-          <h3 className="text-sm font-bold text-extra-darkblue">Pending Inspections</h3>
-          <a href="/quality-control/inspection" className="flex items-center gap-1 text-xs font-semibold text-extra-blue hover:underline">
-            View all <ArrowRight size={12} />
+          <h3 className="text-sm font-bold text-blue-950">Recent QC Reports</h3>
+          <a href="/qualityControl/inspection" className="flex items-center gap-1 text-xs font-semibold text-blue-500 hover:underline">
+            New Inspection <ArrowRight size={12} />
           </a>
         </div>
 
-        {/* Mobile: Cards */}
-        <div className="md:hidden p-3 space-y-3">
-          {PENDING_INSPECTIONS.map(row => (
-            <InspectionCard key={row.id} row={row} />
-          ))}
-        </div>
-
-        {/* Desktop: Table */}
-        <div className="hidden md:block">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                {["ID", "Project", "Site", "Due Date", "Priority"].map(h => (
-                  <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {PENDING_INSPECTIONS.map(row => (
-                <tr key={row.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-3.5 font-mono text-xs font-semibold text-extra-blue">{row.id}</td>
-                  <td className="px-5 py-3.5 font-medium text-extra-darkblue">{row.project}</td>
-                  <td className="px-5 py-3.5 text-gray-500">{row.site}</td>
-                  <td className="px-5 py-3.5 text-gray-600">{row.due}</td>
-                  <td className="px-5 py-3.5"><PriorityBadge priority={row.priority} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Trials Awaiting Approval */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
-          <h3 className="text-sm font-bold text-extra-darkblue">Trials Awaiting Approval</h3>
-          <a href="/quality-control/punch-in" className="flex items-center gap-1 text-xs font-semibold text-extra-blue hover:underline">
-            View all <ArrowRight size={12} />
-          </a>
-        </div>
-
-        <div className="divide-y divide-gray-50">
-          {TRIALS.map(t => (
-            <div key={t.id} className="flex items-start gap-3 px-4 py-4 hover:bg-gray-50 transition-colors">
-              <div className="w-9 h-9 rounded-lg bg-lightblue text-extra-blue flex items-center justify-center shrink-0 mt-0.5">
-                <FileText size={16} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-extra-darkblue leading-snug">{t.project}</p>
-                {/* Stack meta on mobile */}
-                <p className="text-xs text-gray-400 mt-0.5">{t.site}</p>
-                <p className="text-xs text-gray-400">{t.submittedBy} · {t.submitted}</p>
-              </div>
-              <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
-                Pending
-              </span>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 size={22} className="animate-spin text-gray-300" />
+          </div>
+        ) : recentReports.length === 0 ? (
+          <div className="text-center py-12 text-sm text-gray-400">No QC reports yet</div>
+        ) : (
+          <>
+            {/* Mobile */}
+            <div className="md:hidden p-3 space-y-3">
+              {recentReports.map(r => {
+                const project  = r.project;
+                const priority = priorityFromStatus(typeof project === "object" ? project?.status : "");
+                return (
+                  <div key={r._id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-mono font-bold text-blue-500">{r._id.slice(-6).toUpperCase()}</span>
+                      <StatusBadge status={r.status} />
+                    </div>
+                    <p className="text-sm font-semibold text-blue-950 leading-snug">
+                      {typeof project === "object" ? project?.name : "—"}
+                    </p>
+                    <p className="text-xs text-gray-400">{formatDate(r.date || r.createdAt)}</p>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+
+            {/* Desktop */}
+            <div className="hidden md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    {["Report ID", "Project", "Submitted By", "Date", "Checks", "Status"].map(h => (
+                      <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {recentReports.map(r => {
+                    const project    = r.project;
+                    const submitter  = r.submittedBy;
+                    const passed     = r.qcChecks?.filter(c => c.state === true).length ?? 0;
+                    const total      = r.qcChecks?.length ?? 0;
+                    const hasPending = r.qcChecks?.some(c => c.state === null);
+                    return (
+                      <tr key={r._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-3.5 font-mono text-xs font-semibold text-blue-500">{r._id.slice(-6).toUpperCase()}</td>
+                        <td className="px-5 py-3.5 font-medium text-blue-950">
+                          {typeof project === "object" ? project?.name : "—"}
+                        </td>
+                        <td className="px-5 py-3.5 text-gray-500">
+                          {typeof submitter === "object" ? submitter?.name : "—"}
+                        </td>
+                        <td className="px-5 py-3.5 text-gray-500">{formatDate(r.date || r.createdAt)}</td>
+                        <td className="px-5 py-3.5">
+                          <span className="text-xs font-semibold text-blue-950">{passed}/{total}</span>
+                          {hasPending && <span className="ml-2 text-[10px] text-amber-500 font-semibold">pending</span>}
+                        </td>
+                        <td className="px-5 py-3.5"><StatusBadge status={r.status} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
     </div>
+    
+  );
+}
+
+function StatusBadge({ status }) {
+  const styles = {
+    Approved: "bg-green-50 text-green-600",
+    Rejected: "bg-red-50 text-red-600",
+    Pending:  "bg-amber-50 text-amber-600",
+  };
+  return (
+    <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full ${styles[status] || "bg-gray-100 text-gray-500"}`}>
+      {status || "Pending"}
+    </span>
   );
 }

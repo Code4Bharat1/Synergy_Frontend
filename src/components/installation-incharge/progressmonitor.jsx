@@ -55,9 +55,8 @@ function getProjectStatus(project) {
 }
 
 function getCompletion(project) {
-  // Use a real field if your project has one, otherwise derive from status
-  if (typeof project.completionPercentage === "number") return project.completionPercentage;
-  const map = { initiated: 10, "in-progress": 50, completed: 100, "on-hold": 30 };
+  if (typeof project.progress === "number") return project.progress;
+  const map = { initiated: 5, "in-progress": 25, installation: 65, testing: 85, completed: 100, "on-hold": 5 };
   return map[project.status] || 0;
 }
 
