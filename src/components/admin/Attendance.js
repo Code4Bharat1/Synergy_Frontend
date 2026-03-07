@@ -131,8 +131,9 @@ const DEPT_COLORS = {
 
 // ── Summary Stats ─────────────────────────────────────────────────────────────
 function SummaryStats({ data }) {
-  const present  = data.filter(d => d.status === "Present").length;
   const late     = data.filter(d => d.status === "Late").length;
+const halfDay  = data.filter(d => d.status === "Half Day").length;
+const present  = data.filter(d => d.status === "Present").length + late + halfDay;
   const absent   = data.filter(d => d.status === "Absent").length;
   const stats = [
     { label: "Total",   value: data.length, icon: Users,        cls: "bg-blue-50 text-blue-600"    },
@@ -271,7 +272,10 @@ export default function AttendanceAdmin() {
       f?.toLowerCase().includes(search.toLowerCase())
     );
     const matchDept = filterDept === "All Departments" || r.dept === filterDept;
-    const matchStat = filterStat === "All" || r.status === filterStat;
+    const matchStat =
+  filterStat === "All" ||
+  r.status === filterStat ||
+  (filterStat === "Present" && (r.status === "Late" || r.status === "Half Day"));
     return matchSearch && matchDept && matchStat;
   });
 

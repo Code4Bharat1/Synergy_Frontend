@@ -139,7 +139,7 @@ export default function MarketingDashboard() {
   const overdueDoc   = docs.data.find(d => d.due === "Overdue");
 
   const SUMMARY = [
-    { label: "Pending Replications", value: PENDING_REPLICATIONS.length, color: "text-brand-mid",   bg: "bg-brand-mid/10",   icon: Copy        },
+    // { label: "Pending Replications", value: PENDING_REPLICATIONS.length, color: "text-brand-mid",   bg: "bg-brand-mid/10",   icon: Copy        },
     { label: "Docs to Upload",       value: docs.data.length,            color: "text-orange-500",  bg: "bg-orange-500/10",  icon: FileText,   loading: docs.loading    },
     { label: "Total Projects",       value: projects.data.length,        color: "text-emerald-500", bg: "bg-emerald-500/10", icon: Send,       loading: projects.loading },
     { label: "Overdue Items",        value: overdueCount,                color: "text-red-500",     bg: "bg-red-500/10",     icon: AlertCircle, loading: docs.loading   },
@@ -183,7 +183,7 @@ export default function MarketingDashboard() {
       </div>
 
       {/* ── Summary Cards ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
         {SUMMARY.map((s, i) => (
           <div key={i} className="rounded-2xl p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg cursor-default">
             <div className="flex items-start justify-between mb-3">
@@ -207,7 +207,7 @@ export default function MarketingDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5">
 
         {/* ── Pending Replications (hardcoded) ────────────────────────────── */}
-        <div className="rounded-2xl bg-white shadow-sm p-5 sm:p-6">
+        {/* <div className="rounded-2xl bg-white shadow-sm p-5 sm:p-6">
           <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-brand-darkest to-brand-dark flex items-center justify-center shrink-0">
@@ -249,10 +249,10 @@ export default function MarketingDashboard() {
               );
             })}
           </div>
-        </div>
+        </div> */}
 
         {/* ── Right Column ──────────────────────────────────────────────────── */}
-        <div className="flex flex-col gap-5">
+        {/* <div className="flex flex-col gap-5"> */}
 
           {/* Pending Documents */}
           <div className="rounded-2xl bg-white shadow-sm p-5">
@@ -323,7 +323,7 @@ export default function MarketingDashboard() {
               </div>
             )}
 
-            <Link href="/marketing/documents">
+            <Link href="/marketingCoordinator/documents">
               <div className="mt-4 flex items-center justify-center gap-2 rounded-xl py-2.5 text-[12px] font-bold text-brand-mid hover:bg-brand-mid/6 transition-colors cursor-pointer">
                 <FileText size={12} /> Upload Documents
               </div>
@@ -340,7 +340,7 @@ export default function MarketingDashboard() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
               {[
-                { label: "New Project Replication", href: "/marketing-Coordinator/project-replication", color: "text-brand-dark",   bg: "bg-brand-dark/8",  border: "border-brand-dark/15",  icon: Copy     },
+                // { label: "New Project Replication", href: "/marketing-Coordinator/project-replication", color: "text-brand-dark",   bg: "bg-brand-dark/8",  border: "border-brand-dark/15",  icon: Copy     },
                 { label: "Upload Documents",         href: "/marketingCoordinator/documents",            color: "text-orange-500",  bg: "bg-orange-500/8",  border: "border-orange-500/15",  icon: FileText },
                 { label: "Send Install Request",     href: "/marketingCoordinator/installation-request", color: "text-emerald-500", bg: "bg-emerald-500/8", border: "border-emerald-500/15", icon: Send     },
               ].map((a, i) => (
@@ -357,7 +357,7 @@ export default function MarketingDashboard() {
             </div>
           </div>
 
-        </div>
+        {/* </div> */}
       </div>
     </div>
   );

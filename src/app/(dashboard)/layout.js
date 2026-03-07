@@ -165,11 +165,11 @@ const ROLE_NAVIGATION = {
       icon: LayoutDashboard,
       label: "Dashboard",
     },
-    {
-      href: "/marketingCoordinator/project-replication",
-      icon: Copy,
-      label: "Project Replication",
-    },
+    // {
+    //   href: "/marketingCoordinator/project-replication",
+    //   icon: Copy,
+    //   label: "Project Replication",
+    // },
     {
       href: "/marketingCoordinator/documents",
       icon: FileText,

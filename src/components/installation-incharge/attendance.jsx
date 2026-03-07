@@ -1,67 +1,68 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import axios from "axios";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
+// ── Office Location Config ────────────────────────────────────────────────────
+const OFFICE_COORDS = { lat: 19.07285143363228, lng: 72.88041850211928 };
+
+// const OFFICE_COORDS = { lat:19.288560434069254,lng:  72.86484411123294}; // Different coords
+const ALLOWED_RADIUS_METERS = 200;
+
 const getToken = () =>
   typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 
-const authHeaders = () => ({
-  "Content-Type": "application/json",
-  Authorization: `Bearer ${getToken()}`,
+// ── Axios instance ────────────────────────────────────────────────────────────
+const axiosInstance = axios.create({ baseURL: API_BASE });
+
+// Request interceptor — attach Bearer token on every request
+axiosInstance.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
 });
 
-// ── Auth-aware fetch — redirects to /login on 401 ─────────────────────────────
-const authFetch = async (url, options = {}) => {
-  const res = await fetch(url, { ...options, headers: authHeaders() });
-  if (res.status === 401) {
-    // Token missing or expired — boot user to login
-    if (typeof window !== "undefined") window.location.href = "/login";
-    throw new Error("Session expired. Redirecting to login…");
+// Response interceptor — redirect to /login on 401, surface backend message
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      if (typeof window !== "undefined") window.location.href = "/login";
+      return Promise.reject(new Error("Session expired. Redirecting to login…"));
+    }
+    const message =
+      error.response?.data?.message || error.message || "Something went wrong";
+    return Promise.reject(new Error(message));
   }
-  return res;
-};
+);
 
 // ── API Client ────────────────────────────────────────────────────────────────
 const api = {
   async punchIn(location, notes) {
-    const res = await authFetch(`${API_BASE}/attendance/punch-in`, {
-      method: "POST",
-      body: JSON.stringify({ location, notes }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Punch in failed");
+    const { data } = await axiosInstance.post("/attendance/punch-in", { location, notes });
     return data.attendance;
   },
 
   async punchOut() {
-    const res = await authFetch(`${API_BASE}/attendance/punch-out`, {
-      method: "POST",
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Punch out failed");
+    const { data } = await axiosInstance.post("/attendance/punch-out");
     return data.attendance;
   },
 
   async getMyAttendance() {
-    const res = await authFetch(`${API_BASE}/attendance/me`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Failed to load attendance");
+    const { data } = await axiosInstance.get("/attendance/me");
     return Array.isArray(data) ? data : (data.records || []);
   },
 
   async getAllAttendance() {
-    const res = await authFetch(`${API_BASE}/attendance/all`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Failed to load all attendance");
+    const { data } = await axiosInstance.get("/attendance/all");
     return Array.isArray(data) ? data : (data.records || []);
   },
 };
 
 // Normalise backend record → UI session shape
-// Handles common field name variants from different backends
 function normalise(rec) {
   const punchIn  = rec.punchInTime  || rec.punchIn  || rec.checkIn  || rec.clockIn  || rec.startTime;
   const punchOut = rec.punchOutTime || rec.punchOut || rec.checkOut || rec.clockOut || rec.endTime;
@@ -73,6 +74,19 @@ function normalise(rec) {
     out: punchOut ? { timestamp: punchOut, location: rec.location || "" } : null,
     notes: rec.notes || "",
   };
+}
+
+// ── Haversine distance helper ─────────────────────────────────────────────────
+function getDistanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // ── Colour tokens ─────────────────────────────────────────────────────────────
@@ -183,31 +197,40 @@ function Toast({ message, type, onDismiss }) {
 }
 
 // ── Camera Modal (with Notes field) ──────────────────────────────────────────
-function CameraModal({ type, onClose, onSubmit, loading }) {
+// coords prop: { lat, lng } already resolved by parent — skips its own geo fetch
+function CameraModal({ type, onClose, onSubmit, loading, coords }) {
   const videoRef  = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
-  const [photo,    setPhoto]    = useState(null);
-  const [location, setLocation] = useState("Fetching location…");
-  const [camError, setCamError] = useState(false);
+  const [photo,     setPhoto]    = useState(null);
+  const [location,  setLocation] = useState("Fetching location…");
+  const [camError,  setCamError] = useState(false);
   const [camErrMsg, setCamErrMsg] = useState("Camera unavailable");
-  const [step,     setStep]     = useState("capture");
-  const [notes,    setNotes]    = useState("");
+  const [step,      setStep]     = useState("capture");
+  const [notes,     setNotes]    = useState("");
 
   useEffect(() => {
+    // Use parent-resolved coords if available, else fall back to one-shot geo
+    if (coords) {
+      setLocation(`${coords.lat.toFixed(4)}°N, ${coords.lng.toFixed(4)}°E`);
+    } else {
+      navigator.geolocation?.getCurrentPosition(
+        pos => setLocation(`${pos.coords.latitude.toFixed(4)}°N, ${pos.coords.longitude.toFixed(4)}°E`),
+        ()   => setLocation("Location unavailable"),
+      );
+    }
+
     if (!navigator.mediaDevices?.getUserMedia) {
       setCamError(true);
       setCamErrMsg("Camera not supported in this browser.");
       return;
     }
-    // Try without facingMode first (better desktop compat), fall back to facingMode
     const tryCamera = (constraints) =>
       navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
           streamRef.current = stream;
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
-            // Check if stream has active video tracks
             const videoTracks = stream.getVideoTracks();
             if (!videoTracks.length || videoTracks[0].readyState === "ended") {
               setCamError(true);
@@ -230,13 +253,8 @@ function CameraModal({ type, onClose, onSubmit, loading }) {
           setCamErrMsg(`Camera error: ${err.message}`);
       });
 
-    navigator.geolocation?.getCurrentPosition(
-      pos => setLocation(`${pos.coords.latitude.toFixed(4)}°N, ${pos.coords.longitude.toFixed(4)}°E`),
-      ()  => setLocation("Location unavailable"),
-    );
-
     return () => streamRef.current?.getTracks().forEach(t => t.stop());
-  }, []);
+  }, [coords]);
 
   const takePhoto = () => {
     const v = videoRef.current, c = canvasRef.current;
@@ -253,7 +271,7 @@ function CameraModal({ type, onClose, onSubmit, loading }) {
       .then(stream => { streamRef.current = stream; if (videoRef.current) videoRef.current.srcObject = stream; });
   };
 
-  const isIn  = type === "in";
+  const isIn   = type === "in";
   const accent = isIn ? C.darkBlue : C.orange;
 
   return (
@@ -305,7 +323,6 @@ function CameraModal({ type, onClose, onSubmit, loading }) {
             <img src={photo} alt="selfie"
               className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
           ) : (
-            // No photo — skipped camera
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ backgroundColor: C.bg }}>
               <span className="text-4xl">👤</span>
               <p className="text-xs font-semibold" style={{ color: C.mutedText }}>No photo captured</p>
@@ -329,78 +346,78 @@ function CameraModal({ type, onClose, onSubmit, loading }) {
         {/* Scrollable bottom — location + notes + buttons always reachable */}
         <div className="overflow-y-auto">
 
-        <div className="px-4 py-2.5 flex items-center gap-2"
-          style={{ backgroundColor: C.bg, borderBottom: `1px solid ${C.divider}` }}>
-          <span style={{ color: C.medBlue }}><MapPinIcon /></span>
-          <span className="text-xs font-medium truncate" style={{ color: C.mutedText }}>{location}</span>
-        </div>
-
-        {step === "confirm" && (
-          <div className="px-4 pt-3 pb-0">
-            <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider mb-1.5"
-              style={{ color: C.mutedText }}>
-              <NoteIcon /> Notes <span className="font-normal normal-case tracking-normal" style={{ color: C.dimText }}>(optional)</span>
-            </label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder={isIn ? "e.g. Starting site inspection…" : "e.g. Completed all tasks for today."}
-              rows={2}
-              maxLength={300}
-              disabled={loading}
-              className="w-full text-sm rounded-xl px-3 py-2 resize-none outline-none disabled:opacity-50"
-              style={{
-                border: `1.5px solid ${C.divider}`,
-                color: C.darkBlue,
-                backgroundColor: C.bg,
-                fontFamily: "inherit",
-              }}
-            />
-            <p className="text-right text-[10px] mt-0.5" style={{ color: C.dimText }}>
-              {notes.length}/300
-            </p>
+          <div className="px-4 py-2.5 flex items-center gap-2"
+            style={{ backgroundColor: C.bg, borderBottom: `1px solid ${C.divider}` }}>
+            <span style={{ color: C.medBlue }}><MapPinIcon /></span>
+            <span className="text-xs font-medium truncate" style={{ color: C.mutedText }}>{location}</span>
           </div>
-        )}
 
-        {/* Action buttons */}
-        <div className="px-4 py-4 flex gap-3">
-          {step === "capture" ? (
-            <>
-              <button onClick={onClose} disabled={loading}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold border"
-                style={{ borderColor: C.divider, color: C.mutedText, backgroundColor: C.white }}>
-                Cancel
-              </button>
-              <button onClick={() => { setStep("confirm"); setPhoto(null); }} disabled={loading}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold border disabled:opacity-40"
-                style={{ borderColor: C.divider, color: C.mutedText, backgroundColor: C.white }}>
-                Skip Photo
-              </button>
-              <button onClick={takePhoto} disabled={camError || loading}
-                className="flex-1 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-40"
-                style={{ backgroundColor: accent }}>
-                📷 Capture
-              </button>
-            </>
-          ) : (
-            <>
-              <button onClick={retake} disabled={loading}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold border disabled:opacity-40"
-                style={{ borderColor: C.divider, color: C.mutedText, backgroundColor: C.white }}>
-                Retake
-              </button>
-              <button
-                onClick={() => onSubmit({ photo, location, notes: notes.trim(), timestamp: new Date().toISOString() })}
+          {step === "confirm" && (
+            <div className="px-4 pt-3 pb-0">
+              <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider mb-1.5"
+                style={{ color: C.mutedText }}>
+                <NoteIcon /> Notes <span className="font-normal normal-case tracking-normal" style={{ color: C.dimText }}>(optional)</span>
+              </label>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder={isIn ? "e.g. Starting site inspection…" : "e.g. Completed all tasks for today."}
+                rows={2}
+                maxLength={300}
                 disabled={loading}
-                className="flex-1 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60 flex items-center justify-center gap-2"
-                style={{ backgroundColor: accent }}>
-                {loading
-                  ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving…</>
-                  : "✓ Confirm"}
-              </button>
-            </>
+                className="w-full text-sm rounded-xl px-3 py-2 resize-none outline-none disabled:opacity-50"
+                style={{
+                  border: `1.5px solid ${C.divider}`,
+                  color: C.darkBlue,
+                  backgroundColor: C.bg,
+                  fontFamily: "inherit",
+                }}
+              />
+              <p className="text-right text-[10px] mt-0.5" style={{ color: C.dimText }}>
+                {notes.length}/300
+              </p>
+            </div>
           )}
-        </div>
+
+          {/* Action buttons */}
+          <div className="px-4 py-4 flex gap-3">
+            {step === "capture" ? (
+              <>
+                <button onClick={onClose} disabled={loading}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold border"
+                  style={{ borderColor: C.divider, color: C.mutedText, backgroundColor: C.white }}>
+                  Cancel
+                </button>
+                <button onClick={() => { setStep("confirm"); setPhoto(null); }} disabled={loading}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold border disabled:opacity-40"
+                  style={{ borderColor: C.divider, color: C.mutedText, backgroundColor: C.white }}>
+                  Skip Photo
+                </button>
+                <button onClick={takePhoto} disabled={camError || loading}
+                  className="flex-1 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-40"
+                  style={{ backgroundColor: accent }}>
+                  📷 Capture
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={retake} disabled={loading}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold border disabled:opacity-40"
+                  style={{ borderColor: C.divider, color: C.mutedText, backgroundColor: C.white }}>
+                  Retake
+                </button>
+                <button
+                  onClick={() => onSubmit({ photo, location, notes: notes.trim(), timestamp: new Date().toISOString() })}
+                  disabled={loading}
+                  className="flex-1 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60 flex items-center justify-center gap-2"
+                  style={{ backgroundColor: accent }}>
+                  {loading
+                    ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving…</>
+                    : "✓ Confirm"}
+                </button>
+              </>
+            )}
+          </div>
         </div> {/* end scrollable */}
       </div>
     </div>
@@ -462,7 +479,6 @@ function LogRow({ entry, idx }) {
       <td className="px-4 py-3 text-xs" style={{ color: C.dimText, maxWidth: 140 }}>
         <span className="block truncate">{entry.in?.location || "—"}</span>
       </td>
-      {/* ── NEW: Notes column ── */}
       <td className="px-4 py-3 text-xs" style={{ color: C.dimText, maxWidth: 160 }}>
         {entry.notes
           ? <span className="block truncate" title={entry.notes}>{entry.notes}</span>
@@ -519,7 +535,6 @@ function MobileLogCard({ entry, idx }) {
             </>
           )}
         </div>
-        {/* ── NEW: notes on mobile ── */}
         {entry.notes && (
           <div className="flex items-start gap-1 mt-1 min-w-0">
             <span style={{ color: C.medBlue, marginTop: 1 }}><NoteIcon /></span>
@@ -651,11 +666,15 @@ export default function AttendancePage() {
   const [adminFetch, setAdminFetch] = useState(false);
   const [animPulse,  setAnimPulse]  = useState(false);
   const [toast,      setToast]      = useState(null);
-  // ── NEW: tab for admin toggle ──
   const [tab,        setTab]        = useState("my");   // "my" | "all"
-  // ── NEW: isAdmin flag — set from your auth context or decode JWT ──────────
-  // Replace this with your real role check (e.g. useAuth().user.role === "admin")
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin,    setIsAdmin]    = useState(false);
+
+  // ── Geofence state ────────────────────────────────────────────────────────
+  // "fetching" | "allowed" | "too-far" | "denied"
+  const [geoStatus,    setGeoStatus]    = useState("fetching");
+  const [distanceAway, setDistanceAway] = useState(null);
+  const [userCoords,   setUserCoords]   = useState(null);
+  const watchIdRef = useRef(null);
 
   const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
@@ -667,6 +686,26 @@ export default function AttendancePage() {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       if (user.role === "admin" || user.role === "director") setIsAdmin(true);
     } catch { /* ignore */ }
+  }, []);
+
+  // ── Live geo watcher — updates distance continuously ─────────────────────
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGeoStatus("denied");
+      return;
+    }
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setUserCoords({ lat: latitude, lng: longitude });
+        const dist = getDistanceMeters(latitude, longitude, OFFICE_COORDS.lat, OFFICE_COORDS.lng);
+        setDistanceAway(Math.round(dist));
+        setGeoStatus(dist <= ALLOWED_RADIUS_METERS ? "allowed" : "too-far");
+      },
+      () => setGeoStatus("denied"),
+      { enableHighAccuracy: true, maximumAge: 10000 }
+    );
+    return () => navigator.geolocation.clearWatch(watchIdRef.current);
   }, []);
 
   // ── Load my sessions ──────────────────────────────────────────────────────
@@ -730,7 +769,6 @@ export default function AttendancePage() {
       setTimeout(() => setAnimPulse(false), 700);
     } catch (err) {
       showToast(err.message, "error");
-      // If already punched in, reload to surface the existing active session
       if (err.message?.toLowerCase().includes("already")) {
         setModal(null);
         loadSessions();
@@ -739,6 +777,7 @@ export default function AttendancePage() {
       setLoading(false);
     }
   };
+
   const activeSession = sessions.find(s => !s.out) || null;
   const isPunchedIn   = !!activeSession;
   const totalSessions = sessions.length;
@@ -756,6 +795,9 @@ export default function AttendancePage() {
   const today = new Date().toLocaleDateString("en-US", {
     day: "numeric", month: "long", year: "numeric",
   });
+
+  // Both punch-in and punch-out require being within the geofence
+  const geoBlocked = geoStatus !== "allowed";
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: C.bg }}>
@@ -835,7 +877,7 @@ export default function AttendancePage() {
               {!isPunchedIn ? (
                 <button
                   onClick={() => setModal("in")}
-                  disabled={fetching}
+                  disabled={fetching || geoBlocked}
                   className="flex-1 py-3.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-50"
                   style={{ background: `linear-gradient(135deg, ${C.darkBlue}, ${C.blue})` }}>
                   📍 Punch In
@@ -850,7 +892,7 @@ export default function AttendancePage() {
                   </div>
                   <button
                     onClick={() => setModal("out")}
-                    disabled={fetching}
+                    disabled={fetching || geoBlocked}
                     className="flex-1 py-3.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-50"
                     style={{ background: `linear-gradient(135deg, ${C.orange}, #FF9500)` }}>
                     🏁 Punch Out
@@ -858,20 +900,39 @@ export default function AttendancePage() {
                 </>
               )}
             </div>
-            {!isPunchedIn && (
-              <p className="text-center text-xs mt-3" style={{ color: C.dimText }}>
-                Selfie + geo-location + optional notes captured on punch in.
-              </p>
-            )}
+
+            {/* ── Geo status messages (always shown) ── */}
+            <>
+              {geoStatus === "fetching" && (
+                <p className="text-center text-xs mt-3" style={{ color: C.dimText }}>
+                  📡 Fetching your location…
+                </p>
+              )}
+              {geoStatus === "too-far" && distanceAway !== null && (
+                <p className="text-center text-xs mt-3 font-semibold" style={{ color: C.red }}>
+                  📍 You are {distanceAway}m away from the site. Move closer to punch {isPunchedIn ? "out" : "in"}.
+                </p>
+              )}
+              {geoStatus === "denied" && (
+                <p className="text-center text-xs mt-3 font-semibold" style={{ color: C.red }}>
+                  ⚠ Location access denied. Enable it in browser settings.
+                </p>
+              )}
+              {geoStatus === "allowed" && (
+                <p className="text-center text-xs mt-3" style={{ color: C.green }}>
+                  ✓ You&apos;re on-site. {isPunchedIn ? "Ready to punch out." : "Ready to punch in."}
+                </p>
+              )}
+            </>
           </div>
         </div>
 
-        {/* ── NEW: Tab bar (only shown for admins/directors) ───────────────── */}
+        {/* ── Tab bar (only shown for admins/directors) ───────────────── */}
         {isAdmin && (
           <div className="flex gap-1 p-1 rounded-xl" style={{ backgroundColor: C.divider }}>
             {[
-              { key: "my",  label: "My Sessions",    Icon: UserIcon  },
-              { key: "all", label: "All Staff",       Icon: UsersIcon },
+              { key: "my",  label: "My Sessions", Icon: UserIcon  },
+              { key: "all", label: "All Staff",    Icon: UsersIcon },
             ].map(({ key, label, Icon }) => (
               <button
                 key={key}
@@ -898,7 +959,7 @@ export default function AttendancePage() {
             <div className="bg-white rounded-xl shadow-sm overflow-hidden" style={{ border: `1px solid ${C.lightBlue}` }}>
               <div className="px-4 pt-4 pb-0 flex items-center gap-2">
                 <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: C.darkBlue }}>
-                  Today's Sessions
+                  Today&apos;s Sessions
                 </h2>
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-full text-white"
                   style={{ backgroundColor: C.darkBlue }}>
@@ -1025,6 +1086,7 @@ export default function AttendancePage() {
           loading={loading}
           onClose={() => !loading && setModal(null)}
           onSubmit={handlePunch}
+          coords={userCoords}
         />
       )}
 
