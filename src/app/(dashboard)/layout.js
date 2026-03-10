@@ -63,8 +63,8 @@ const ROLE_NAVIGATION = {
       icon: ClipboardList,
       label: "Daily Report",
     },
-    { href: "/engineer/issue-log", icon: AlertTriangle, label: "Issue Log" },
-    { href: "/engineer/qc-upload", icon: CheckSquare, label: "QC Upload" },
+    { href: "/engineer/issue-log", icon: AlertTriangle, label: "Installation Issues" },
+    { href: "/engineer/qc-upload", icon: CheckSquare, label: "Project Test Upload" },
     {
       href: "/engineer/complaint-log",
       icon: MessageSquare,

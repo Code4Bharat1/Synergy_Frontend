@@ -164,7 +164,7 @@ export default function QCUploadPage() {
       <style>{FONTS + CSS}</style>
       <PageHeader
         eyebrow="Quality Control"
-        title="QC Upload"
+        title="Project Test Upload"
         subtitle="Upload trial results and site images for inspection"
       />
 

@@ -53,9 +53,18 @@ export default function IssueLogPage() {
       .catch(console.error);
 
   useEffect(() => {
-    axios.get(`${API_BASE}/projects`, cfg).then(r => setProjects(r.data)).catch(console.error);
-    fetchRecentIssues();
-  }, []);
+  axios
+    .get(`${API_BASE}/projects`, cfg)
+    .then(r => {
+      const ongoingProjects = r.data.filter(
+        (p) => p.status !== "completed"
+      );
+      setProjects(ongoingProjects);
+    })
+    .catch(console.error);
+
+  fetchRecentIssues();
+}, []);
 
   const upd = (key, val) => setForm(f => ({ ...f, [key]: val }));
 

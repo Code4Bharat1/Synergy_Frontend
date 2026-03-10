@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
+
 const CHECKS = [
   {
     key: "material",
@@ -72,8 +73,9 @@ function CheckBox({ checked, onChange }) {
   );
 }
 
-function ProjectCard({ project, pChecks, onToggle }) {
+function ProjectCard({ project, pChecks, onToggle, onProceed, proceeding, proceeded }) {
   const doneCount = CHECKS.filter((c) => pChecks[c.key]).length;
+  const allDone = doneCount === CHECKS.length;
   const eligibility = getEligibilityStatus(pChecks);
   const progress = (doneCount / CHECKS.length) * 100;
 
@@ -86,9 +88,13 @@ function ProjectCard({ project, pChecks, onToggle }) {
           <p className="text-xs text-gray-400">{project.client}</p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <span className={`${eligibility.cls} text-xs font-semibold px-2.5 py-0.5 rounded-full`}>
-            {eligibility.label}
-          </span>
+          {proceeded ? (
+            <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">✓ Proceeded</span>
+          ) : (
+            <span className={`${eligibility.cls} text-xs font-semibold px-2.5 py-0.5 rounded-full`}>
+              {eligibility.label}
+            </span>
+          )}
           <span className="text-xs text-gray-400">{doneCount}/{CHECKS.length} checks</span>
         </div>
       </div>
@@ -100,15 +106,15 @@ function ProjectCard({ project, pChecks, onToggle }) {
         <span className="text-gray-300">·</span>
         <span>{project.submitted}</span>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 mb-4">
         {CHECKS.map((c) => (
           <div
-  key={c.key}
-  onClick={() => onToggle(project.id, c.key)}
-  className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all duration-200 text-left cursor-pointer ${
-    pChecks[c.key] ? "bg-blue-50 border-blue-200" : "bg-gray-50 border-gray-100 hover:border-gray-200"
-  }`}
->
+            key={c.key}
+            onClick={() => !proceeded && onToggle(project.id, c.key)}
+            className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all duration-200 text-left ${
+              proceeded ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+            } ${pChecks[c.key] ? "bg-blue-50 border-blue-200" : "bg-gray-50 border-gray-100 hover:border-gray-200"}`}
+          >
             <CheckBox checked={pChecks[c.key]} onChange={() => {}} />
             <div className="flex flex-col min-w-0">
               <span className={`mb-0.5 ${pChecks[c.key] ? "text-blue-600" : "text-gray-400"}`}>{c.icon}</span>
@@ -117,49 +123,101 @@ function ProjectCard({ project, pChecks, onToggle }) {
           </div>
         ))}
       </div>
+
+      {/* Proceed Button */}
+      {!proceeded && (
+        <button
+          onClick={() => onProceed(project.id)}
+          disabled={!allDone || proceeding}
+          className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+            allDone && !proceeding
+              ? "bg-blue-800 text-white hover:bg-blue-900 shadow-md shadow-blue-200"
+              : "bg-gray-100 text-gray-400 cursor-not-allowed"
+          }`}
+        >
+          {proceeding ? "Processing…" : allDone ? "✓ Proceed to Engineer" : `Complete all checks to proceed (${doneCount}/4)`}
+        </button>
+      )}
+
+      {proceeded && (
+        <div className="w-full py-2.5 rounded-xl text-sm font-bold text-center bg-green-50 text-green-700 border border-green-200">
+          ✓ Forwarded to Engineer
+        </div>
+      )}
     </div>
   );
 }
 
 export default function EligibilityChecklist() {
-  const [projects, setProjects] = useState([]);
-  const [checks, setChecks] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [projects, setProjects]   = useState([]);
+  const [checks, setChecks]       = useState({});
+  const [proceeded, setProceeded] = useState({}); // { projectId: true/false }
+  const [proceeding, setProceeding] = useState(null); // projectId currently being saved
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+  const [search, setSearch]       = useState("");
+  const [filter, setFilter]       = useState("all");
+  const [toast, setToast]         = useState(null);
+
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   useEffect(() => {
     axiosInstance.get("/projects")
-  .then(({ data }) => {
-    const mapped = data.map((p) => ({
-      id: p._id,
-      name: p.name,
-      client: p.clientName,
-      engineer: p.assignedEngineers?.length > 0 ? p.assignedEngineers[0].name : "Unassigned",
-      submitted: new Date(p.createdAt).toLocaleDateString("en-GB", {
-        day: "2-digit", month: "short", year: "numeric",
-      }),
-    }));
-    setProjects(mapped);
-    setChecks(
-      Object.fromEntries(
-        mapped.map((p) => [p.id, { material: false, foundation: false, customer: false, acceptance: false }])
-      )
-    );
-  })
-  .catch((err) => setError(err.response?.data?.message || err.message))
-  .finally(() => setLoading(false));
+      .then(({ data }) => {
+        const mapped = data.map((p) => ({
+          id: p._id,
+          name: p.name,
+          client: p.clientName,
+          engineer: p.assignedEngineers?.length > 0 ? p.assignedEngineers[0].name : "Unassigned",
+          submitted: new Date(p.createdAt).toLocaleDateString("en-GB", {
+            day: "2-digit", month: "short", year: "numeric",
+          }),
+        }));
+        setProjects(mapped);
+
+        // Load saved checks from DB
+        const savedChecks = {};
+        const savedProceeded = {};
+        data.forEach((p) => {
+          savedChecks[p._id] = p.eligibilityChecks || {
+            material: false, foundation: false, customer: false, acceptance: false,
+          };
+          savedProceeded[p._id] = p.eligibilityStatus === "proceeded";
+        });
+        setChecks(savedChecks);
+        setProceeded(savedProceeded);
+      })
+      .catch((err) => setError(err.response?.data?.message || err.message))
+      .finally(() => setLoading(false));
   }, []);
 
   const toggle = (projectId, key) => {
+    if (proceeded[projectId]) return; // lock after proceeding
     setChecks((prev) => ({
       ...prev,
       [projectId]: { ...prev[projectId], [key]: !prev[projectId][key] },
     }));
   };
 
-  const totalEligible = projects.filter((p) => CHECKS.every((c) => checks[p.id]?.[c.key])).length;
+  const handleProceed = async (projectId) => {
+    setProceeding(projectId);
+    try {
+      await axiosInstance.patch(`/projects/${projectId}/eligibility`, {
+        checks: checks[projectId],
+      });
+      setProceeded((prev) => ({ ...prev, [projectId]: true }));
+      showToast("Project forwarded to engineer successfully!");
+    } catch (err) {
+      showToast(err.response?.data?.message || err.message, "error");
+    } finally {
+      setProceeding(null);
+    }
+  };
+
+  const totalEligible   = projects.filter((p) => proceeded[p.id]).length;
   const totalChecksCompleted = projects.reduce(
     (acc, p) => acc + CHECKS.filter((c) => checks[p.id]?.[c.key]).length, 0
   );
@@ -170,8 +228,8 @@ export default function EligibilityChecklist() {
       p.id.toLowerCase().includes(search.toLowerCase()) ||
       p.client.toLowerCase().includes(search.toLowerCase());
     if (!matchSearch) return false;
-    if (filter === "eligible") return CHECKS.every((c) => checks[p.id]?.[c.key]);
-    if (filter === "incomplete") return !CHECKS.every((c) => checks[p.id]?.[c.key]);
+    if (filter === "proceeded") return proceeded[p.id];
+    if (filter === "incomplete") return !proceeded[p.id];
     return true;
   });
 
@@ -201,6 +259,16 @@ export default function EligibilityChecklist() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-blue-950">
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-lg transition-all ${
+          toast.type === "error" ? "bg-red-500" : "bg-green-600"
+        }`}>
+          {toast.type === "error" ? "⚠" : "✓"} {toast.msg}
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         <div className="mb-6">
@@ -208,12 +276,13 @@ export default function EligibilityChecklist() {
           <h1 className="text-xl sm:text-2xl font-bold text-blue-950">Eligibility Checklist</h1>
         </div>
 
+        {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
           {[
-            { label: "Total Projects", value: projects.length, accent: "border-blue-700" },
-            { label: "Fully Eligible", value: totalEligible, accent: "border-emerald-500" },
-            { label: "In Progress", value: projects.length - totalEligible, accent: "border-amber-400" },
-            { label: "Checks Completed", value: `${totalChecksCompleted} / ${projects.length * CHECKS.length}`, accent: "border-blue-400" },
+            { label: "Total Projects",     value: projects.length,                                          accent: "border-blue-700"   },
+            { label: "Forwarded",          value: totalEligible,                                            accent: "border-emerald-500" },
+            { label: "Pending",            value: projects.length - totalEligible,                          accent: "border-amber-400"  },
+            { label: "Checks Completed",   value: `${totalChecksCompleted} / ${projects.length * CHECKS.length}`, accent: "border-blue-400" },
           ].map((s) => (
             <div key={s.label} className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border-t-4 ${s.accent}`}>
               <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{s.label}</p>
@@ -222,6 +291,7 @@ export default function EligibilityChecklist() {
           ))}
         </div>
 
+        {/* Search + Filter */}
         <div className="flex flex-col sm:flex-row gap-3 mb-5">
           <div className="relative flex-1">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -235,7 +305,11 @@ export default function EligibilityChecklist() {
             />
           </div>
           <div className="flex gap-1 bg-blue-100/60 rounded-xl p-1 w-full sm:w-auto">
-            {[{ key: "all", label: "All" }, { key: "eligible", label: "Eligible" }, { key: "incomplete", label: "Incomplete" }].map((f) => (
+            {[
+              { key: "all",        label: "All"        },
+              { key: "proceeded",  label: "Forwarded"  },
+              { key: "incomplete", label: "Pending"    },
+            ].map((f) => (
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
@@ -268,19 +342,22 @@ export default function EligibilityChecklist() {
                     </th>
                   ))}
                   <th className="px-4 py-3.5 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3.5 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={4 + CHECKS.length + 1} className="py-10 text-center text-sm text-gray-400">
+                    <td colSpan={4 + CHECKS.length + 2} className="py-10 text-center text-sm text-gray-400">
                       No projects match your search.
                     </td>
                   </tr>
                 ) : (
                   filtered.map((project, i) => {
-                    const pChecks = checks[project.id];
+                    const pChecks   = checks[project.id] || {};
                     const doneCount = CHECKS.filter((c) => pChecks[c.key]).length;
+                    const allDone   = doneCount === CHECKS.length;
+                    const isProceeded = proceeded[project.id];
                     const eligibility = getEligibilityStatus(pChecks);
                     return (
                       <tr key={project.id} className={`border-t border-gray-50 hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? "bg-slate-50/50" : ""}`}>
@@ -296,15 +373,41 @@ export default function EligibilityChecklist() {
                         {CHECKS.map((c) => (
                           <td key={c.key} className="px-3 py-3.5 text-center w-24">
                             <div className="flex justify-center">
-                              <CheckBox checked={pChecks[c.key]} onChange={() => toggle(project.id, c.key)} />
+                              <CheckBox
+                                checked={pChecks[c.key]}
+                                onChange={() => toggle(project.id, c.key)}
+                              />
                             </div>
                           </td>
                         ))}
+                        {/* Status */}
                         <td className="px-4 py-3.5 text-center">
                           <div className="flex flex-col items-center gap-1">
-                            <span className={`${eligibility.cls} text-xs font-semibold px-2.5 py-0.5 rounded-full`}>{eligibility.label}</span>
+                            {isProceeded ? (
+                              <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">✓ Forwarded</span>
+                            ) : (
+                              <span className={`${eligibility.cls} text-xs font-semibold px-2.5 py-0.5 rounded-full`}>{eligibility.label}</span>
+                            )}
                             <span className="text-[11px] text-gray-400">{doneCount}/{CHECKS.length}</span>
                           </div>
+                        </td>
+                        {/* Action */}
+                        <td className="px-4 py-3.5 text-center">
+                          {isProceeded ? (
+                            <span className="text-xs text-green-600 font-semibold">Done</span>
+                          ) : (
+                            <button
+                              onClick={() => handleProceed(project.id)}
+                              disabled={!allDone || proceeding === project.id}
+                              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
+                                allDone && proceeding !== project.id
+                                  ? "bg-blue-800 text-white hover:bg-blue-900 shadow-sm"
+                                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              }`}
+                            >
+                              {proceeding === project.id ? "..." : "Proceed"}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -323,7 +426,15 @@ export default function EligibilityChecklist() {
             </div>
           ) : (
             filtered.map((project) => (
-              <ProjectCard key={project.id} project={project} pChecks={checks[project.id]} onToggle={toggle} />
+              <ProjectCard
+                key={project.id}
+                project={project}
+                pChecks={checks[project.id] || {}}
+                onToggle={toggle}
+                onProceed={handleProceed}
+                proceeding={proceeding === project.id}
+                proceeded={proceeded[project.id]}
+              />
             ))
           )}
         </div>
