@@ -60,10 +60,10 @@ const ROLE_NAVIGATION = {
   ],
   engineer: [
     { href: "/engineer/", icon: LayoutDashboard, label: "Dashboard" },
-    {
-      href: "/engineer/daily-report",
+     {
+      href: "/engineer/myProjects",
       icon: ClipboardList,
-      label: "Daily Report",
+      label: "My Projects",
     },
     { href: "/engineer/issue-log", icon: AlertTriangle, label: "Installation Issues" },
     { href: "/engineer/qc-upload", icon: CheckSquare, label: "Project Test Upload" },

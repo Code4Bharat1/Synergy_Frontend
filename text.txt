@@ -18,15 +18,15 @@
   "password": "installationIncharge@123",
   "role": "installationIncharge"
 
-"email": "marketingCoordinatore@synergy.com",
+  "email": "marketingCoordinator@synergy.com",
   "password": "marketingCoordinator@123",
   "role": "marketingCoordinator"
 
-   "email": "marketingExecutive@synergy.com",
+  "email": "marketingExecutive@synergy.com",
   "password": "marketingExecutive@123",
   "role": "marketingExecutive"
 
-    "email": "qualityControl@synergy.com",
+  "email": "qualityControl@synergy.com",
   "password": "qualityControl@123",
   "role": "qualityControl"
 

@@ -156,11 +156,20 @@ const projectToForm = (p) => ({
     ? p.assignedEngineers.map(e => e._id || e)
     : [],
 });
-
+const STATUS_PHASE = {
+  "initiated":    "Site Preparation",
+  "in-progress":  "Wiring & Plumbing",
+  "installation": "Installation",
+  "testing":      "Final Testing",
+  "completed":    "Completed",
+  "on-hold":      "Site Preparation",
+};
 const toPayload = (f) => ({
   name: f.name.trim(),
   clientName: f.clientName.trim(),
   status: f.status,
+  progress: STATUS_PROGRESS[f.status] ?? 0,
+   phase: STATUS_PHASE[f.status],
   ...(f.clientContact.trim() && { clientContact: f.clientContact.trim() }),
   ...(f.location.trim() && { location: f.location.trim() }),
   ...(f.description.trim() && { description: f.description.trim() }),
