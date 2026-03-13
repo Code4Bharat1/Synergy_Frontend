@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   X, AlertCircle, ChevronRight,
   Plus, RefreshCw, Pencil,
@@ -22,21 +23,21 @@ const apiFetch = async (path, { method = "GET", body } = {}) => {
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 const STATUS_STYLE = {
-  "initiated":    "bg-gray-100 text-gray-500",
-  "in-progress":  "bg-blue-50 text-blue-600",
+  "initiated": "bg-gray-100 text-gray-500",
+  "in-progress": "bg-blue-50 text-blue-600",
   "installation": "bg-purple-50 text-purple-600",
-  "testing":      "bg-amber-50 text-amber-600",
-  "completed":    "bg-green-50 text-green-600",
-  "on-hold":      "bg-red-50 text-red-500",
+  "testing": "bg-amber-50 text-amber-600",
+  "completed": "bg-green-50 text-green-600",
+  "on-hold": "bg-red-50 text-red-500",
 };
 
 const STATUS_LABELS = {
-  "initiated":    "Initiated",
-  "in-progress":  "In Progress",
+  "initiated": "Initiated",
+  "in-progress": "In Progress",
   "installation": "Installation",
-  "testing":      "Testing",
-  "completed":    "Completed",
-  "on-hold":      "On Hold",
+  "testing": "Testing",
+  "completed": "Completed",
+  "on-hold": "On Hold",
 };
 
 const EMPTY_FORM = {
@@ -145,9 +146,9 @@ function ProjectForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel = "S
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   // Split users by role for targeted dropdowns
-  const marketingUsers  = users.filter(u => u.role === "marketing_executive" || u.role === "admin" || true);
-  const inchargeUsers   = users.filter(u => u.role === "installation_incharge" || u.role === "admin" || true);
-  const engineerUsers   = users.filter(u => u.role === "engineer" || u.role === "admin" || true);
+  const marketingUsers = users.filter(u => u.role === "marketing_executive" || u.role === "admin" || true);
+  const inchargeUsers = users.filter(u => u.role === "installation_incharge" || u.role === "admin" || true);
+  const engineerUsers = users.filter(u => u.role === "engineer" || u.role === "admin" || true);
   // ↑ Remove the `|| true` if you want strict role filtering
 
   const handleSubmit = (e) => {
@@ -265,7 +266,7 @@ function DetailModal({ project: p, onClose }) {
   const [tab, setTab] = useState("overview");
   const tabs = [
     { key: "overview", label: "Overview" },
-    { key: "team",     label: "Team"     },
+    { key: "team", label: "Team" },
     { key: "timeline", label: "Timeline" },
   ];
 
@@ -309,9 +310,9 @@ function DetailModal({ project: p, onClose }) {
               )}
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "Client",     value: p.clientName },
-                  { label: "Contact",    value: p.clientContact || "—" },
-                  { label: "Location",   value: p.location || "—" },
+                  { label: "Client", value: p.clientName },
+                  { label: "Contact", value: p.clientContact || "—" },
+                  { label: "Location", value: p.location || "—" },
                   { label: "Created By", value: p.createdBy?.name || "—" },
                 ].map(i => (
                   <div key={i.label} className="bg-gray-50 rounded-xl p-3">
@@ -381,8 +382,8 @@ function DetailModal({ project: p, onClose }) {
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { label: "Start Date", value: p.startDate ? new Date(p.startDate).toLocaleDateString() : "—" },
-                  { label: "End Date",   value: p.endDate   ? new Date(p.endDate).toLocaleDateString()   : "—" },
-                  { label: "Created",    value: new Date(p.createdAt).toLocaleDateString() },
+                  { label: "End Date", value: p.endDate ? new Date(p.endDate).toLocaleDateString() : "—" },
+                  { label: "Created", value: new Date(p.createdAt).toLocaleDateString() },
                 ].map(i => (
                   <div key={i.label} className="bg-gray-50 rounded-xl p-3 text-center">
                     <p className="text-xs text-gray-400 mb-1">{i.label}</p>
@@ -421,17 +422,18 @@ function DetailModal({ project: p, onClose }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ProjectOverview() {
-  const [projects, setProjects]           = useState([]);
-  const [users, setUsers]                 = useState([]);        // ← all users for dropdowns
-  const [loading, setLoading]             = useState(true);
+  const router = useRouter();
+  const [projects, setProjects] = useState([]);
+  const [users, setUsers] = useState([]);        // ← all users for dropdowns
+  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError]                 = useState(null);
-  const [filter, setFilter]               = useState("All");
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState("All");
 
   const [detailProject, setDetailProject] = useState(null);
-  const [showCreate, setShowCreate]       = useState(false);
-  const [editProject, setEditProject]     = useState(null);
-  const [deleteTarget, setDeleteTarget]   = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editProject, setEditProject] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // ── Fetch users for dropdowns ─────────────────────────────────────────────
   // Change "/users" to whatever your backend endpoint is that returns all users
@@ -509,17 +511,17 @@ export default function ProjectOverview() {
 
   // Build initial form values for editing — engineers as array of IDs
   const buildEditInitial = (p) => ({
-    name:                         p.name || "",
-    clientName:                   p.clientName || "",
-    clientContact:                p.clientContact || "",
-    location:                     p.location || "",
-    status:                       p.status || "initiated",
-    description:                  p.description || "",
-    startDate:                    p.startDate ? p.startDate.slice(0, 10) : "",
-    endDate:                      p.endDate   ? p.endDate.slice(0, 10)   : "",
-    assignedMarketingExecutive:   p.assignedMarketingExecutive?._id || "",
+    name: p.name || "",
+    clientName: p.clientName || "",
+    clientContact: p.clientContact || "",
+    location: p.location || "",
+    status: p.status || "initiated",
+    description: p.description || "",
+    startDate: p.startDate ? p.startDate.slice(0, 10) : "",
+    endDate: p.endDate ? p.endDate.slice(0, 10) : "",
+    assignedMarketingExecutive: p.assignedMarketingExecutive?._id || "",
     assignedInstallationIncharge: p.assignedInstallationIncharge?._id || "",
-    assignedEngineers:            (p.assignedEngineers || []).map(e => e._id),
+    assignedEngineers: (p.assignedEngineers || []).map(e => e._id),
   });
 
   return (
@@ -636,9 +638,9 @@ export default function ProjectOverview() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map(p => {
-            const progress    = statusProgress[p.status] ?? 0;
+            const progress = statusProgress[p.status] ?? 0;
             const statusLabel = STATUS_LABELS[p.status] || p.status;
-            const statusStyle = STATUS_STYLE[p.status]  || "bg-gray-100 text-gray-500";
+            const statusStyle = STATUS_STYLE[p.status] || "bg-gray-100 text-gray-500";
 
             return (
               <div key={p._id}
@@ -657,7 +659,7 @@ export default function ProjectOverview() {
                   </button>
                 </div>
 
-                <div onClick={() => setDetailProject(p)}>
+                <div onClick={() => router.push(`/director/project/${p._id}`)}>
                   <div className="flex items-start justify-between gap-3 mb-4 pr-16">
                     <div>
                       <h3 className="text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{p.name}</h3>

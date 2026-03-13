@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   FolderKanban, AlertTriangle, Clock, Users, FileText,
   RefreshCw, Loader2, TrendingUp, CheckCircle2, BarChart3,
@@ -27,35 +28,35 @@ const safeArray = (data, key) => {
 
 // ── Color Tokens ──────────────────────────────────────────────────────────────
 const STATUS_COLORS = {
-  "initiated":   "#6366f1",
+  "initiated": "#6366f1",
   "in-progress": "#3b82f6",
-  "installation":"#f59e0b",
-  "testing":     "#8b5cf6",
-  "completed":   "#10b981",
-  "on-hold":     "#ef4444",
+  "installation": "#f59e0b",
+  "testing": "#8b5cf6",
+  "completed": "#10b981",
+  "on-hold": "#ef4444",
 };
 
 const PRIORITY_COLORS = {
-  low:      "#94a3b8",
-  medium:   "#3b82f6",
-  high:     "#f59e0b",
+  low: "#94a3b8",
+  medium: "#3b82f6",
+  high: "#f59e0b",
   critical: "#ef4444",
 };
 
 const PHASE_COLORS = {
   "Site Preparation": "#6366f1",
   "Wiring & Plumbing": "#3b82f6",
-  "Equipment Setup":  "#f59e0b",
-  "Installation":     "#8b5cf6",
-  "Final Testing":    "#10b981",
-  "Completed":        "#22c55e",
+  "Equipment Setup": "#f59e0b",
+  "Installation": "#8b5cf6",
+  "Final Testing": "#10b981",
+  "Completed": "#22c55e",
 };
 
 const TRIAL_COLORS = {
   "Not Started": "#94a3b8",
-  "Scheduled":   "#3b82f6",
-  "In Trial":    "#f59e0b",
-  "Completed":   "#10b981",
+  "Scheduled": "#3b82f6",
+  "In Trial": "#f59e0b",
+  "Completed": "#10b981",
 };
 
 // ── Custom Tooltip ─────────────────────────────────────────────────────────────
@@ -70,9 +71,12 @@ const CustomTooltip = ({ active, payload }) => {
 };
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
-function KPICard({ label, value, icon: Icon, color, sub, loading }) {
+function KPICard({ label, value, icon: Icon, color, sub, loading, href, router }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-start gap-4 hover:shadow-md transition-shadow">
+    <div
+      onClick={() => href && router && router.push(href)}
+      className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-start gap-4 hover:shadow-md transition-all ${href ? "cursor-pointer hover:border-blue-200 hover:scale-[1.02] active:scale-[0.98]" : ""}`}
+    >
       <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
         <Icon size={20} />
       </div>
@@ -85,6 +89,7 @@ function KPICard({ label, value, icon: Icon, color, sub, loading }) {
         <p className="text-sm font-medium text-gray-600 mt-0.5 leading-tight">{label}</p>
         {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
       </div>
+      {href && <ChevronRight size={16} className="text-gray-300 mt-1 shrink-0" />}
     </div>
   );
 }
@@ -103,7 +108,7 @@ function SectionHeader({ icon: Icon, iconColor, title, sub }) {
 }
 
 // ── Donut Chart Panel ─────────────────────────────────────────────────────────
-function DonutPanel({ title, sub, icon, iconColor, data, note }) {
+function DonutPanel({ title, sub, icon, iconColor, data, note, href, router }) {
   const hasData = data.some(d => d.value > 0);
   const RADIAN = Math.PI / 180;
   const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value, name }) => {
@@ -117,7 +122,10 @@ function DonutPanel({ title, sub, icon, iconColor, data, note }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div
+      onClick={() => href && router && router.push(href)}
+      className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all ${href ? "cursor-pointer hover:border-blue-200 hover:shadow-md" : ""}`}
+    >
       <SectionHeader icon={icon} iconColor={iconColor} title={title} sub={sub} />
       <div className="p-5">
         {!hasData ? (
@@ -150,14 +158,22 @@ function DonutPanel({ title, sub, icon, iconColor, data, note }) {
           </>
         )}
       </div>
+      {href && (
+        <div className="px-5 py-3 border-t border-gray-50 bg-gray-50/40 flex items-center justify-end">
+          <span className="text-xs font-semibold text-blue-600 flex items-center gap-1">View Details <ChevronRight size={12} /></span>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Bar Chart Panel ───────────────────────────────────────────────────────────
-function BarPanel({ title, sub, icon, iconColor, data, colors, note }) {
+function BarPanel({ title, sub, icon, iconColor, data, colors, note, href, router }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div
+      onClick={() => href && router && router.push(href)}
+      className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all ${href ? "cursor-pointer hover:border-blue-200 hover:shadow-md" : ""}`}
+    >
       <SectionHeader icon={icon} iconColor={iconColor} title={title} sub={sub} />
       <div className="p-5">
         {!data.some(d => d.value > 0) ? (
@@ -181,12 +197,17 @@ function BarPanel({ title, sub, icon, iconColor, data, colors, note }) {
           </>
         )}
       </div>
+      {href && (
+        <div className="px-5 py-3 border-t border-gray-50 bg-gray-50/40 flex items-center justify-end">
+          <span className="text-xs font-semibold text-blue-600 flex items-center gap-1">View Details <ChevronRight size={12} /></span>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Phase Progress Panel ──────────────────────────────────────────────────────
-function PhaseProgressPanel({ projects }) {
+function PhaseProgressPanel({ projects, href, router }) {
   const phaseCounts = {};
   const phaseOrder = ["Site Preparation", "Wiring & Plumbing", "Equipment Setup", "Installation", "Final Testing", "Completed"];
   phaseOrder.forEach(p => { phaseCounts[p] = 0; });
@@ -196,7 +217,10 @@ function PhaseProgressPanel({ projects }) {
   const total = projects.filter(p => p.status !== "completed").length || 1;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div
+      onClick={() => href && router && router.push(href)}
+      className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all ${href ? "cursor-pointer hover:border-blue-200 hover:shadow-md" : ""}`}
+    >
       <SectionHeader
         icon={Activity}
         iconColor="text-indigo-500"
@@ -228,18 +252,26 @@ function PhaseProgressPanel({ projects }) {
           Metric: count of active projects per phase enum value from <code className="bg-gray-50 px-1 rounded">project.phase</code>
         </p>
       </div>
+      {href && (
+        <div className="px-5 py-3 border-t border-gray-50 bg-gray-50/40 flex items-center justify-end">
+          <span className="text-xs font-semibold text-blue-600 flex items-center gap-1">View Projects <ChevronRight size={12} /></span>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Trial Status Panel ────────────────────────────────────────────────────────
-function TrialStatusPanel({ projects }) {
+function TrialStatusPanel({ projects, href, router }) {
   const trialCounts = { "Not Started": 0, "Scheduled": 0, "In Trial": 0, "Completed": 0 };
   projects.forEach(p => {
     if (p.trialStatus && trialCounts[p.trialStatus] !== undefined) trialCounts[p.trialStatus]++;
   });
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div
+      onClick={() => href && router && router.push(href)}
+      className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all ${href ? "cursor-pointer hover:border-blue-200 hover:shadow-md" : ""}`}
+    >
       <SectionHeader
         icon={CheckCircle2}
         iconColor="text-emerald-500"
@@ -249,7 +281,7 @@ function TrialStatusPanel({ projects }) {
       <div className="p-5">
         <div className="grid grid-cols-2 gap-3">
           {Object.entries(trialCounts).map(([status, count]) => (
-            <div key={status} className="rounded-xl p-3 border border-gray-100 bg-gray-50 flex items-center gap-3">
+            <div key={status} className="rounded-xl p-3 border border-gray-100 bg-gray-50 flex items-center gap-3 hover:bg-blue-50/50 transition-colors">
               <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: TRIAL_COLORS[status] }} />
               <div>
                 <p className="text-lg font-bold text-extra-darkblue">{count}</p>
@@ -262,6 +294,11 @@ function TrialStatusPanel({ projects }) {
           Metric: count per <code className="bg-gray-50 px-1 rounded">project.trialStatus</code> enum value
         </p>
       </div>
+      {href && (
+        <div className="px-5 py-3 border-t border-gray-50 bg-gray-50/40 flex items-center justify-end">
+          <span className="text-xs font-semibold text-blue-600 flex items-center gap-1">View Projects <ChevronRight size={12} /></span>
+        </div>
+      )}
     </div>
   );
 }
@@ -331,6 +368,7 @@ function PendingDocsPanel({ documents }) {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function DirectorDashboard() {
+  const router = useRouter();
   const [projects, setProjects] = useState([]);
   const [complaints, setComplaints] = useState([]);
   const [documents, setDocuments] = useState([]);
@@ -426,6 +464,8 @@ export default function DirectorDashboard() {
           color="bg-blue-50 text-blue-600"
           sub="Excludes status=completed"
           loading={loading}
+          href="/director/project"
+          router={router}
         />
         <KPICard
           label="Active Complaints"
@@ -434,6 +474,8 @@ export default function DirectorDashboard() {
           color="bg-amber-50 text-amber-600"
           sub="Status: open or in-progress"
           loading={loading}
+          href="/director/complaint"
+          router={router}
         />
         <KPICard
           label="Pending Documents"
@@ -442,6 +484,8 @@ export default function DirectorDashboard() {
           color="bg-orange-50 text-orange-500"
           sub="Awaiting director review"
           loading={loading}
+          href="/director/approval"
+          router={router}
         />
         <KPICard
           label="Active Team Members"
@@ -450,6 +494,8 @@ export default function DirectorDashboard() {
           color="bg-emerald-50 text-emerald-600"
           sub="User status=active"
           loading={loading}
+          href="/director/performance"
+          router={router}
         />
       </div>
 
@@ -462,6 +508,8 @@ export default function DirectorDashboard() {
           iconColor="text-blue-500"
           data={projectStatusData}
           note="Metric: count of projects per status enum value from GET /projects"
+          href="/director/project"
+          router={router}
         />
         <BarPanel
           title="Complaint Priority Breakdown"
@@ -471,13 +519,15 @@ export default function DirectorDashboard() {
           data={complaintPriorityData}
           colors={complaintPriorityColors}
           note="Metric: count per priority level from GET /complaints"
+          href="/director/complaint"
+          router={router}
         />
       </div>
 
       {/* ── Charts Row 2 ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <PhaseProgressPanel projects={projects} />
-        <TrialStatusPanel projects={projects} />
+        <PhaseProgressPanel projects={projects} href="/director/project" router={router} />
+        <TrialStatusPanel projects={projects} href="/director/project" router={router} />
       </div>
 
       {/* ── Pending Documents ─────────────────────────────────────────────────── */}

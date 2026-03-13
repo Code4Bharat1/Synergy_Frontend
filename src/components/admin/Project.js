@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Edit2, X, CheckCircle2, MapPin, Calendar, User, RefreshCw, Loader, Phone, FileText, Users, Briefcase } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Edit2, X, CheckCircle2, MapPin, Calendar, User, RefreshCw, Loader, Phone, FileText, Users, Briefcase, Eye } from "lucide-react";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
@@ -56,21 +57,21 @@ const api = {
 const STATUS_OPTIONS = ["initiated", "in-progress", "installation", "testing", "completed", "on-hold"];
 
 const STATUS_STYLE = {
-  "initiated":    "bg-gray-50 text-gray-500",
-  "in-progress":  "bg-green-50 text-green-600",
+  "initiated": "bg-gray-50 text-gray-500",
+  "in-progress": "bg-green-50 text-green-600",
   "installation": "bg-blue-50 text-blue-600",
-  "testing":      "bg-purple-50 text-purple-600",
-  "completed":    "bg-emerald-50 text-emerald-600",
-  "on-hold":      "bg-amber-50 text-amber-600",
+  "testing": "bg-purple-50 text-purple-600",
+  "completed": "bg-emerald-50 text-emerald-600",
+  "on-hold": "bg-amber-50 text-amber-600",
 };
 
 const STATUS_PROGRESS = {
-  "initiated":    5,
-  "in-progress":  40,
+  "initiated": 5,
+  "in-progress": 40,
   "installation": 65,
-  "testing":      80,
-  "completed":    100,
-  "on-hold":      30,
+  "testing": 80,
+  "completed": 100,
+  "on-hold": 30,
 };
 
 const formatStatus = (s) =>
@@ -139,14 +140,14 @@ const EMPTY_FORM = {
 };
 
 const projectToForm = (p) => ({
-  name:          p.name || "",
-  clientName:    p.clientName || "",
+  name: p.name || "",
+  clientName: p.clientName || "",
   clientContact: p.clientContact || "",
-  location:      p.location || "",
-  status:        p.status || "initiated",
-  startDate:     p.startDate ? p.startDate.slice(0, 10) : "",
-  endDate:       p.endDate   ? p.endDate.slice(0, 10)   : "",
-  description:   p.description || "",
+  location: p.location || "",
+  status: p.status || "initiated",
+  startDate: p.startDate ? p.startDate.slice(0, 10) : "",
+  endDate: p.endDate ? p.endDate.slice(0, 10) : "",
+  description: p.description || "",
   assignedMarketingExecutive:
     p.assignedMarketingExecutive?._id || p.assignedMarketingExecutive || "",
   assignedInstallationIncharge:
@@ -157,17 +158,17 @@ const projectToForm = (p) => ({
 });
 
 const toPayload = (f) => ({
-  name:       f.name.trim(),
+  name: f.name.trim(),
   clientName: f.clientName.trim(),
-  status:     f.status,
-  ...(f.clientContact.trim()               && { clientContact:                f.clientContact.trim() }),
-  ...(f.location.trim()                    && { location:                     f.location.trim() }),
-  ...(f.description.trim()                 && { description:                  f.description.trim() }),
-  ...(f.startDate                          && { startDate:                    f.startDate }),
-  ...(f.endDate                            && { endDate:                      f.endDate }),
-  ...(f.assignedMarketingExecutive         && { assignedMarketingExecutive:   f.assignedMarketingExecutive }),
-  ...(f.assignedInstallationIncharge       && { assignedInstallationIncharge: f.assignedInstallationIncharge }),
-  ...(f.assignedEngineers.length > 0       && { assignedEngineers:            f.assignedEngineers }),
+  status: f.status,
+  ...(f.clientContact.trim() && { clientContact: f.clientContact.trim() }),
+  ...(f.location.trim() && { location: f.location.trim() }),
+  ...(f.description.trim() && { description: f.description.trim() }),
+  ...(f.startDate && { startDate: f.startDate }),
+  ...(f.endDate && { endDate: f.endDate }),
+  ...(f.assignedMarketingExecutive && { assignedMarketingExecutive: f.assignedMarketingExecutive }),
+  ...(f.assignedInstallationIncharge && { assignedInstallationIncharge: f.assignedInstallationIncharge }),
+  ...(f.assignedEngineers.length > 0 && { assignedEngineers: f.assignedEngineers }),
 });
 
 // ── FormFields — defined OUTSIDE the main component to prevent remounting ─────
@@ -179,8 +180,8 @@ function FormFields({ form, setForm, users }) {
   const set = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
 
   const marketingExecs = users.filter(u => u.role === "marketingExecutive");
-  const incharges      = users.filter(u => u.role === "installationIncharge");
-  const engineers      = users.filter(u => u.role === "engineer");
+  const incharges = users.filter(u => u.role === "installationIncharge");
+  const engineers = users.filter(u => u.role === "engineer");
 
   const toggleEngineer = (id) => {
     setForm(f => ({
@@ -318,6 +319,7 @@ function FormFields({ form, setForm, users }) {
               return (
                 <label
                   key={u._id}
+                  onClick={() => toggleEngineer(u._id)}
                   className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${checked ? "bg-blue-50" : "hover:bg-gray-50"}`}
                 >
                   <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${checked ? "bg-blue-600 border-blue-600" : "border-gray-300"}`}>
@@ -340,15 +342,16 @@ function FormFields({ form, setForm, users }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ProjectManagement() {
+  const router = useRouter();
   const [projects, setProjects] = useState([]);
-  const [users,    setUsers]    = useState([]);
+  const [users, setUsers] = useState([]);
   const [fetching, setFetching] = useState(true);
-  const [modal,    setModal]    = useState(null);   // null | "create" | "edit"
+  const [modal, setModal] = useState(null);   // null | "create" | "edit"
   const [selected, setSelected] = useState(null);
-  const [form,     setForm]     = useState(EMPTY_FORM);
-  const [saving,   setSaving]   = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(null);
-  const [toast,    setToast]    = useState(null);
+  const [toast, setToast] = useState(null);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -370,7 +373,7 @@ export default function ProjectManagement() {
 
   useEffect(() => {
     loadProjects();
-    api.getUsers().then(setUsers).catch(() => {});
+    api.getUsers().then(setUsers).catch(() => { });
   }, [loadProjects]);
 
   // ── Create ────────────────────────────────────────────────────────────────
@@ -534,10 +537,10 @@ export default function ProjectManagement() {
       {!fetching && projects.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {projects.map(p => {
-            const progress     = STATUS_PROGRESS[p.status] ?? 0;
+            const progress = STATUS_PROGRESS[p.status] ?? 0;
             const inchargeName = resolveName(p.assignedInstallationIncharge, users);
-            const mktExecName  = resolveName(p.assignedMarketingExecutive, users);
-            const engNames     = resolveNames(p.assignedEngineers, users);
+            const mktExecName = resolveName(p.assignedMarketingExecutive, users);
+            const engNames = resolveNames(p.assignedEngineers, users);
 
             return (
               <div key={p._id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:border-blue-200 transition-colors">
@@ -621,7 +624,13 @@ export default function ProjectManagement() {
                 </div>
 
                 {/* Card footer */}
-                <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-end">
+                <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+                  <button
+                    onClick={() => router.push(`/admin/project/${p._id}`)}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:underline"
+                  >
+                    <Eye size={12} /> View Details
+                  </button>
                   <button
                     onClick={() => openEdit(p)}
                     className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:underline"

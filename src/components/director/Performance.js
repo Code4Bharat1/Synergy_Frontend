@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Users, HardHat, BarChart3, Calendar, RefreshCw, Loader2,
-  TrendingUp, FileText, CheckCircle2, Clock, Activity, ClipboardList
+  TrendingUp, FileText, CheckCircle2, Clock, Activity, ClipboardList, ChevronRight, Search
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -75,12 +76,15 @@ function SectionCard({ icon: Icon, iconColor, title, sub, children, note }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function PerformanceAnalytics() {
+  const router = useRouter();
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
   const [reports, setReports] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [projectSearch, setProjectSearch] = useState("");
+  const [projectFilter, setProjectFilter] = useState("All");
 
   const loadData = useCallback(async () => {
     try {
@@ -118,11 +122,11 @@ export default function PerformanceAnalytics() {
 
   // Project progress distribution (from project.progress field, 0–100)
   const progressBuckets = [
-    { name: "0–25%",  value: projects.filter(p => p.progress < 25).length },
+    { name: "0–25%", value: projects.filter(p => p.progress < 25).length },
     { name: "25–50%", value: projects.filter(p => p.progress >= 25 && p.progress < 50).length },
     { name: "50–75%", value: projects.filter(p => p.progress >= 50 && p.progress < 75).length },
     { name: "75–99%", value: projects.filter(p => p.progress >= 75 && p.progress < 100).length },
-    { name: "100%",   value: projects.filter(p => p.progress === 100).length },
+    { name: "100%", value: projects.filter(p => p.progress === 100).length },
   ];
   const PROGRESS_COLORS = ["#ef4444", "#f59e0b", "#3b82f6", "#8b5cf6", "#10b981"];
 
@@ -298,57 +302,128 @@ export default function PerformanceAnalytics() {
         </SectionCard>
       </div>
 
-      {/* ── Project List with Real Progress ── */}
-      <SectionCard
-        icon={ClipboardList}
-        iconColor="text-blue-500"
-        title="All Projects — Progress & Phase"
-        sub="Source: project.progress + project.phase + project.status — GET /projects"
-        note="Metric: project.progress (numeric 0–100) and project.phase enum. No estimation or random values.">
-        {projects.length === 0 ? (
-          <div className="py-6 text-center text-gray-300 text-sm">No projects found</div>
-        ) : (
-          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-            {projects.map(p => {
-              const PHASE_COLOR_MAP = {
-                "Site Preparation": "#6366f1", "Wiring & Plumbing": "#3b82f6",
-                "Equipment Setup": "#f59e0b", "Installation": "#8b5cf6",
-                "Final Testing": "#10b981", "Completed": "#22c55e",
-              };
-              const STATUS_COLOR_MAP = {
-                "initiated": "bg-gray-100 text-gray-500",
-                "in-progress": "bg-blue-50 text-blue-600",
-                "installation": "bg-amber-50 text-amber-600",
-                "testing": "bg-purple-50 text-purple-600",
-                "completed": "bg-emerald-50 text-emerald-600",
-                "on-hold": "bg-red-50 text-red-500",
-              };
-              return (
-                <div key={p._id} className="p-3 rounded-xl bg-gray-50 border border-gray-100 space-y-2">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <p className="text-sm font-bold text-extra-darkblue truncate max-w-[60%]">{p.name}</p>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLOR_MAP[p.status] || "bg-gray-100 text-gray-500"}`}>
-                        {p.status}
-                      </span>
-                      <span className="text-xs text-gray-400 bg-white border border-gray-200 px-2 py-0.5 rounded-full">
-                        {p.phase || "N/A"}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs text-gray-400 mb-1">
-                      <span>Progress</span>
-                      <span className="font-bold text-extra-darkblue">{p.progress ?? 0}%</span>
-                    </div>
-                    <ProgressBar value={p.progress ?? 0} color={PHASE_COLOR_MAP[p.phase] || "#3b82f6"} />
-                  </div>
-                </div>
-              );
-            })}
+      {/* ── Project Cards Grid ── */}
+      <div>
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+          <div className="flex items-center gap-2.5">
+            <ClipboardList size={15} className="text-blue-500" />
+            <div>
+              <h3 className="text-sm font-bold text-extra-darkblue">All Projects — Progress & Phase</h3>
+              <p className="text-xs text-gray-400">{projects.length} projects total</p>
+            </div>
           </div>
-        )}
-      </SectionCard>
+        </div>
+
+        {/* Search & Filter Bar */}
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+            <input
+              type="text"
+              placeholder="Search projects by name, client, location…"
+              value={projectSearch}
+              onChange={(e) => setProjectSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-gray-700 placeholder-gray-300 bg-white"
+            />
+          </div>
+          <div className="flex gap-1 p-1 bg-gray-100 rounded-xl overflow-x-auto">
+            {["All", "in-progress", "installation", "testing", "completed", "on-hold"].map(f => (
+              <button key={f} onClick={() => setProjectFilter(f)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all
+                  ${projectFilter === f ? "bg-white text-gray-800 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}>
+                {f === "All" ? "All" : f.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {(() => {
+          const filteredProjects = projects.filter(p => {
+            const matchesSearch = !projectSearch ||
+              (p.name || "").toLowerCase().includes(projectSearch.toLowerCase()) ||
+              (p.clientName || "").toLowerCase().includes(projectSearch.toLowerCase()) ||
+              (p.location || "").toLowerCase().includes(projectSearch.toLowerCase());
+            const matchesFilter = projectFilter === "All" || p.status === projectFilter;
+            return matchesSearch && matchesFilter;
+          });
+
+          return filteredProjects.length === 0 ? (
+            <div className="py-12 text-center text-gray-300 text-sm bg-white rounded-2xl border border-gray-100">
+              {projects.length === 0 ? "No projects found" : "No projects match your search or filter"}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredProjects.map(p => {
+                const PHASE_COLOR_MAP = {
+                  "Site Preparation": "#6366f1", "Wiring & Plumbing": "#3b82f6",
+                  "Equipment Setup": "#f59e0b", "Installation": "#8b5cf6",
+                  "Final Testing": "#10b981", "Completed": "#22c55e",
+                };
+                const STATUS_COLOR_MAP = {
+                  "initiated": "bg-gray-100 text-gray-500",
+                  "in-progress": "bg-blue-50 text-blue-600",
+                  "installation": "bg-purple-50 text-purple-600",
+                  "testing": "bg-amber-50 text-amber-600",
+                  "completed": "bg-emerald-50 text-emerald-600",
+                  "on-hold": "bg-red-50 text-red-500",
+                };
+                const progress = p.progress ?? 0;
+                const barColor = PHASE_COLOR_MAP[p.phase] || "#1C4D8D";
+
+                return (
+                  <div key={p._id}
+                    onClick={() => router.push(`/director/project/${p._id}`)}
+                    className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 cursor-pointer hover:border-blue-400 hover:shadow-md transition-all group relative">
+
+                    {/* Top: Name + Status */}
+                    <div className="flex items-start justify-between gap-3 mb-1">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors truncate">{p.name}</h3>
+                        <p className="text-xs text-gray-400 mt-0.5 truncate">{p.location || "No location"} · {p.clientName}</p>
+                      </div>
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${STATUS_COLOR_MAP[p.status] || "bg-gray-100 text-gray-500"}`}>
+                        {(p.status || "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+                      </span>
+                    </div>
+
+                    {/* Progress */}
+                    <div className="mt-3">
+                      <div className="flex justify-between text-xs mb-1.5">
+                        <span className="text-gray-400">Progress</span>
+                        <span className="font-bold" style={{ color: barColor }}>{progress}%</span>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progress}%`, background: barColor }} />
+                      </div>
+                    </div>
+
+                    {/* Footer: Details + View Detail */}
+                    <div className="mt-4 pt-3 border-t border-gray-50 flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex gap-3 text-xs text-gray-500 flex-wrap">
+                        {p.assignedEngineers?.length > 0 && (
+                          <span>{p.assignedEngineers.length} engineer{p.assignedEngineers.length > 1 ? "s" : ""}</span>
+                        )}
+                        {p.startDate && (
+                          <span className="flex items-center gap-1">
+                            <Clock size={10} className="text-gray-400" />
+                            {new Date(p.startDate).toLocaleDateString()}
+                          </span>
+                        )}
+                        {p.endDate && (
+                          <span className="text-gray-400">→ {new Date(p.endDate).toLocaleDateString()}</span>
+                        )}
+                      </div>
+                      <span className="text-xs font-semibold text-blue-700 flex items-center gap-1 group-hover:gap-2 transition-all">
+                        View Detail <ChevronRight size={12} />
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        })()}
+      </div>
 
     </div>
   );
