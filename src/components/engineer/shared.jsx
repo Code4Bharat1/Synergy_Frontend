@@ -40,11 +40,11 @@ export function PageHeader({ eyebrow, title, subtitle, action }) {
     <div style={{ marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
       <div>
         {eyebrow && (
-          <div style={{ color: "#4988C4", fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>
+          <div style={{ color: "#4988C4", fontSize: 13, fontWeight: 400, letterSpacing: 0, textTransform: "none", marginBottom: 2 }}>
             {eyebrow}
           </div>
         )}
-        <h1 style={{ color: "#0F2854", fontSize: 26, fontWeight: 800, margin: 0, fontFamily: "'Syne', sans-serif" }}>{title}</h1>
+        <h1 style={{ color: "#0F2854", fontSize: 25, fontWeight: 700, margin: 0, fontFamily: "'DM Sans', sans-serif" }}>{title}</h1>
         {subtitle && <p style={{ color: "#4988C4", fontSize: 13, margin: "4px 0 0" }}>{subtitle}</p>}
       </div>
       {action}

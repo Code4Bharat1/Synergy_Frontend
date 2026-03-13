@@ -80,8 +80,8 @@ const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 const STATUS_CLS = {
-  active:    "bg-green-50 text-green-600",
-  inactive:  "bg-gray-100 text-gray-400",
+  active: "bg-green-50 text-green-600",
+  inactive: "bg-gray-100 text-gray-400",
   suspended: "bg-red-50 text-red-500",
 };
 
@@ -162,9 +162,9 @@ function UserForm({ form, setForm, isCreate = false }) {
 function UserCard({ user, onEdit, onReset, onDelete }) {
   const [open, setOpen] = useState(false);
   const actions = [
-    { label: "Edit User",       icon: Edit2,   fn: () => onEdit(user),   cls: "text-gray-700" },
-    { label: "Reset Password",  icon: KeyRound, fn: () => onReset(user),  cls: "text-amber-500" },
-    { label: "Delete User",     icon: UserX,   fn: () => onDelete(user), cls: "text-red-500"  },
+    { label: "Edit User", icon: Edit2, fn: () => onEdit(user), cls: "text-gray-700" },
+    { label: "Reset Password", icon: KeyRound, fn: () => onReset(user), cls: "text-amber-500" },
+    { label: "Delete User", icon: UserX, fn: () => onDelete(user), cls: "text-red-500" },
   ];
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
@@ -214,14 +214,14 @@ function UserCard({ user, onEdit, onReset, onDelete }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function UserManagement() {
-  const [users,    setUsers]    = useState([]);
+  const [users, setUsers] = useState([]);
   const [fetching, setFetching] = useState(true);
-  const [search,   setSearch]   = useState("");
-  const [modal,    setModal]    = useState(null);   // null | "create" | "edit" | "reset" | "delete"
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState(null);   // null | "create" | "edit" | "reset" | "delete"
   const [selected, setSelected] = useState(null);
-  const [form,     setForm]     = useState(EMPTY_FORM);
-  const [saving,   setSaving]   = useState(false);
-  const [toast,    setToast]    = useState(null);   // { msg, type }
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);   // { msg, type }
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -245,12 +245,12 @@ export default function UserManagement() {
 
   // ── Openers ────────────────────────────────────────────────────────────────
   const openCreate = () => { setForm(EMPTY_FORM); setModal("create"); };
-  const openEdit   = (u) => {
+  const openEdit = (u) => {
     setSelected(u);
     setForm({ name: u.name || "", email: u.email, phone: u.phone || "", role: u.role, status: u.status, password: "" });
     setModal("edit");
   };
-  const openReset  = (u) => { setSelected(u); setModal("reset"); };
+  const openReset = (u) => { setSelected(u); setModal("reset"); };
   const openDelete = (u) => { setSelected(u); setModal("delete"); };
 
   // ── Create ─────────────────────────────────────────────────────────────────
@@ -286,10 +286,10 @@ export default function UserManagement() {
     setSaving(true);
     try {
       const updated = await api.update(selected._id, {
-        name:   form.name.trim(),
-        email:  form.email.trim(),
-        phone:  form.phone.trim() || undefined,
-        role:   form.role,
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim() || undefined,
+        role: form.role,
         status: form.status,
       });
       setUsers(prev => prev.map(u => u._id === updated._id ? updated : u));
@@ -340,7 +340,23 @@ export default function UserManagement() {
       f?.toLowerCase().includes(search.toLowerCase())
     )
   );
+  const toggleStatus = async (user) => {
+    try {
+      const newStatus = user.status === "active" ? "inactive" : "active";
 
+      const updated = await api.update(user._id, {
+        status: newStatus,
+      });
+
+      setUsers(prev =>
+        prev.map(u => (u._id === updated._id ? updated : u))
+      );
+
+      showToast(`User marked ${newStatus}`);
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  };
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
@@ -517,6 +533,16 @@ export default function UserManagement() {
                   </td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => toggleStatus(u)}
+                        title={u.status === "active" ? "Deactivate" : "Activate"}
+                        className={`p-1.5 rounded-lg transition-all ${u.status === "active"
+                            ? "text-red-500 hover:bg-red-50"
+                            : "text-green-600 hover:bg-green-50"
+                          }`}
+                      >
+                        {u.status === "active" ? <UserX size={14} /> : <CheckCircle2 size={14} />}
+                      </button>
                       <button onClick={() => openEdit(u)} title="Edit"
                         className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
                         <Edit2 size={14} />
@@ -543,7 +569,7 @@ export default function UserManagement() {
 
 // ── Reset Password Modal — separate component keeps its own local state ───────
 function ResetPasswordModal({ user, saving, onSubmit, onClose }) {
-  const [pw,  setPw]  = useState("");
+  const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
 
   return (
