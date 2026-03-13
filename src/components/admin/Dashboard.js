@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Users, ShieldCheck, Activity, AlertTriangle, Clock, Settings, Loader, Briefcase } from "lucide-react";
 
 // Config
@@ -53,9 +54,13 @@ const LOG_TYPE_STYLE = {
   open: "bg-amber-50 text-amber-600",
 };
 
-function StatCard({ label, value, sub, icon: Icon, color }) {
+function StatCard({ label, value, sub, icon: Icon, color, href }) {
+  const router = useRouter();
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-start gap-4">
+    <div
+      onClick={() => href && router.push(href)}
+      className={`bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-start gap-4 transition-all duration-200 ${href ? "cursor-pointer hover:shadow-md hover:border-blue-200 hover:-translate-y-0.5 active:scale-[0.98]" : ""}`}
+    >
       <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
         <Icon size={18} />
       </div>
@@ -100,10 +105,10 @@ export default function AdminDashboard() {
     }));
 
   const STATS = [
-    { label: "Total Users", value: totalUsers, sub: "Registered in system", icon: Users, color: "bg-lightblue text-extra-blue" },
-    { label: "Active Roles", value: activeRoles, sub: "Roles assigned", icon: ShieldCheck, color: "bg-green-50 text-green-600" },
-    { label: "System Health", value: healthPercent, sub: "All services operational", icon: Activity, color: "bg-emerald-50 text-emerald-600" },
-    { label: "Pending Verifications", value: pendingDocs, sub: "Documents awaiting review", icon: Clock, color: "bg-amber-50 text-amber-600" },
+    { label: "Total Users", value: totalUsers, sub: "Registered in system", icon: Users, color: "bg-lightblue text-extra-blue", href: "/admin/user" },
+    { label: "Active Roles", value: activeRoles, sub: "Roles assigned", icon: ShieldCheck, color: "bg-green-50 text-green-600", href: "/admin/role" },
+    // { label: "System Health", value: healthPercent, sub: "All services operational", icon: Activity, color: "bg-emerald-50 text-emerald-600" },
+    { label: "Pending Verifications", value: pendingDocs, sub: "Documents awaiting review", icon: Clock, color: "bg-amber-50 text-amber-600", href: "/admin/document" },
   ];
 
   // Replacing static Audit Logs with Complaints
@@ -138,7 +143,7 @@ export default function AdminDashboard() {
         <p className="text-sm text-gray-400 mt-0.5">System overview for managers</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {STATS.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
