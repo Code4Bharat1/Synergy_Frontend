@@ -2,16 +2,13 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   MessageSquareWarning,
-  TrendingDown,
   AlertTriangle,
-  Star,
   Plus,
   X,
   RefreshCw,
   Eye,
   Pencil,
   Trash2,
-  ChevronDown,
   CheckCircle2,
   Clock,
   AlertCircle,
@@ -19,8 +16,6 @@ import {
   Loader2,
 } from "lucide-react";
 
-// ── API Base ───────────────────────────────────────────────────────────────────
-// Uses your existing axiosInstance which already has baseURL + interceptors configured
 import axiosInstance from "../../lib/axios";
 
 const apiFetch = async (path, { method = "GET", body } = {}) => {
@@ -28,41 +23,32 @@ const apiFetch = async (path, { method = "GET", body } = {}) => {
   const config = {
     method,
     url: path,
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     ...(body ? { data: JSON.parse(body) } : {}),
   };
   const res = await axiosInstance(config);
   return res.data;
 };
 
-// ── Constants ─────────────────────────────────────────────────────────────────
 const STATUS_META = {
-  open:        { label: "Open",        color: "bg-blue-50 text-blue-600",   icon: AlertCircle,   dot: "bg-blue-500"   },
-  "in-progress":{ label: "In Progress", color: "bg-amber-50 text-amber-600", icon: Clock,         dot: "bg-amber-400"  },
-  resolved:    { label: "Resolved",    color: "bg-green-50 text-green-600", icon: CheckCircle2,  dot: "bg-green-500"  },
-  closed:      { label: "Closed",      color: "bg-gray-100 text-gray-500",  icon: XCircle,       dot: "bg-gray-400"   },
+  open:          { label: "Open",        color: "bg-blue-50 text-blue-600",   icon: AlertCircle,  dot: "bg-blue-500"  },
+  "in-progress": { label: "In Progress", color: "bg-amber-50 text-amber-600", icon: Clock,        dot: "bg-amber-400" },
+  resolved:      { label: "Resolved",    color: "bg-green-50 text-green-600", icon: CheckCircle2, dot: "bg-green-500" },
+  closed:        { label: "Closed",      color: "bg-gray-100 text-gray-500",  icon: XCircle,      dot: "bg-gray-400"  },
 };
 
 const PRIORITY_META = {
-  low:      { label: "Low",      color: "bg-gray-100 text-gray-500"   },
-  medium:   { label: "Medium",   color: "bg-blue-50 text-blue-600"    },
-  high:     { label: "High",     color: "bg-amber-50 text-amber-600"  },
-  critical: { label: "Critical", color: "bg-red-50 text-red-500"      },
+  low:      { label: "Low",      color: "bg-gray-100 text-gray-500"  },
+  medium:   { label: "Medium",   color: "bg-blue-50 text-blue-600"   },
+  high:     { label: "High",     color: "bg-amber-50 text-amber-600" },
+  critical: { label: "Critical", color: "bg-red-50 text-red-500"     },
 };
 
 const EMPTY_FORM = {
-  title: "",
-  description: "",
-  project: "",
-  priority: "medium",
-  status: "open",
-  assignedTo: "",
-  resolutionNotes: "",
+  title: "", description: "", project: "", priority: "medium",
+  status: "open", assignedTo: "", resolutionNotes: "",
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 const Badge = ({ text, colorClass }) => (
   <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${colorClass}`}>{text}</span>
 );
@@ -74,25 +60,32 @@ const StatusIcon = ({ status }) => {
   return <Icon size={13} />;
 };
 
-function StatCard({ label, value, colorClass }) {
+// ── Clickable Stat Card ───────────────────────────────────────────────────────
+function StatCard({ label, value, colorClass, active, onClick }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
+    <div
+      onClick={onClick}
+      className={`rounded-xl border shadow-sm p-4 text-center cursor-pointer transition-all duration-200
+        hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]
+        ${active
+          ? "border-blue-400 bg-blue-50 ring-2 ring-blue-200"
+          : "border-gray-100 bg-white hover:border-blue-200"
+        }`}
+    >
       <p className={`text-2xl font-bold ${colorClass}`}>{value}</p>
       <p className="text-xs text-gray-400 mt-0.5">{label}</p>
+      {active && <p className="text-[10px] text-blue-500 font-semibold mt-1">● Filtering</p>}
     </div>
   );
 }
 
-// ── Modal ─────────────────────────────────────────────────────────────────────
 function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="text-sm font-bold text-gray-800">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X size={16} />
-          </button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={16} /></button>
         </div>
         <div className="px-6 py-5">{children}</div>
       </div>
@@ -100,107 +93,62 @@ function Modal({ title, onClose, children }) {
   );
 }
 
-// ── Complaint Form ─────────────────────────────────────────────────────────────
 function ComplaintForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel = "Submit" }) {
   const [form, setForm] = useState(initial);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(form);
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit(form); }} className="space-y-4">
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">Title *</label>
-        <input
-          required
-          value={form.title}
-          onChange={(e) => set("title", e.target.value)}
+        <input required value={form.title} onChange={(e) => set("title", e.target.value)}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-          placeholder="Brief complaint title"
-        />
+          placeholder="Brief complaint title" />
       </div>
-
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">Description *</label>
-        <textarea
-          required
-          rows={3}
-          value={form.description}
-          onChange={(e) => set("description", e.target.value)}
+        <textarea required rows={3} value={form.description} onChange={(e) => set("description", e.target.value)}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
-          placeholder="Detailed description of the complaint"
-        />
+          placeholder="Detailed description of the complaint" />
       </div>
-
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-semibold text-gray-600 mb-1 block">Priority</label>
-          <select
-            value={form.priority}
-            onChange={(e) => set("priority", e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-          >
-            {Object.entries(PRIORITY_META).map(([k, v]) => (
-              <option key={k} value={k}>{v.label}</option>
-            ))}
+          <select value={form.priority} onChange={(e) => set("priority", e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+            {Object.entries(PRIORITY_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
         </div>
-
         <div>
           <label className="text-xs font-semibold text-gray-600 mb-1 block">Status</label>
-          <select
-            value={form.status}
-            onChange={(e) => set("status", e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-          >
-            {Object.entries(STATUS_META).map(([k, v]) => (
-              <option key={k} value={k}>{v.label}</option>
-            ))}
+          <select value={form.status} onChange={(e) => set("status", e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+            {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
         </div>
       </div>
-
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">Project ID</label>
-        <input
-          value={form.project}
-          onChange={(e) => set("project", e.target.value)}
+        <input value={form.project} onChange={(e) => set("project", e.target.value)}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-          placeholder="MongoDB Project ObjectId"
-        />
+          placeholder="MongoDB Project ObjectId" />
       </div>
-
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">Assigned To (User ID)</label>
-        <input
-          value={form.assignedTo}
-          onChange={(e) => set("assignedTo", e.target.value)}
+        <input value={form.assignedTo} onChange={(e) => set("assignedTo", e.target.value)}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-          placeholder="MongoDB User ObjectId"
-        />
+          placeholder="MongoDB User ObjectId" />
       </div>
-
       {(form.status === "resolved" || form.status === "closed") && (
         <div>
           <label className="text-xs font-semibold text-gray-600 mb-1 block">Resolution Notes</label>
-          <textarea
-            rows={2}
-            value={form.resolutionNotes}
-            onChange={(e) => set("resolutionNotes", e.target.value)}
+          <textarea rows={2} value={form.resolutionNotes} onChange={(e) => set("resolutionNotes", e.target.value)}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
-            placeholder="How was this complaint resolved?"
-          />
+            placeholder="How was this complaint resolved?" />
         </div>
       )}
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-      >
+      <button type="submit" disabled={loading}
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
         {loading && <Loader2 size={14} className="animate-spin" />}
         {submitLabel}
       </button>
@@ -208,30 +156,24 @@ function ComplaintForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel = 
   );
 }
 
-// ── Detail View ───────────────────────────────────────────────────────────────
 function ComplaintDetail({ complaint }) {
   const SM = STATUS_META[complaint.status] || {};
   const PM = PRIORITY_META[complaint.priority] || {};
-
   return (
     <div className="space-y-4 text-sm">
       <div className="flex flex-wrap gap-2">
         <Badge text={SM.label || complaint.status} colorClass={SM.color || "bg-gray-100 text-gray-600"} />
         <Badge text={PM.label || complaint.priority} colorClass={PM.color || "bg-gray-100 text-gray-600"} />
       </div>
-
       <div>
         <p className="text-xs font-semibold text-gray-400 mb-1">Description</p>
         <p className="text-gray-700 leading-relaxed">{complaint.description}</p>
       </div>
-
       <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="text-xs font-semibold text-gray-400 mb-1">Project</p>
           <p className="text-gray-700">{complaint.project?.name || "—"}</p>
-          {complaint.project?.clientName && (
-            <p className="text-xs text-gray-400">{complaint.project.clientName}</p>
-          )}
+          {complaint.project?.clientName && <p className="text-xs text-gray-400">{complaint.project.clientName}</p>}
         </div>
         <div>
           <p className="text-xs font-semibold text-gray-400 mb-1">Logged By</p>
@@ -254,7 +196,6 @@ function ComplaintDetail({ complaint }) {
           </div>
         )}
       </div>
-
       {complaint.resolutionNotes && (
         <div>
           <p className="text-xs font-semibold text-gray-400 mb-1">Resolution Notes</p>
@@ -265,9 +206,7 @@ function ComplaintDetail({ complaint }) {
   );
 }
 
-// ── Analytics Sub-panel ───────────────────────────────────────────────────────
 function AnalyticsPanel({ complaints }) {
-  // Group by project
   const byProject = {};
   complaints.forEach((c) => {
     const key = c.project?.name || "Unassigned";
@@ -277,16 +216,11 @@ function AnalyticsPanel({ complaints }) {
     else if (c.status === "open") byProject[key].open++;
     else if (c.status === "in-progress") byProject[key].escalated++;
   });
-
-  // Priority breakdown
   const byPriority = { low: 0, medium: 0, high: 0, critical: 0 };
   complaints.forEach((c) => { if (byPriority[c.priority] !== undefined) byPriority[c.priority]++; });
 
-  const maxTotal = Math.max(...Object.values(byProject).map((p) => p.total), 1);
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
-      {/* Per-project bars */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
         <div className="flex items-center gap-2">
           <MessageSquareWarning size={15} className="text-blue-500" />
@@ -306,9 +240,7 @@ function AnalyticsPanel({ complaints }) {
               </div>
             </div>
           ))}
-          {Object.keys(byProject).length === 0 && (
-            <p className="text-xs text-gray-400 text-center py-4">No data yet</p>
-          )}
+          {Object.keys(byProject).length === 0 && <p className="text-xs text-gray-400 text-center py-4">No data yet</p>}
         </div>
         <div className="flex gap-4 text-xs text-gray-400 pt-1 border-t border-gray-50">
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" /> Resolved</span>
@@ -316,8 +248,6 @@ function AnalyticsPanel({ complaints }) {
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" /> In Progress</span>
         </div>
       </div>
-
-      {/* Priority breakdown */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
         <div className="flex items-center gap-2">
           <AlertTriangle size={15} className="text-amber-500" />
@@ -331,13 +261,8 @@ function AnalyticsPanel({ complaints }) {
               <div key={p} className="flex items-center gap-3">
                 <span className="text-xs text-gray-500 w-16 capitalize">{PM.label}</span>
                 <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${pct}%`,
-                      background: p === "critical" ? "#ef4444" : p === "high" ? "#d97706" : p === "medium" ? "#3b82f6" : "#9ca3af",
-                    }}
-                  />
+                  <div className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${pct}%`, background: p === "critical" ? "#ef4444" : p === "high" ? "#d97706" : p === "medium" ? "#3b82f6" : "#9ca3af" }} />
                 </div>
                 <span className="text-xs font-bold text-gray-700 w-8 text-right">{count}</span>
               </div>
@@ -355,20 +280,18 @@ export default function ComplaintAnalytics() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [view, setView] = useState("list"); // "list" | "analytics"
+  const [view, setView] = useState("list");
 
-  // Modals
   const [showCreate, setShowCreate] = useState(false);
   const [viewComplaint, setViewComplaint] = useState(null);
   const [editComplaint, setEditComplaint] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  // Filters
-  const [filterStatus, setFilterStatus] = useState("all");
+  // "all" | "open" | "in-progress" | "resolved-closed"
+  const [activeCard, setActiveCard] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
   const [search, setSearch] = useState("");
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchComplaints = useCallback(async () => {
     try {
       setLoading(true);
@@ -384,41 +307,26 @@ export default function ComplaintAnalytics() {
 
   useEffect(() => { fetchComplaints(); }, [fetchComplaints]);
 
-  // ── CRUD Handlers ──────────────────────────────────────────────────────────
   const handleCreate = async (form) => {
     try {
       setActionLoading(true);
-      // Strip empty optional fields
-      const payload = Object.fromEntries(
-        Object.entries(form).filter(([, v]) => v !== "")
-      );
+      const payload = Object.fromEntries(Object.entries(form).filter(([, v]) => v !== ""));
       await apiFetch("/complaints", { method: "POST", body: JSON.stringify(payload) });
       setShowCreate(false);
       fetchComplaints();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setActionLoading(false);
-    }
+    } catch (err) { alert(err.message); }
+    finally { setActionLoading(false); }
   };
 
   const handleUpdate = async (form) => {
     try {
       setActionLoading(true);
-      const payload = Object.fromEntries(
-        Object.entries(form).filter(([, v]) => v !== "")
-      );
-      await apiFetch(`/complaints/${editComplaint._id}`, {
-        method: "PUT",
-        body: JSON.stringify(payload),
-      });
+      const payload = Object.fromEntries(Object.entries(form).filter(([, v]) => v !== ""));
+      await apiFetch(`/complaints/${editComplaint._id}`, { method: "PUT", body: JSON.stringify(payload) });
       setEditComplaint(null);
       fetchComplaints();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setActionLoading(false);
-    }
+    } catch (err) { alert(err.message); }
+    finally { setActionLoading(false); }
   };
 
   const handleDelete = async () => {
@@ -427,134 +335,110 @@ export default function ComplaintAnalytics() {
       await apiFetch(`/complaints/${deleteTarget._id}`, { method: "DELETE" });
       setDeleteTarget(null);
       fetchComplaints();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setActionLoading(false);
-    }
+    } catch (err) { alert(err.message); }
+    finally { setActionLoading(false); }
   };
 
-  // ── Derived data ───────────────────────────────────────────────────────────
+  // clicking the active card again → resets to "all"
+  const handleCardClick = (key) => {
+    setActiveCard(prev => prev === key ? "all" : key);
+    setView("list");
+  };
+
   const filtered = complaints.filter((c) => {
-    if (filterStatus !== "all" && c.status !== filterStatus) return false;
+    if (activeCard === "open" && c.status !== "open") return false;
+    if (activeCard === "in-progress" && c.status !== "in-progress") return false;
+    if (activeCard === "resolved-closed" && c.status !== "resolved" && c.status !== "closed") return false;
     if (filterPriority !== "all" && c.priority !== filterPriority) return false;
     if (search) {
       const q = search.toLowerCase();
-      if (
-        !c.title?.toLowerCase().includes(q) &&
-        !c.description?.toLowerCase().includes(q) &&
-        !c.project?.name?.toLowerCase().includes(q)
-      ) return false;
+      if (!c.title?.toLowerCase().includes(q) &&
+          !c.description?.toLowerCase().includes(q) &&
+          !c.project?.name?.toLowerCase().includes(q)) return false;
     }
     return true;
   });
 
   const stats = {
-    total: complaints.length,
-    open: complaints.filter((c) => c.status === "open").length,
+    total:      complaints.length,
+    open:       complaints.filter((c) => c.status === "open").length,
     inProgress: complaints.filter((c) => c.status === "in-progress").length,
-    resolved: complaints.filter((c) => c.status === "resolved" || c.status === "closed").length,
+    resolved:   complaints.filter((c) => c.status === "resolved" || c.status === "closed").length,
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-lg font-bold text-gray-900">Complaint Management</h2>
           <p className="text-sm text-gray-400 mt-0.5">{complaints.length} total complaints across all projects</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* View toggle */}
           <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
-            <button
-              onClick={() => setView("list")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${view === "list" ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}
-            >
+            <button onClick={() => setView("list")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${view === "list" ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}>
               List
             </button>
-            <button
-              onClick={() => setView("analytics")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${view === "analytics" ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}
-            >
+            <button onClick={() => setView("analytics")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${view === "analytics" ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}>
               Analytics
             </button>
           </div>
-          <button
-            onClick={fetchComplaints}
-            className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all"
-          >
+          <button onClick={fetchComplaints}
+            className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all">
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           </button>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
-          >
-            <Plus size={13} />
-            New Complaint
+          <button onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors">
+            <Plus size={13} /> New Complaint
           </button>
         </div>
       </div>
 
-      {/* Error banner */}
       {error && (
         <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
-          <AlertCircle size={14} />
-          <span>{error}</span>
+          <AlertCircle size={14} /><span>{error}</span>
           <button onClick={fetchComplaints} className="ml-auto text-xs underline">Retry</button>
         </div>
       )}
 
-      {/* Stat Cards */}
+      {/* ── Clickable Stat Cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label="Total" value={stats.total} colorClass="text-blue-600" />
-        <StatCard label="Open" value={stats.open} colorClass="text-amber-600" />
-        <StatCard label="In Progress" value={stats.inProgress} colorClass="text-blue-500" />
-        <StatCard label="Resolved / Closed" value={stats.resolved} colorClass="text-green-600" />
+        <StatCard label="Total"            value={stats.total}      colorClass="text-blue-600"  active={activeCard === "all"}             onClick={() => handleCardClick("all")} />
+        <StatCard label="Open"             value={stats.open}       colorClass="text-amber-600" active={activeCard === "open"}            onClick={() => handleCardClick("open")} />
+        <StatCard label="In Progress"      value={stats.inProgress} colorClass="text-blue-500"  active={activeCard === "in-progress"}     onClick={() => handleCardClick("in-progress")} />
+        <StatCard label="Resolved / Closed" value={stats.resolved}  colorClass="text-green-600" active={activeCard === "resolved-closed"} onClick={() => handleCardClick("resolved-closed")} />
       </div>
 
-      {/* Analytics panel */}
       {view === "analytics" && <AnalyticsPanel complaints={complaints} />}
 
-      {/* List panel */}
       {view === "list" && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          {/* Filters */}
           <div className="flex flex-wrap items-center gap-3 px-5 py-4 border-b border-gray-100">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+            <input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search complaints…"
-              className="flex-1 min-w-48 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-            />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-            >
-              <option value="all">All Statuses</option>
-              {Object.entries(STATUS_META).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
-            </select>
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-            >
+              className="flex-1 min-w-48 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+
+            {/* Active filter pill */}
+            {activeCard !== "all" && (
+              <span className="flex items-center gap-1.5 text-xs font-semibold bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg border border-blue-200">
+                {activeCard === "open" && "Open"}
+                {activeCard === "in-progress" && "In Progress"}
+                {activeCard === "resolved-closed" && "Resolved / Closed"}
+                <button onClick={() => setActiveCard("all")} className="ml-1 hover:text-blue-800"><X size={11} /></button>
+              </span>
+            )}
+
+            <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
               <option value="all">All Priorities</option>
-              {Object.entries(PRIORITY_META).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
+              {Object.entries(PRIORITY_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
           </div>
 
-          {/* Table */}
           {loading ? (
             <div className="flex items-center justify-center py-16 gap-2 text-gray-400">
-              <Loader2 size={18} className="animate-spin" />
-              <span className="text-sm">Loading complaints…</span>
+              <Loader2 size={18} className="animate-spin" /><span className="text-sm">Loading complaints…</span>
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center text-gray-400 text-sm">
@@ -592,25 +476,16 @@ export default function ComplaintAnalytics() {
                         <td className="px-5 py-3.5 text-gray-400 whitespace-nowrap">{new Date(c.createdAt).toLocaleDateString()}</td>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => setViewComplaint(c)}
-                              className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
-                              title="View"
-                            >
+                            <button onClick={() => setViewComplaint(c)}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors" title="View">
                               <Eye size={13} />
                             </button>
-                            <button
-                              onClick={() => setEditComplaint(c)}
-                              className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
-                              title="Edit"
-                            >
+                            <button onClick={() => setEditComplaint(c)}
+                              className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors" title="Edit">
                               <Pencil size={13} />
                             </button>
-                            <button
-                              onClick={() => setDeleteTarget(c)}
-                              className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                              title="Delete"
-                            >
+                            <button onClick={() => setDeleteTarget(c)}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors" title="Delete">
                               <Trash2 size={13} />
                             </button>
                           </div>
@@ -623,7 +498,6 @@ export default function ComplaintAnalytics() {
             </div>
           )}
 
-          {/* Footer count */}
           {filtered.length > 0 && (
             <div className="px-5 py-3 border-t border-gray-50 text-xs text-gray-400">
               Showing {filtered.length} of {complaints.length} complaints
@@ -632,43 +506,29 @@ export default function ComplaintAnalytics() {
         </div>
       )}
 
-      {/* ── Modals ── */}
-
-      {/* Create */}
       {showCreate && (
         <Modal title="Log New Complaint" onClose={() => setShowCreate(false)}>
           <ComplaintForm onSubmit={handleCreate} loading={actionLoading} submitLabel="Log Complaint" />
         </Modal>
       )}
-
-      {/* View */}
       {viewComplaint && (
         <Modal title={viewComplaint.title} onClose={() => setViewComplaint(null)}>
           <ComplaintDetail complaint={viewComplaint} />
         </Modal>
       )}
-
-      {/* Edit */}
       {editComplaint && (
         <Modal title="Edit Complaint" onClose={() => setEditComplaint(null)}>
           <ComplaintForm
             initial={{
-              title: editComplaint.title || "",
-              description: editComplaint.description || "",
-              project: editComplaint.project?._id || "",
-              priority: editComplaint.priority || "medium",
-              status: editComplaint.status || "open",
-              assignedTo: editComplaint.assignedTo?._id || "",
+              title: editComplaint.title || "", description: editComplaint.description || "",
+              project: editComplaint.project?._id || "", priority: editComplaint.priority || "medium",
+              status: editComplaint.status || "open", assignedTo: editComplaint.assignedTo?._id || "",
               resolutionNotes: editComplaint.resolutionNotes || "",
             }}
-            onSubmit={handleUpdate}
-            loading={actionLoading}
-            submitLabel="Save Changes"
+            onSubmit={handleUpdate} loading={actionLoading} submitLabel="Save Changes"
           />
         </Modal>
       )}
-
-      {/* Delete confirm */}
       {deleteTarget && (
         <Modal title="Delete Complaint" onClose={() => setDeleteTarget(null)}>
           <div className="space-y-4">
@@ -676,19 +536,11 @@ export default function ComplaintAnalytics() {
               Are you sure you want to delete <span className="font-semibold text-gray-800">"{deleteTarget.title}"</span>? This action cannot be undone.
             </p>
             <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                className="flex-1 border border-gray-200 text-gray-600 text-sm font-semibold py-2 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={actionLoading}
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {actionLoading && <Loader2 size={14} className="animate-spin" />}
-                Delete
+              <button onClick={() => setDeleteTarget(null)}
+                className="flex-1 border border-gray-200 text-gray-600 text-sm font-semibold py-2 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+              <button onClick={handleDelete} disabled={actionLoading}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                {actionLoading && <Loader2 size={14} className="animate-spin" />} Delete
               </button>
             </div>
           </div>

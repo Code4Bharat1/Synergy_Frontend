@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Plus, X, Loader2, CheckCircle2, Clock, AlertCircle,
   Trash2, Pencil, ChevronDown, CircleDot, CalendarDays,
-  ListTodo, User2, FolderKanban, Filter, RefreshCw
+  ListTodo, User2, FolderKanban, Filter, RefreshCw, Eye
 } from "lucide-react";
 import axiosInstance from "../../lib/axios";
 
@@ -73,6 +73,94 @@ function Modal({ title, onClose, children }) {
         <div className="px-6 py-5">{children}</div>
       </div>
     </div>
+  );
+}
+
+// ── Task Detail Modal ──────────────────────────────────────────────────────────
+function TaskDetailModal({ task, onClose }) {
+  const SM = STATUS_META[task.status] || STATUS_META.pending;
+  const PM = PRIORITY_META[task.priority] || PRIORITY_META.medium;
+  const StatusIcon = SM.icon;
+  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "completed";
+
+  const Row = ({ label, children }) => (
+    <div className="flex items-start gap-3 py-2.5 border-b border-gray-50 last:border-0">
+      <span className="text-xs font-semibold text-gray-400 w-24 shrink-0 pt-0.5">{label}</span>
+      <span className="text-xs text-extra-darkblue flex-1">{children}</span>
+    </div>
+  );
+
+  return (
+    <Modal title="Task Details" onClose={onClose}>
+      <div className="space-y-4">
+        {/* Title + badges */}
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${PM.bg} ${PM.text}`}>{PM.label}</span>
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full capitalize">{task.type}</span>
+            {isOverdue && <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">Overdue</span>}
+          </div>
+          <p className="text-base font-bold text-extra-darkblue leading-snug">{task.title}</p>
+        </div>
+
+        {/* Status pill */}
+        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ${SM.color}`}>
+          <StatusIcon size={12} /> {SM.label}
+        </span>
+
+        {/* Details rows */}
+        <div className="bg-gray-50 rounded-xl px-4 py-1 mt-2">
+          <Row label="Description">
+            {task.description ? (
+              <span className="whitespace-pre-wrap leading-relaxed">{task.description}</span>
+            ) : (
+              <span className="text-gray-300 italic">No description</span>
+            )}
+          </Row>
+          <Row label="Assigned To">
+            <span className="flex items-center gap-1.5">
+              <User2 size={11} className="text-gray-400" />
+              {task.assignedTo?.name || <span className="text-gray-300 italic">Unassigned</span>}
+              {task.assignedTo?.role && (
+                <span className="text-gray-400">({task.assignedTo.role})</span>
+              )}
+            </span>
+          </Row>
+          <Row label="Project">
+            <span className="flex items-center gap-1.5">
+              <FolderKanban size={11} className="text-gray-400" />
+              {task.project?.name || <span className="text-gray-300 italic">No project</span>}
+            </span>
+          </Row>
+          <Row label="Due Date">
+            <span className={`flex items-center gap-1.5 ${isOverdue ? "text-red-500 font-semibold" : ""}`}>
+              <CalendarDays size={11} className="text-gray-400" />
+              {task.dueDate
+                ? new Date(task.dueDate).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
+                : <span className="text-gray-300 italic">No due date</span>}
+              {isOverdue && " — Overdue"}
+            </span>
+          </Row>
+          <Row label="Priority">{PM.label}</Row>
+          <Row label="Type"><span className="capitalize">{TYPE_META[task.type] || task.type}</span></Row>
+          {task.createdAt && (
+            <Row label="Created">
+              {new Date(task.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
+            </Row>
+          )}
+          {task.updatedAt && (
+            <Row label="Updated">
+              {new Date(task.updatedAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
+            </Row>
+          )}
+        </div>
+
+        <button onClick={onClose}
+          className="w-full border border-gray-200 text-gray-600 text-sm font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+          Close
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -171,7 +259,7 @@ function TaskForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel, users,
 }
 
 // ── Task Card ──────────────────────────────────────────────────────────────────
-function TaskCard({ task, onEdit, onDelete, onStatusChange }) {
+function TaskCard({ task, onEdit, onDelete, onStatusChange, onView }) {
   const SM = STATUS_META[task.status] || STATUS_META.pending;
   const PM = PRIORITY_META[task.priority] || PRIORITY_META.medium;
   const StatusIcon = SM.icon;
@@ -193,6 +281,9 @@ function TaskCard({ task, onEdit, onDelete, onStatusChange }) {
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          <button onClick={() => onView(task)} className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-300 hover:text-blue-500 transition-colors">
+            <Eye size={13} />
+          </button>
           <button onClick={() => onEdit(task)} className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-300 hover:text-amber-500 transition-colors">
             <Pencil size={13} />
           </button>
@@ -253,6 +344,7 @@ export default function TaskPanel() {
   const [showCreate, setShowCreate] = useState(false);
   const [editTask, setEditTask] = useState(null);
   const [deleteTask, setDeleteTask] = useState(null);
+  const [viewTask, setViewTask] = useState(null);
 
   const showToast = (msg, isError = false) => {
     setToast({ msg, isError });
@@ -429,7 +521,11 @@ export default function TaskPanel() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map(task => (
             <TaskCard key={task._id} task={task}
-              onEdit={setEditTask} onDelete={setDeleteTask} onStatusChange={handleStatusChange} />
+              onEdit={setEditTask}
+              onDelete={setDeleteTask}
+              onStatusChange={handleStatusChange}
+              onView={setViewTask}
+            />
           ))}
         </div>
       )}
@@ -490,6 +586,9 @@ export default function TaskPanel() {
             </div>
           </div>
         </Modal>
+      )}
+      {viewTask && (
+        <TaskDetailModal task={viewTask} onClose={() => setViewTask(null)} />
       )}
     </div>
   );
