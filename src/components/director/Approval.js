@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { DollarSign, Calendar, MessageSquareWarning, Wrench, X, CheckCircle2, XCircle, Clock, Loader2, FileText } from "lucide-react";
 
 import axiosInstance from "../../lib/axios";
+import Link from "next/link";
 
 const apiFetch = async (path, { method = "GET", body } = {}) => {
   const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
@@ -39,6 +40,26 @@ const STATUS_CONFIG = {
 
 const ALL_TYPES = ["All", "Budget Deviation", "Timeline Extension", "High-Value Complaint", "Corrective Action", "Document Review"];
 
+// ── Renders detail text with URLs as clickable blue links ─────────────────────
+function DetailWithLinks({ text }) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return (
+    <p className="text-sm text-gray-600 leading-relaxed break-words">
+      {parts.map((part, i) =>
+        urlRegex.test(part) ? (
+          <Link key={i} href={part} target="_blank" rel="noopener noreferrer"
+            className="text-blue-500 underline hover:text-blue-700 transition-colors break-all">
+            Click Here 
+          </Link>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </p>
+  );
+}
+
 // ── Reject Modal ──────────────────────────────────────────────────────────────
 function RejectModal({ item, onConfirm, onCancel }) {
   const [reason, setReason] = useState("");
@@ -51,7 +72,7 @@ function RejectModal({ item, onConfirm, onCancel }) {
           <button onClick={onCancel} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
         </div>
         <p className="text-sm text-gray-500">
-          Rejecting <strong className="text-extra-darkblue">{item?.id}</strong> — {item?.project}
+          Rejecting <strong className="text-extra-darkblue">{item?.project}</strong>
         </p>
         <textarea
           value={reason}
@@ -102,8 +123,9 @@ function ApprovalCard({ item, onApprove, onReject, loadingActionId }) {
             <TypeIcon size={16} />
           </div>
           <div className="flex-1 min-w-0">
+            {/* ── id removed from here ── */}
             <div className="flex items-center justify-between gap-2 w-full">
-              <span className="text-xs font-mono font-bold text-extra-blue shrink-0 truncate max-w-24">{item.id}</span>
+              <p className="text-sm font-bold text-extra-darkblue">{item.type}</p>
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${PRIORITY_STYLE[item.priority] || PRIORITY_STYLE.default}`}>
                   {item.priority}
@@ -113,13 +135,13 @@ function ApprovalCard({ item, onApprove, onReject, loadingActionId }) {
                 </span>
               </div>
             </div>
-            <p className="text-sm font-bold text-extra-darkblue mt-1">{item.type}</p>
             <p className="text-xs text-gray-400 mt-0.5">{item.project}</p>
             <p className="text-xs text-gray-400">{item.requestedBy} · {item.date}</p>
           </div>
         </div>
 
-        <p className="text-sm text-gray-600 leading-relaxed break-words">{item.detail}</p>
+        {/* ── URL rendered as clickable link ── */}
+        <DetailWithLinks text={item.detail} />
 
         <div className="pt-2 border-t border-gray-100 space-y-2">
           {item.amount && <span className="text-sm font-bold text-extra-darkblue block">{item.amount}</span>}
@@ -165,14 +187,14 @@ export default function Approvals() {
 
       const mappedDocs = docs.map(d => ({
         id: d._id,
-        type: "Document Review", // Treat all documents as Document Review for director
+        type: "Document Review",
         project: d.project?.name || "Global",
         detail: `Title: ${d.title}. Type: ${d.documentType}. \nURL: ${d.url}`,
         amount: "",
         requestedBy: d.uploadedBy?.name || "Unknown User",
         date: new Date(d.createdAt).toLocaleDateString(),
         priority: "Medium",
-        status: d.status ? d.status.charAt(0).toUpperCase() + d.status.slice(1) : "Pending", // Pending, Approved, Rejected
+        status: d.status ? d.status.charAt(0).toUpperCase() + d.status.slice(1) : "Pending",
       }));
       setItems(mappedDocs);
     } catch (err) {
@@ -246,7 +268,7 @@ export default function Approvals() {
         )}
       </div>
 
-      {/* Type filter — horizontally scrollable on mobile */}
+      {/* Type filter */}
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
         {ALL_TYPES.map(f => (
           <button key={f} onClick={() => setFilter(f)}
