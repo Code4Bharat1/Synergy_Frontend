@@ -462,7 +462,6 @@ export default function DirectorDashboard() {
           value={activeProjects.length}
           icon={FolderKanban}
           color="bg-blue-50 text-blue-600"
-          sub="Excludes status=completed"
           loading={loading}
           href="/director/project"
           router={router}
@@ -472,7 +471,6 @@ export default function DirectorDashboard() {
           value={activeComplaints.length}
           icon={AlertTriangle}
           color="bg-amber-50 text-amber-600"
-          sub="Status: open or in-progress"
           loading={loading}
           href="/director/complaint"
           router={router}
@@ -482,7 +480,6 @@ export default function DirectorDashboard() {
           value={pendingDocs.length}
           icon={Clock}
           color="bg-orange-50 text-orange-500"
-          sub="Awaiting director review"
           loading={loading}
           href="/director/approval"
           router={router}
@@ -492,7 +489,6 @@ export default function DirectorDashboard() {
           value={activeUsers.length}
           icon={Users}
           color="bg-emerald-50 text-emerald-600"
-          sub="User status=active"
           loading={loading}
           href="/director/performance"
           router={router}

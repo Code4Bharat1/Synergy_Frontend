@@ -105,10 +105,10 @@ export default function AdminDashboard() {
     }));
 
   const STATS = [
-    { label: "Total Users", value: totalUsers, sub: "Registered in system", icon: Users, color: "bg-lightblue text-extra-blue", href: "/admin/user" },
-    { label: "Active Roles", value: activeRoles, sub: "Roles assigned", icon: ShieldCheck, color: "bg-green-50 text-green-600", href: "/admin/role" },
+    { label: "Total Users", value: totalUsers, icon: Users, color: "bg-lightblue text-extra-blue", href: "/admin/user" },
+    { label: "Active Roles", value: activeRoles, icon: ShieldCheck, color: "bg-green-50 text-green-600", href: "/admin/role" },
     // { label: "System Health", value: healthPercent, sub: "All services operational", icon: Activity, color: "bg-emerald-50 text-emerald-600" },
-    { label: "Pending Verifications", value: pendingDocs, sub: "Documents awaiting review", icon: Clock, color: "bg-amber-50 text-amber-600", href: "/admin/document" },
+    { label: "Pending Verifications", value: pendingDocs, icon: Clock, color: "bg-amber-50 text-amber-600", href: "/admin/document" },
   ];
 
   // Replacing static Audit Logs with Complaints

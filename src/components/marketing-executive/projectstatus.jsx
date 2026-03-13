@@ -95,7 +95,6 @@ const daysUntil = (dateStr) => {
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 };
 
-// Map schema status → display phase label
 const phaseFromStatus = (status) => ({
   initiated:    "Site Preparation",
   "in-progress":"Wiring & Plumbing",
@@ -154,10 +153,19 @@ function DaysPill({ days, date }) {
   );
 }
 
-function StatCard({ label, value, sub, barColor, iconBg, iconColor, icon: Ic, loading }) {
+// ── Stat Card (clickable filter) ──────────────
+function StatCard({ label, value, sub, barColor, iconBg, iconColor, icon: Ic, loading, isActive, onClick }) {
   return (
-    <div className="relative bg-white rounded-xl p-5 flex flex-col gap-2 shadow-sm overflow-hidden"
-      style={{ border: `1px solid ${C.lightBlue}` }}>
+    <button
+      onClick={onClick}
+      className="relative bg-white rounded-xl p-5 flex flex-col gap-2 shadow-sm overflow-hidden text-left w-full transition-all"
+      style={{
+        border: isActive ? `2px solid ${barColor}` : `1px solid ${C.lightBlue}`,
+        boxShadow: isActive ? `0 4px 16px ${barColor}30` : "0 1px 3px rgba(0,0,0,0.06)",
+        cursor: "pointer",
+        outline: "none",
+      }}
+    >
       <div className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: barColor }} />
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.dimText }}>{label}</span>
@@ -168,7 +176,10 @@ function StatCard({ label, value, sub, barColor, iconBg, iconColor, icon: Ic, lo
         : <div className="text-3xl font-bold tracking-tight" style={{ color: C.darkBlue }}>{value}</div>
       }
       <div className="text-xs font-semibold" style={{ color: C.medBlue }}>{sub}</div>
-    </div>
+      {isActive && (
+        <div className="text-[10px] font-bold mt-0.5" style={{ color: barColor }}>● Active filter</div>
+      )}
+    </button>
   );
 }
 
@@ -219,7 +230,6 @@ function DetailPanel({ project, onClose }) {
   if (!project) return null;
 
   const phases = ["Site Preparation", "Wiring & Plumbing", "Equipment Setup", "Installation", "Final Testing", "Completed"];
-  // Use phase from schema if present, otherwise derive from status
   const currentPhase = project.phase || phaseFromStatus(project.status);
   const currentPhaseIdx = phases.indexOf(currentPhase);
   const progress = project.progress ?? 0;
@@ -237,10 +247,7 @@ function DetailPanel({ project, onClose }) {
       <div className="px-6 py-4 flex items-start justify-between gap-3"
         style={{ borderBottom: `1px solid ${C.divider}`, backgroundColor: C.bg }}>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.medBlue }}>
-            {project._id?.slice(-6).toUpperCase()}
-          </p>
-          <h3 className="text-lg font-bold mt-0.5" style={{ color: C.darkBlue }}>{project.name}</h3>
+          <h3 className="text-lg font-bold" style={{ color: C.darkBlue }}>{project.name}</h3>
           <p className="text-sm mt-0.5" style={{ color: C.mutedText }}>{project.clientName}</p>
         </div>
         <button onClick={onClose}
@@ -373,9 +380,10 @@ function useAllProjects() {
 // ── Main ──────────────────────────────────────
 export default function ProjectStatusTracking() {
   const { data: projects, loading, error, refetch } = useAllProjects();
-  const [selected, setSelected] = useState(null);
-  const [filter, setFilter]     = useState("All");
-  const [search, setSearch]     = useState("");
+  const [selected, setSelected]   = useState(null);
+  const [filter, setFilter]       = useState("All");
+  const [search, setSearch]       = useState("");
+  const [activeCard, setActiveCard] = useState(null); // "completed" | "trial" | "dueSoon" | null
 
   // Auto-select first project once loaded
   useEffect(() => {
@@ -384,26 +392,58 @@ export default function ProjectStatusTracking() {
 
   const filters = ["All", "In Trial", "Scheduled", "Pending", "Completed", "Not Started"];
 
+  // Stats
+  const completed  = projects.filter(p => p.status === "completed").length;
+  const avgProgress = projects.length
+    ? Math.round(projects.reduce((a, p) => a + (p.progress ?? 0), 0) / projects.length)
+    : 0;
+  const inTrial = projects.filter(p => p.trialStatus === "In Trial" || p.trialStatus === "Scheduled").length;
+  const dueSoon = projects.filter(p => {
+    const d = daysUntil(p.endDate);
+    return d !== null && d <= 7 && d > 0;
+  }).length;
+
+  // Toggle stat card filter
+  const handleCardClick = (key) => {
+    setActiveCard(prev => {
+      if (prev === key) { setFilter("All"); return null; }
+      // Map card key → filter pill value
+      const cardToFilter = {
+        completed: "Completed",
+        trial:     "In Trial",
+        dueSoon:   "All", // no exact pill match — just reset pill, table filtered below
+      };
+      setFilter(cardToFilter[key] || "All");
+      return key;
+    });
+  };
+
   const filtered = projects.filter(p => {
     const ts = p.trialStatus || "Not Started";
+
+    // Stat card overrides
+    if (activeCard === "completed") return p.status === "completed";
+    if (activeCard === "trial")     return ts === "In Trial" || ts === "Scheduled";
+    if (activeCard === "dueSoon") {
+      const d = daysUntil(p.endDate);
+      return d !== null && d <= 7 && d > 0;
+    }
+
     const matchFilter = filter === "All" || ts === filter;
     const matchSearch =
       p.name?.toLowerCase().includes(search.toLowerCase()) ||
       p.clientName?.toLowerCase().includes(search.toLowerCase()) ||
       p._id?.toLowerCase().includes(search.toLowerCase());
     return matchFilter && matchSearch;
+  }).filter(p => {
+    // Search always applies even when card filter is active
+    if (!activeCard) return true;
+    return (
+      p.name?.toLowerCase().includes(search.toLowerCase()) ||
+      p.clientName?.toLowerCase().includes(search.toLowerCase()) ||
+      p._id?.toLowerCase().includes(search.toLowerCase())
+    );
   });
-
-  // Stats
-  const completed   = projects.filter(p => p.status === "completed").length;
-  const avgProgress = projects.length
-    ? Math.round(projects.reduce((a, p) => a + (p.progress ?? 0), 0) / projects.length)
-    : 0;
-  const inTrial  = projects.filter(p => p.trialStatus === "In Trial" || p.trialStatus === "Scheduled").length;
-  const dueSoon  = projects.filter(p => {
-    const d = daysUntil(p.endDate);
-    return d !== null && d <= 7 && d > 0;
-  }).length;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: C.bg }}>
@@ -429,12 +469,36 @@ export default function ProjectStatusTracking() {
           </div>
         )}
 
-        {/* Stat Cards */}
+        {/* ── Stat Cards (clickable filters) ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Avg. Progress" value={`${avgProgress}%`} sub="Across all projects"  barColor={C.darkBlue}  iconBg={C.darkBlue}  iconColor={C.white}    icon={Icon.Wrench}       loading={loading} />
-          <StatCard label="Completed"     value={completed}         sub="Fully delivered"       barColor={C.blue}      iconBg={C.blue}      iconColor={C.white}    icon={Icon.CheckCircle}  loading={loading} />
-          <StatCard label="Trial Active"  value={inTrial}           sub="In trial or scheduled" barColor={C.medBlue}   iconBg={C.medBlue}   iconColor={C.white}    icon={Icon.Flask}        loading={loading} />
-          <StatCard label="Due Soon"      value={dueSoon}           sub="Within 7 days"         barColor={C.lightBlue} iconBg={C.lightBlue} iconColor={C.darkBlue} icon={Icon.AlertCircle}  loading={loading} />
+          <StatCard
+            label="Avg. Progress" value={`${avgProgress}%`} sub="Across all projects"
+            barColor={C.darkBlue} iconBg={C.darkBlue} iconColor={C.white} icon={Icon.Wrench}
+            loading={loading}
+            isActive={false}
+            onClick={() => { setActiveCard(null); setFilter("All"); }}
+          />
+          <StatCard
+            label="Completed" value={completed} sub="Fully delivered"
+            barColor={C.blue} iconBg={C.blue} iconColor={C.white} icon={Icon.CheckCircle}
+            loading={loading}
+            isActive={activeCard === "completed"}
+            onClick={() => handleCardClick("completed")}
+          />
+          <StatCard
+            label="Trial Active" value={inTrial} sub="In trial or scheduled"
+            barColor={C.medBlue} iconBg={C.medBlue} iconColor={C.white} icon={Icon.Flask}
+            loading={loading}
+            isActive={activeCard === "trial"}
+            onClick={() => handleCardClick("trial")}
+          />
+          <StatCard
+            label="Due Soon" value={dueSoon} sub="Within 7 days"
+            barColor={C.lightBlue} iconBg={C.lightBlue} iconColor={C.darkBlue} icon={Icon.AlertCircle}
+            loading={loading}
+            isActive={activeCard === "dueSoon"}
+            onClick={() => handleCardClick("dueSoon")}
+          />
         </div>
 
         {/* Table + Detail split */}
@@ -452,6 +516,15 @@ export default function ProjectStatusTracking() {
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: C.darkBlue, color: C.white }}>
                   {filtered.length}
                 </span>
+                {activeCard && (
+                  <button
+                    onClick={() => { setActiveCard(null); setFilter("All"); }}
+                    className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: C.lightBlue, color: C.blue }}
+                  >
+                    Clear filter ✕
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 w-full sm:w-44"
                 style={{ backgroundColor: C.bg, border: `1px solid ${C.lightBlue}` }}>
@@ -469,12 +542,12 @@ export default function ProjectStatusTracking() {
             {/* Filter pills */}
             <div className="px-5 py-3 flex gap-2 overflow-x-auto" style={{ borderBottom: `1px solid ${C.divider}` }}>
               {filters.map(f => (
-                <button key={f} onClick={() => setFilter(f)}
+                <button key={f} onClick={() => { setFilter(f); setActiveCard(null); }}
                   className="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all"
                   style={{
-                    backgroundColor: filter === f ? C.darkBlue : C.bg,
-                    color:           filter === f ? C.white     : C.mutedText,
-                    border: `1px solid ${filter === f ? C.darkBlue : C.divider}`,
+                    backgroundColor: filter === f && !activeCard ? C.darkBlue : C.bg,
+                    color:           filter === f && !activeCard ? C.white     : C.mutedText,
+                    border: `1px solid ${filter === f && !activeCard ? C.darkBlue : C.divider}`,
                   }}>
                   {f}
                 </button>
@@ -507,9 +580,9 @@ export default function ProjectStatusTracking() {
                           const trialStatus = p.trialStatus || "Not Started";
                           return (
                             <HoverTr key={p._id} onClick={() => setSelected(p)} selected={selected?._id === p._id}>
+                              {/* ── Project cell: ID removed, name is now the top line ── */}
                               <td className="px-5 py-4">
-                                <p className="font-bold text-sm font-mono" style={{ color: C.blue }}>{p._id?.slice(-6).toUpperCase()}</p>
-                                <p className="text-xs font-medium mt-0.5" style={{ color: C.darkBlue }}>{p.name}</p>
+                                <p className="text-sm font-semibold" style={{ color: C.darkBlue }}>{p.name}</p>
                                 <p className="text-xs mt-0.5" style={{ color: C.dimText }}>{p.clientName}</p>
                               </td>
                               <td className="px-5 py-4 min-w-[140px]">

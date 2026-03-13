@@ -10,7 +10,6 @@ const api = axios.create({
   baseURL: API_BASE,
 });
 
-// Attach token from localStorage on every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("accessToken");
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -81,14 +80,12 @@ const formatDate = (dateStr) => {
   });
 };
 
-// Map project status enum → readable installation type label
 const installTypeLabel = (status) => ({
   "installation": "Full Install",
   "testing":      "Inspection",
   "in-progress":  "Partial Setup",
 }[status] || "Full Install");
 
-// Derive engineer count across all projects
 const countAssignedEngineers = (projects) => {
   const ids = new Set();
   projects.forEach(p =>
@@ -133,7 +130,7 @@ function Badge({ label, bg, color }) {
   );
 }
 
-function SkeletonRow({ cols = 6 }) {
+function SkeletonRow({ cols = 5 }) {
   return (
     <tr style={{ borderBottom: `1px solid ${C.divider}` }}>
       {Array.from({ length: cols }).map((_, i) => (
@@ -157,10 +154,18 @@ function ErrorBanner({ message, onRetry }) {
   );
 }
 
-function StatCard({ label, value, sub, icon: Ic, barColor, iconBg, iconColor, subColor, loading }) {
+function StatCard({ label, value, sub, icon: Ic, barColor, iconBg, iconColor, subColor, loading, isActive, onClick }) {
   return (
-    <div className="relative bg-white rounded-xl p-4 flex flex-col gap-2 overflow-hidden shadow-sm"
-      style={{ border: `1px solid ${C.lightBlue}` }}>
+    <button
+      onClick={onClick}
+      className="relative bg-white rounded-xl p-4 flex flex-col gap-2 overflow-hidden shadow-sm text-left w-full transition-all"
+      style={{
+        border: isActive ? `2px solid ${barColor}` : `1px solid ${C.lightBlue}`,
+        boxShadow: isActive ? `0 4px 16px ${barColor}30` : "0 1px 3px rgba(0,0,0,0.06)",
+        cursor: "pointer",
+        outline: "none",
+      }}
+    >
       <div className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: barColor }} />
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: C.dimText }}>{label}</span>
@@ -172,7 +177,10 @@ function StatCard({ label, value, sub, icon: Ic, barColor, iconBg, iconColor, su
         <div className="text-2xl font-bold tracking-tight" style={{ color: C.darkBlue }}>{value}</div>
       )}
       <div className="text-xs font-semibold" style={{ color: subColor }}>{sub}</div>
-    </div>
+      {isActive && (
+        <div className="text-[10px] font-bold mt-0.5" style={{ color: barColor }}>● Active filter</div>
+      )}
+    </button>
   );
 }
 
@@ -252,7 +260,6 @@ function MobileProjectCard({ p }) {
     <div className="px-4 py-3 flex flex-col gap-2" style={{ borderBottom: `1px solid ${C.divider}` }}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <span className="text-xs font-bold" style={{ color: C.blue }}>{p._id?.slice(-6).toUpperCase()}</span>
           <p className="text-sm font-semibold mt-0.5" style={{ color: C.darkBlue }}>{p.name}</p>
           <p className="text-xs" style={{ color: C.mutedText }}>{p.clientName}</p>
         </div>
@@ -275,7 +282,6 @@ function MobileInstallCard({ p }) {
     <div className="px-4 py-3 flex flex-col gap-2" style={{ borderBottom: `1px solid ${C.divider}` }}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <span className="text-xs font-bold" style={{ color: C.blue }}>{p._id?.slice(-6).toUpperCase()}</span>
           <p className="text-sm font-semibold mt-0.5" style={{ color: C.darkBlue }}>{p.name}</p>
           <p className="text-xs" style={{ color: engineerName === "Unassigned" ? C.darkBlue : C.mutedText }}>
             {engineerName === "Unassigned" ? "— Unassigned" : engineerName}
@@ -303,7 +309,6 @@ function useProjects(status) {
     try {
       const params = status ? { status } : {};
       const res = await api.get("/projects", { params });
-      // Support both { data: [...] } and [...] response shapes
       const projects = Array.isArray(res.data) ? res.data : res.data.data ?? [];
       setData(projects);
     } catch (err) {
@@ -338,16 +343,27 @@ export default function Dashboard() {
   const installation = useProjects("installation");
   const engineers    = useEngineers();
 
+  // "initiated" | "installation" | "engineers" | null (show all)
+  const [activeFilter, setActiveFilter] = useState(null);
+
   const today = new Date().toLocaleDateString("en-GB", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 
-  // Stat helpers
   const unassignedInstalls = installation.data.filter(
     p => !p.assignedInstallationIncharge && (!p.assignedEngineers || p.assignedEngineers.length === 0)
   ).length;
 
   const assignedEngineersCount = countAssignedEngineers([...initiated.data, ...installation.data]);
+
+  // Toggle filter: click active card → reset to null (show all)
+  const handleStatClick = (key) => {
+    setActiveFilter(prev => prev === key ? null : key);
+  };
+
+  // Visibility helpers
+  const showInitiated    = activeFilter === null || activeFilter === "initiated";
+  const showInstallation = activeFilter === null || activeFilter === "installation";
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: C.bg }}>
@@ -361,8 +377,8 @@ export default function Dashboard() {
           <h1 className="text-xl font-bold mt-0.5" style={{ color: C.darkBlue }}>Service Team Dashboard</h1>
         </div>
 
-        {/* Stat Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* ── Stat Cards (clickable filters) ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           <StatCard
             label="Projects Initiated"
             value={initiated.data.length}
@@ -374,6 +390,8 @@ export default function Dashboard() {
             icon={Icon.Clipboard}
             barColor={C.darkBlue} iconBg={C.darkBlue} iconColor={C.white} subColor={C.blue}
             loading={initiated.loading}
+            isActive={activeFilter === "initiated"}
+            onClick={() => handleStatClick("initiated")}
           />
           <StatCard
             label="Pending Installations"
@@ -382,14 +400,8 @@ export default function Dashboard() {
             icon={Icon.Wrench}
             barColor={C.blue} iconBg={C.blue} iconColor={C.white} subColor={C.blue}
             loading={installation.loading}
-          />
-          <StatCard
-            label="Client Follow-ups"
-            value="—"
-            sub="Section coming soon"
-            icon={Icon.Mail}
-            barColor={C.medBlue} iconBg={C.medBlue} iconColor={C.white} subColor={C.medBlue}
-            loading={false}
+            isActive={activeFilter === "installation"}
+            onClick={() => handleStatClick("installation")}
           />
           <StatCard
             label="Engineers Assigned"
@@ -398,139 +410,139 @@ export default function Dashboard() {
             icon={Icon.Users}
             barColor={C.lightBlue} iconBg={C.lightBlue} iconColor={C.darkBlue} subColor={C.medBlue}
             loading={engineers.loading}
+            isActive={activeFilter === "engineers"}
+            onClick={() => handleStatClick("engineers")}
           />
         </div>
 
-        {/* Projects Initiated */}
-        <Card footer={<ViewAll />}>
-          <SectionTitle
-            title="Projects Initiated"
-            count={initiated.data.length}
-            countBg={C.darkBlue}
-            loading={initiated.loading}
-            onRefresh={initiated.refetch}
-          />
+        {/* ── Projects Initiated table (hidden when filtered to installation/engineers) ── */}
+        {showInitiated && (
+          <Card footer={<ViewAll />}>
+            <SectionTitle
+              title="Projects Initiated"
+              count={initiated.data.length}
+              countBg={C.darkBlue}
+              loading={initiated.loading}
+              onRefresh={initiated.refetch}
+            />
 
-          {initiated.error && <ErrorBanner message={initiated.error} onRetry={initiated.refetch} />}
+            {initiated.error && <ErrorBanner message={initiated.error} onRetry={initiated.refetch} />}
 
-          {/* Desktop table */}
-          <div className="hidden md:block mt-3 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><Thead cols={["Project ID", "Project Name", "Client", "Submitted", "Status", "Risk", ""]} /></thead>
-              <tbody>
-                {initiated.loading
-                  ? Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} cols={7} />)
-                  : initiated.data.length === 0 && !initiated.error
-                    ? (
-                      <tr><td colSpan={7} className="px-4 py-8 text-center text-sm" style={{ color: C.dimText }}>No initiated projects found</td></tr>
-                    )
-                    : initiated.data.map(p => {
-                      const sb = statusBadge(p.status);
-                      const rb = levelBadge("Medium");
-                      return (
-                        <HoverTr key={p._id}>
-                          <td className="px-4 py-3 font-semibold whitespace-nowrap text-sm font-mono" style={{ color: C.blue }}>
-                            {p._id?.slice(-6).toUpperCase()}
-                          </td>
-                          <td className="px-4 py-3 font-medium whitespace-nowrap text-sm" style={{ color: C.darkBlue }}>{p.name}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm" style={{ color: C.mutedText }}>{p.clientName}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: C.dimText }}>{formatDate(p.createdAt)}</td>
-                          <td className="px-4 py-3 whitespace-nowrap"><Badge label={p.status} bg={sb.bg} color={sb.color} /></td>
-                          <td className="px-4 py-3 whitespace-nowrap"><Badge label="Medium" bg={rb.bg} color={rb.color} /></td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <button className="text-xs font-semibold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: C.blue }}>
-                              Review <Icon.ChevronRight />
-                            </button>
-                          </td>
-                        </HoverTr>
-                      );
-                    })
-                }
-              </tbody>
-            </table>
-          </div>
+            {/* Desktop table — Project ID column removed */}
+            <div className="hidden md:block mt-3 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><Thead cols={["Project Name", "Client", "Submitted", "Status", "Risk", ""]} /></thead>
+                <tbody>
+                  {initiated.loading
+                    ? Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} cols={6} />)
+                    : initiated.data.length === 0 && !initiated.error
+                      ? (
+                        <tr><td colSpan={6} className="px-4 py-8 text-center text-sm" style={{ color: C.dimText }}>No initiated projects found</td></tr>
+                      )
+                      : initiated.data.map(p => {
+                        const sb = statusBadge(p.status);
+                        const rb = levelBadge("Medium");
+                        return (
+                          <HoverTr key={p._id}>
+                            <td className="px-4 py-3 font-medium whitespace-nowrap text-sm" style={{ color: C.darkBlue }}>{p.name}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm" style={{ color: C.mutedText }}>{p.clientName}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: C.dimText }}>{formatDate(p.createdAt)}</td>
+                            <td className="px-4 py-3 whitespace-nowrap"><Badge label={p.status} bg={sb.bg} color={sb.color} /></td>
+                            <td className="px-4 py-3 whitespace-nowrap"><Badge label="Medium" bg={rb.bg} color={rb.color} /></td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <button className="text-xs font-semibold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: C.blue }}>
+                                Review <Icon.ChevronRight />
+                              </button>
+                            </td>
+                          </HoverTr>
+                        );
+                      })
+                  }
+                </tbody>
+              </table>
+            </div>
 
-          {/* Mobile cards */}
-          <div className="md:hidden mt-2">
-            {initiated.loading
-              ? Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="px-4 py-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
-                  <div className="h-3 rounded animate-pulse mb-2" style={{ backgroundColor: C.lightBlue, width: "40%" }} />
-                  <div className="h-4 rounded animate-pulse mb-1" style={{ backgroundColor: C.lightBlue, width: "70%" }} />
-                  <div className="h-3 rounded animate-pulse" style={{ backgroundColor: C.lightBlue, width: "50%" }} />
-                </div>
-              ))
-              : initiated.data.map(p => <MobileProjectCard key={p._id} p={p} />)
+            {/* Mobile cards */}
+            <div className="md:hidden mt-2">
+              {initiated.loading
+                ? Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="px-4 py-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
+                    <div className="h-3 rounded animate-pulse mb-2" style={{ backgroundColor: C.lightBlue, width: "40%" }} />
+                    <div className="h-4 rounded animate-pulse mb-1" style={{ backgroundColor: C.lightBlue, width: "70%" }} />
+                    <div className="h-3 rounded animate-pulse" style={{ backgroundColor: C.lightBlue, width: "50%" }} />
+                  </div>
+                ))
+                : initiated.data.map(p => <MobileProjectCard key={p._id} p={p} />)
+              }
+            </div>
+          </Card>
+        )}
+
+        {/* ── Pending Installations table (hidden when filtered to initiated/engineers) ── */}
+        {showInstallation && (
+          <Card footer={<ViewAll />}>
+            <SectionTitle
+              title="Pending Installations"
+              count={installation.data.length}
+              countBg={C.blue}
+              loading={installation.loading}
+              onRefresh={installation.refetch}
+            />
+
+            {installation.error && <ErrorBanner message={installation.error} onRetry={installation.refetch} />}
+
+            {/* Desktop table — Project ID column removed */}
+            <div className="hidden md:block mt-3 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><Thead cols={["Site", "Incharge", "Start Date", "Type", "Priority"]} /></thead>
+                <tbody>
+                  {installation.loading
+                    ? Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} cols={5} />)
+                    : installation.data.length === 0 && !installation.error
+                      ? (
+                        <tr><td colSpan={5} className="px-4 py-8 text-center text-sm" style={{ color: C.dimText }}>No pending installations</td></tr>
+                      )
+                      : installation.data.map(p => {
+                        const type = installTypeLabel(p.status);
+                        const sb = statusBadge(type);
+                        const pb = levelBadge("Medium");
+                        const incharge = p.assignedInstallationIncharge?.name
+                          || p.assignedEngineers?.[0]?.name
+                          || "Unassigned";
+                        return (
+                          <HoverTr key={p._id}>
+                            <td className="px-4 py-3 font-medium whitespace-nowrap text-sm" style={{ color: C.darkBlue }}>{p.name}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                              {incharge === "Unassigned"
+                                ? <span className="text-xs font-bold" style={{ color: C.darkBlue }}>— Unassigned</span>
+                                : <span style={{ color: C.mutedText }}>{incharge}</span>}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: C.dimText }}>{formatDate(p.startDate)}</td>
+                            <td className="px-4 py-3 whitespace-nowrap"><Badge label={type} bg={sb.bg} color={sb.color} /></td>
+                            <td className="px-4 py-3 whitespace-nowrap"><Badge label="Medium" bg={pb.bg} color={pb.color} /></td>
+                          </HoverTr>
+                        );
+                      })
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden mt-2">
+              {installation.loading
+                ? Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="px-4 py-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
+                    <div className="h-3 rounded animate-pulse mb-2" style={{ backgroundColor: C.lightBlue, width: "40%" }} />
+                    <div className="h-4 rounded animate-pulse mb-1" style={{ backgroundColor: C.lightBlue, width: "70%" }} />
+                    <div className="h-3 rounded animate-pulse" style={{ backgroundColor: C.lightBlue, width: "50%" }} />
+                  </div>
+                ))
+                : installation.data.map(p => <MobileInstallCard key={p._id} p={p} />)
             }
-          </div>
-        </Card>
-
-        {/* Pending Installations */}
-        <Card footer={<ViewAll />}>
-          <SectionTitle
-            title="Pending Installations"
-            count={installation.data.length}
-            countBg={C.blue}
-            loading={installation.loading}
-            onRefresh={installation.refetch}
-          />
-
-          {installation.error && <ErrorBanner message={installation.error} onRetry={installation.refetch} />}
-
-          {/* Desktop table */}
-          <div className="hidden md:block mt-3 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><Thead cols={["ID", "Site", "Incharge", "Start Date", "Type", "Priority"]} /></thead>
-              <tbody>
-                {installation.loading
-                  ? Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} cols={6} />)
-                  : installation.data.length === 0 && !installation.error
-                    ? (
-                      <tr><td colSpan={6} className="px-4 py-8 text-center text-sm" style={{ color: C.dimText }}>No pending installations</td></tr>
-                    )
-                    : installation.data.map(p => {
-                      const type = installTypeLabel(p.status);
-                      const sb = statusBadge(type);
-                      const pb = levelBadge("Medium");
-                      const incharge = p.assignedInstallationIncharge?.name
-                        || p.assignedEngineers?.[0]?.name
-                        || "Unassigned";
-                      return (
-                        <HoverTr key={p._id}>
-                          <td className="px-4 py-3 font-semibold whitespace-nowrap text-sm font-mono" style={{ color: C.blue }}>
-                            {p._id?.slice(-6).toUpperCase()}
-                          </td>
-                          <td className="px-4 py-3 font-medium whitespace-nowrap text-sm" style={{ color: C.darkBlue }}>{p.name}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
-                            {incharge === "Unassigned"
-                              ? <span className="text-xs font-bold" style={{ color: C.darkBlue }}>— Unassigned</span>
-                              : <span style={{ color: C.mutedText }}>{incharge}</span>}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: C.dimText }}>{formatDate(p.startDate)}</td>
-                          <td className="px-4 py-3 whitespace-nowrap"><Badge label={type} bg={sb.bg} color={sb.color} /></td>
-                          <td className="px-4 py-3 whitespace-nowrap"><Badge label="Medium" bg={pb.bg} color={pb.color} /></td>
-                        </HoverTr>
-                      );
-                    })
-                }
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile cards */}
-          <div className="md:hidden mt-2">
-            {installation.loading
-              ? Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="px-4 py-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
-                  <div className="h-3 rounded animate-pulse mb-2" style={{ backgroundColor: C.lightBlue, width: "40%" }} />
-                  <div className="h-4 rounded animate-pulse mb-1" style={{ backgroundColor: C.lightBlue, width: "70%" }} />
-                  <div className="h-3 rounded animate-pulse" style={{ backgroundColor: C.lightBlue, width: "50%" }} />
-                </div>
-              ))
-              : installation.data.map(p => <MobileInstallCard key={p._id} p={p} />)
-            }
-          </div>
-        </Card>
+            </div>
+          </Card>
+        )}
 
       </main>
     </div>

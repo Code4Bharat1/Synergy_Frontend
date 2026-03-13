@@ -42,10 +42,10 @@ function MultiSelect({ label, icon: Icon, color, selectedIds, allUsers, onChange
 
   return (
     <div>
-      <div className={`flex items-center gap-2 mb-2`}>
+      <div className="flex items-center gap-2 mb-2">
         <Icon size={13} className={color} />
         <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{label}</span>
-        <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full bg-lightblue text-extra-blue`}>{selectedIds.length}</span>
+        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-lightblue text-extra-blue">{selectedIds.length}</span>
       </div>
 
       <div className="flex flex-wrap gap-1.5 mb-2">
@@ -69,7 +69,10 @@ function MultiSelect({ label, icon: Icon, color, selectedIds, allUsers, onChange
             + Assign <ChevronDown size={11} className={open ? "rotate-180" : ""} />
           </button>
           {open && (
-            <div className="absolute z-10 mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden w-48 max-h-48 overflow-y-auto">
+            <div
+              className="absolute z-[999] mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden w-48 max-h-48 overflow-y-auto"
+              style={{ top: "100%", left: 0 }}
+            >
               {availableUsers.map(u => (
                 <button
                   key={u._id}
@@ -146,13 +149,17 @@ export default function RoleAssignment() {
     }
   };
 
-  if (fetching) return <div className="text-gray-500 text-sm py-10 flex gap-2 items-center"><Loader size={16} className="animate-spin" /> Loading data...</div>;
+  if (fetching) return (
+    <div className="text-gray-500 text-sm py-10 flex gap-2 items-center">
+      <Loader size={16} className="animate-spin" /> Loading data...
+    </div>
+  );
 
   return (
     <div className="space-y-5">
       {toast && (
         <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-lg ${toast.type === "error" ? "bg-red-500" : "bg-extra-darkblue"}`}>
-          <CheckCircle2 size={15} className={`${toast.type === 'error' ? 'text-red-200' : 'text-green-400'}`} /> {toast.msg}
+          <CheckCircle2 size={15} className={`${toast.type === "error" ? "text-red-200" : "text-green-400"}`} /> {toast.msg}
         </div>
       )}
 
@@ -161,15 +168,21 @@ export default function RoleAssignment() {
         <p className="text-sm text-gray-400 mt-0.5">Assign engineers, QC inspectors and complaint handlers per project</p>
       </div>
 
-      <div className="space-y-4">
-        {projects.length === 0 && <p className="text-sm text-gray-400">No projects found.</p>}
+      {projects.length === 0 && <p className="text-sm text-gray-400">No projects found.</p>}
+
+      {/* ── 2 project cards per row ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {projects.map(project => {
           const a = assignments[project._id] || { engineers: [], qc: [], complaints: [] };
           const isSaving = savingId === project._id;
           return (
-            <div key={project._id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between"
-                style={{ background: "linear-gradient(135deg, #0F2854, #1C4D8D)" }}>
+            <div key={project._id} className="bg-white rounded-xl border border-gray-100 shadow-sm">
+
+              {/* Card Header */}
+              <div
+                className="px-5 py-4 rounded-t-xl flex items-center justify-between"
+                style={{ background: "linear-gradient(135deg, #0F2854, #1C4D8D)" }}
+              >
                 <div>
                   <h3 className="text-sm font-bold text-white">{project.name}</h3>
                   <p className="text-xs text-blue-300 mt-0.5">
@@ -185,32 +198,45 @@ export default function RoleAssignment() {
                 </button>
               </div>
 
-              <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-gray-100">
-                <MultiSelect
-                  label="Site Engineers"
-                  icon={HardHat} color="text-amber-500"
-                  allUsers={users.filter(u => u.role === "engineer")}
-                  selectedIds={a.engineers}
-                  onChange={(val) => update(project._id, "engineers", val)}
-                />
-                <div className="pt-4 md:pt-0 md:pl-6">
+              {/* Card Body — 3 role columns */}
+              <div className="p-5 grid grid-cols-3 gap-4 divide-x divide-gray-100">
+
+                {/* Site Engineers */}
+                <div className="relative">
+                  <MultiSelect
+                    label="Site Engineers"
+                    icon={HardHat}
+                    color="text-amber-500"
+                    allUsers={users.filter(u => u.role === "engineer")}
+                    selectedIds={a.engineers}
+                    onChange={(val) => update(project._id, "engineers", val)}
+                  />
+                </div>
+
+                {/* QC Inspectors */}
+                <div className="relative pl-4">
                   <MultiSelect
                     label="QC Inspectors"
-                    icon={ShieldCheck} color="text-extra-blue"
+                    icon={ShieldCheck}
+                    color="text-extra-blue"
                     allUsers={users.filter(u => u.role === "qualityControl" || u.role === "admin" || u.role === "director")}
                     selectedIds={a.qc}
                     onChange={(val) => update(project._id, "qc", val)}
                   />
                 </div>
-                <div className="pt-4 md:pt-0 md:pl-6">
+
+                {/* Complaint Team */}
+                <div className="relative pl-4">
                   <MultiSelect
                     label="Complaint Team"
-                    icon={MessageSquareWarning} color="text-red-400"
+                    icon={MessageSquareWarning}
+                    color="text-red-400"
                     allUsers={users.filter(u => u.role === "support" || u.role === "admin" || u.role === "director")}
                     selectedIds={a.complaints}
                     onChange={(val) => update(project._id, "complaints", val)}
                   />
                 </div>
+
               </div>
             </div>
           );

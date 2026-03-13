@@ -179,10 +179,10 @@ export default function PerformanceAnalytics() {
       {/* ── KPI Summary Row ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Engineers", value: engineers.length, sub: "role=engineer", color: "bg-blue-50 text-blue-600", icon: Users },
-          { label: "Installation Incharges", value: incharges.length, sub: "role=installationIncharge", color: "bg-amber-50 text-amber-600", icon: HardHat },
-          { label: "Avg Project Progress", value: `${avgProgress}%`, sub: "mean of project.progress", color: "bg-indigo-50 text-indigo-600", icon: Activity },
-          { label: "Completed Projects", value: completedProjects, sub: "project.status=completed", color: "bg-emerald-50 text-emerald-600", icon: CheckCircle2 },
+          { label: "Engineers", value: engineers.length, color: "bg-blue-50 text-blue-600", icon: Users },
+          { label: "Installation Incharges", value: incharges.length, color: "bg-amber-50 text-amber-600", icon: HardHat },
+          { label: "Avg Project Progress", value: `${avgProgress}%`, color: "bg-indigo-50 text-indigo-600", icon: Activity },
+          { label: "Completed Projects", value: completedProjects, color: "bg-emerald-50 text-emerald-600", icon: CheckCircle2 },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${s.color}`}>

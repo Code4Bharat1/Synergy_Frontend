@@ -362,7 +362,7 @@ export default function EligibilityChecklist() {
                     return (
                       <tr key={project.id} className={`border-t border-gray-50 hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? "bg-slate-50/50" : ""}`}>
                         <td className="px-4 py-3.5">
-                          <p className="font-bold text-blue-700 text-xs">{project.id}</p>
+                          {/* <p className="font-bold text-blue-700 text-xs">{project.id}</p> */}
                           <p className="text-gray-800 font-medium text-xs mt-0.5">{project.name}</p>
                         </td>
                         <td className="px-4 py-3.5 text-xs text-gray-500">{project.client}</td>

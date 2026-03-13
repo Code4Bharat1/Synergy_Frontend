@@ -314,7 +314,7 @@ export default function Dashboard() {
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-gray-100">
-                    {["Project ID", "Project Name", "Client", "Submitted", "Status", "Action"].map((h) => (
+                    {[ "Project Name", "Client", "Submitted", "Status", "Action"].map((h) => (
                       <th key={h} className="px-5 py-3.5 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
@@ -324,7 +324,7 @@ export default function Dashboard() {
                     <tr><td colSpan={6} className="py-10 text-center text-sm text-gray-400">No projects pending eligibility.</td></tr>
                   ) : eligibilityRows.map((row, i) => (
                     <tr key={row.id} className={`border-t border-gray-50 hover:bg-blue-50/40 transition-colors ${i % 2 === 1 ? "bg-slate-50/50" : ""}`}>
-                      <td className="px-5 py-3.5 font-bold text-blue-700 text-xs">{row.id}</td>
+                      {/* <td className="px-5 py-3.5 font-bold text-blue-700 text-xs">{row.id}</td> */}
                       <td className="px-5 py-3.5 font-semibold text-gray-900">{row.name}</td>
                       <td className="px-5 py-3.5 text-gray-500">{row.client}</td>
                       <td className="px-5 py-3.5 text-gray-500">{row.submitted}</td>
@@ -354,8 +354,8 @@ export default function Dashboard() {
                     <tr><td colSpan={7} className="py-10 text-center text-sm text-gray-400">No projects in progress.</td></tr>
                   ) : progressRows.map((row, i) => (
                     <tr key={row.id} className={`border-t border-gray-50 hover:bg-blue-50/40 transition-colors ${i % 2 === 1 ? "bg-slate-50/50" : ""}`}>
-                      <td className="px-5 py-3.5 font-bold text-blue-700 text-xs">{row.id}</td>
-                      <td className="px-5 py-3.5 font-semibold text-gray-900">{row.name}</td>
+                      {/* <td className="px-5 py-3.5 font-bold text-blue-700 text-xs">{row.id}</td> */}
+                      {/* <td className="px-5 py-3.5 font-semibold text-gray-900">{row.name}</td> */}
                       <td className={`px-5 py-3.5 ${row.engineer === "Unassigned" ? "text-red-500 font-bold" : "text-gray-600"}`}>{row.engineer}</td>
                       <td className="px-5 py-3.5 text-gray-500">{row.phase}</td>
                       <td className="px-5 py-3.5 min-w-[160px]"><ProgressBar value={row.completion} /></td>
@@ -383,7 +383,7 @@ export default function Dashboard() {
                     <tr><td colSpan={7} className="py-10 text-center text-sm text-gray-400">No open issues.</td></tr>
                   ) : issueRows.map((row, i) => (
                     <tr key={row.id} className={`border-t border-gray-50 hover:bg-blue-50/40 transition-colors ${i % 2 === 1 ? "bg-slate-50/50" : ""}`}>
-                      <td className="px-5 py-3.5 font-bold text-blue-700 text-xs">{row.id}</td>
+                      {/* <td className="px-5 py-3.5 font-bold text-blue-700 text-xs">{row.id}</td> */}
                       <td className="px-5 py-3.5 text-gray-500">{row.project}</td>
                       <td className="px-5 py-3.5 font-semibold text-gray-900">{row.item}</td>
                       <td className="px-5 py-3.5"><Badge label={row.severity} classMap={severityClass} /></td>

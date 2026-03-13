@@ -56,7 +56,6 @@ const formatSize = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-// A URL is "real" if it starts with http/https
 const isRealUrl = (url) => typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"));
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -82,15 +81,14 @@ function Modal({ title, onClose, children }) {
 function UploadDocumentForm({ onSubmit, loading }) {
   const [title, setTitle] = useState("");
   const [documentType, setDocType] = useState("other");
-  const [files, setFiles] = useState([]); // { file, name, size, ext }
+  const [files, setFiles] = useState([]);
   const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useState(null);
 
   const addFiles = (incoming) => {
     const arr = Array.from(incoming);
     setFiles(prev => {
       const combined = [...prev, ...arr.map(f => ({ file: f, name: f.name, size: f.size, ext: getFileExt(f.name) }))];
-      return combined.slice(0, MAX_FILES); // cap at 5
+      return combined.slice(0, MAX_FILES);
     });
   };
 
@@ -106,15 +104,11 @@ function UploadDocumentForm({ onSubmit, loading }) {
     e.preventDefault();
     if (files.length === 0) return alert("Please add at least one file.");
     if (!title.trim()) return alert("Please enter a document title.");
-    // When Cloudinary is ready: upload files → get URLs → send to backend
-    // For now: submit metadata only (url will be added later)
     onSubmit({ title: title.trim(), documentType, filesCount: files.length, files });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-
-      {/* Title */}
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">Document Title *</label>
         <input
@@ -126,7 +120,6 @@ function UploadDocumentForm({ onSubmit, loading }) {
         />
       </div>
 
-      {/* Type */}
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">Document Type</label>
         <select
@@ -140,13 +133,11 @@ function UploadDocumentForm({ onSubmit, loading }) {
         </select>
       </div>
 
-      {/* Drop zone */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <label className="text-xs font-semibold text-gray-600">
             Files * <span className="text-gray-400 font-normal">({files.length}/{MAX_FILES} max)</span>
           </label>
-          {/* Add more files button */}
           {files.length > 0 && files.length < MAX_FILES && (
             <label className="flex items-center gap-1 text-xs font-semibold text-blue-600 cursor-pointer hover:text-blue-800 transition-colors">
               <Plus size={12} /> Add more
@@ -155,7 +146,6 @@ function UploadDocumentForm({ onSubmit, loading }) {
           )}
         </div>
 
-        {/* Drop area — also opens file explorer on click */}
         <label
           onDragOver={e => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
@@ -181,7 +171,6 @@ function UploadDocumentForm({ onSubmit, loading }) {
         </label>
       </div>
 
-      {/* File list */}
       {files.length > 0 && (
         <div className="space-y-2">
           {files.map((f, idx) => {
@@ -207,7 +196,6 @@ function UploadDocumentForm({ onSubmit, loading }) {
         </div>
       )}
 
-      {/* Submit */}
       <button
         type="submit"
         disabled={loading || files.length === 0}
@@ -224,7 +212,7 @@ function UploadDocumentForm({ onSubmit, loading }) {
   );
 }
 
-// ── Edit Document Form (no file picker — just metadata) ───────────────────────
+// ── Edit Document Form ────────────────────────────────────────────────────────
 function EditDocumentForm({ initial, onSubmit, loading }) {
   const [form, setForm] = useState(initial);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -357,7 +345,6 @@ function UploadChecklist({ documents }) {
         })}
       </div>
 
-      {/* Progress bar */}
       <div>
         <div className="flex justify-between text-xs mb-1.5">
           <span className="text-gray-400 font-semibold">REQUIRED</span>
@@ -453,24 +440,28 @@ export default function DocumentsPage() {
   const handleCreate = async ({ title, documentType, files }) => {
     try {
       setActionLoading(true);
-      // Upload each file as a separate document record
-      // When Cloudinary is ready: upload file → get url → send with each record
-      // For now: save metadata with placeholder url
-      const promises = files.map((f) =>
-        apiFetch("/documents", {
-          method: "POST",
-          body: JSON.stringify({
-            title: files.length === 1 ? title : `${title} (${f.name})`,
-            documentType,
-            url: `pending_upload_${f.name}`, // ← replace with Cloudinary URL later
-          }),
-        })
-      );
+
+      const token = localStorage.getItem("accessToken");
+
+      const promises = files.map((f) => {
+        const formData = new FormData();
+        formData.append("file", f.file);
+        formData.append("title", title);
+        formData.append("documentType", documentType);
+
+        return axiosInstance.post("/documents", formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data"
+          }
+        });
+      });
+
       await Promise.all(promises);
       setShowCreate(false);
       fetchDocuments();
     } catch (err) {
-      alert(err.message);
+      alert(err.response?.data?.message || err.message);
     } finally {
       setActionLoading(false);
     }
@@ -523,6 +514,17 @@ export default function DocumentsPage() {
     pending: documents.filter(d => d.status === "pending").length,
     approved: documents.filter(d => d.status === "approved").length,
     rejected: documents.filter(d => d.status === "rejected").length,
+  };
+
+  // ── Stat card click handler ────────────────────────────────────────────────
+  const handleStatClick = (key) => {
+    if (key === "total") {
+      // Reset status filter to show all
+      setFilterStatus("all");
+    } else {
+      // If already filtered by this status, toggle off (show all)
+      setFilterStatus(prev => prev === key ? "all" : key);
+    }
   };
 
   return (
@@ -603,19 +605,30 @@ export default function DocumentsPage() {
         </div>
       )}
 
-      {/* Stat Cards */}
+      {/* ── Stat Cards (clickable filters) ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total", value: stats.total, color: "text-blue-600" },
-          { label: "Pending", value: stats.pending, color: "text-amber-600" },
-          { label: "Approved", value: stats.approved, color: "text-green-600" },
-          { label: "Rejected", value: stats.rejected, color: "text-red-500" },
-        ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
-            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
-          </div>
-        ))}
+          { key: "total",    label: "Total",    value: stats.total,    color: "text-blue-600",  activeBg: "ring-2 ring-blue-400",   hoverBg: "hover:border-blue-300" },
+          { key: "pending",  label: "Pending",  value: stats.pending,  color: "text-amber-600", activeBg: "ring-2 ring-amber-400",  hoverBg: "hover:border-amber-300" },
+          { key: "approved", label: "Approved", value: stats.approved, color: "text-green-600", activeBg: "ring-2 ring-green-400",  hoverBg: "hover:border-green-300" },
+          { key: "rejected", label: "Rejected", value: stats.rejected, color: "text-red-500",   activeBg: "ring-2 ring-red-400",    hoverBg: "hover:border-red-300" },
+        ].map(s => {
+          const isActive = s.key === "total" ? filterStatus === "all" : filterStatus === s.key;
+          return (
+            <button
+              key={s.key}
+              onClick={() => handleStatClick(s.key)}
+              className={`bg-white rounded-xl border shadow-sm p-4 text-center transition-all cursor-pointer
+                ${isActive ? `border-transparent ${s.activeBg} shadow-md` : `border-gray-100 ${s.hoverBg} hover:shadow-md`}`}
+            >
+              <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
+              {isActive && (
+                <p className={`text-xs font-semibold mt-1 ${s.color}`}>● Active</p>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Main layout: table + sidebar */}
@@ -642,6 +655,7 @@ export default function DocumentsPage() {
                 <option key={k} value={k}>{v.label}</option>
               ))}
             </select>
+            {/* Status filter synced with stat cards */}
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}

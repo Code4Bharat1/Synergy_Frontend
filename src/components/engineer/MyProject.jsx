@@ -88,7 +88,6 @@ const phaseHex = {
   "Completed":         "#34C759",
 };
 
-// Engineer-allowed status options (read-only fields like client, location stay with admin)
 const ENGINEER_STATUS_OPTIONS = [
   { value: "initiated",    label: "Initiated"    },
   { value: "in-progress",  label: "In Progress"  },
@@ -98,7 +97,6 @@ const ENGINEER_STATUS_OPTIONS = [
   { value: "on-hold",      label: "On Hold"      },
 ];
 
-// Auto-derive phase from status (mirrors admin logic)
 const STATUS_PHASE = {
   "initiated":    "Site Preparation",
   "in-progress":  "Wiring & Plumbing",
@@ -170,7 +168,6 @@ function EditProjectModal({ project, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState("");
 
-  // Preview derived values — read-only, shown for context
   const previewPhase    = STATUS_PHASE[status]    || "Site Preparation";
   const previewProgress = STATUS_PROGRESS[status] ?? 0;
   const progressBg      = previewProgress > 80 ? "#34C759" : previewProgress > 50 ? "#4988C4" : "#FF9500";
@@ -212,7 +209,6 @@ function EditProjectModal({ project, onClose, onSaved }) {
           boxShadow: "0 24px 64px rgba(15,40,84,0.18)",
         }}
       >
-        {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 }}>
           <div>
             <p style={{ color: "#4988C4", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", margin: 0 }}>
@@ -230,7 +226,6 @@ function EditProjectModal({ project, onClose, onSaved }) {
           </button>
         </div>
 
-        {/* Info note */}
         <div style={{
           background: "rgba(73,136,196,0.06)", border: "1px solid rgba(73,136,196,0.15)",
           borderRadius: 10, padding: "9px 13px", marginBottom: 20,
@@ -241,7 +236,6 @@ function EditProjectModal({ project, onClose, onSaved }) {
           </span>
         </div>
 
-        {/* Status */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#94aac4", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>
             Status
@@ -259,7 +253,6 @@ function EditProjectModal({ project, onClose, onSaved }) {
           </select>
         </div>
 
-        {/* Read-only preview */}
         <div style={{ background: "rgba(73,136,196,0.04)", border: "1px solid rgba(73,136,196,0.15)", borderRadius: 12, padding: "14px 16px", marginBottom: 18 }}>
           <p style={{ fontSize: 10, fontWeight: 700, color: "#94aac4", letterSpacing: 1, textTransform: "uppercase", margin: "0 0 10px 0" }}>Will be set automatically</p>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -275,7 +268,6 @@ function EditProjectModal({ project, onClose, onSaved }) {
           </div>
         </div>
 
-        {/* Engineer Notes (optional) */}
         <div style={{ marginBottom: 22 }}>
           <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#94aac4", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>
             Notes <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
@@ -297,7 +289,6 @@ function EditProjectModal({ project, onClose, onSaved }) {
           </p>
         )}
 
-        {/* Save */}
         <button
           onClick={handleSave}
           disabled={saving}
@@ -347,7 +338,6 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
         />
       )}
 
-      {/* Top Bar */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">
         <button
           onClick={onBack}
@@ -374,7 +364,6 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
             </span>
           )}
 
-          {/* ── Edit button ── */}
           <button
             onClick={() => setEditOpen(true)}
             className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl border cursor-pointer"
@@ -395,7 +384,6 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
         </div>
       </div>
 
-      {/* Delay Warning */}
       {delayed && (
         <div
           className="flex items-center gap-3 rounded-xl px-5 py-3 mb-5"
@@ -413,10 +401,7 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
         </div>
       )}
 
-      {/* Main Two-Column Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5">
-
-        {/* LEFT */}
         <div className="flex flex-col gap-4">
           <Card style={{ padding: "22px" }}>
             <SectionHead icon={<FolderOpen size={16} color="#BDE8F5" />} title="Project Information" />
@@ -505,7 +490,6 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
           </Card>
         </div>
 
-        {/* RIGHT */}
         <div className="flex flex-col gap-4">
           <Card style={{ padding: "22px" }}>
             <SectionHead icon={<CheckSquare size={16} color="#BDE8F5" />} title="Eligibility Checklist" />
@@ -616,7 +600,6 @@ function ProjectCard({ project, onClick, onEdit, index }) {
         e.currentTarget.style.borderColor = delayed ? "rgba(255,59,48,0.2)" : "rgba(73,136,196,0.12)";
       }}
     >
-      {/* Card Header */}
       <div className="px-5 py-4" style={{ borderBottom: `1px solid ${delayed ? "rgba(255,59,48,0.1)" : "rgba(73,136,196,0.08)"}`, background: delayed ? "rgba(255,59,48,0.03)" : "rgba(73,136,196,0.03)" }}>
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="min-w-0 flex-1">
@@ -639,7 +622,6 @@ function ProjectCard({ project, onClick, onEdit, index }) {
         </div>
       </div>
 
-      {/* Card Body */}
       <div className="px-5 py-4">
         <div className="mb-4">
           <div className="flex justify-between mb-1.5">
@@ -682,13 +664,11 @@ function ProjectCard({ project, onClick, onEdit, index }) {
           </div>
         )}
 
-        {/* CTA row — View + Edit */}
         <div className="flex items-center justify-between pt-3" style={{ borderTop: `1px solid ${delayed ? "rgba(255,59,48,0.1)" : "rgba(73,136,196,0.08)"}` }}>
           <span className="text-xs font-semibold" style={{ color: delayed ? "#FF3B30" : "#4988C4" }}>
             View full details
           </span>
           <div className="flex items-center gap-3">
-            {/* Edit button — stops propagation so it doesn't open the detail view */}
             <button
               onClick={(e) => { e.stopPropagation(); onEdit(); }}
               className="flex items-center gap-1 text-xs font-bold cursor-pointer border-none"
@@ -709,7 +689,7 @@ export default function EngineerMyProjects() {
   const [projects,        setProjects]        = useState([]);
   const [loading,         setLoading]         = useState(true);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [editingProject,  setEditingProject]  = useState(null); // for card-level edit
+  const [editingProject,  setEditingProject]  = useState(null);
   const [filterTab,       setFilterTab]       = useState("all");
   const [searchQuery,     setSearchQuery]     = useState("");
   const [sortBy,          setSortBy]          = useState("name-asc");
@@ -735,10 +715,8 @@ export default function EngineerMyProjects() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Update a single project in state after edit
   const handleProjectUpdated = (updated) => {
     setProjects(prev => prev.map(p => p._id === updated._id ? { ...p, ...updated } : p));
-    // Also update selectedProject if it's open
     if (selectedProject?._id === updated._id) {
       setSelectedProject(prev => ({ ...prev, ...updated }));
     }
@@ -754,11 +732,12 @@ export default function EngineerMyProjects() {
     delayed: delayedProjects.length, completed: completedProjects.length, "on-hold": onHoldProjects.length,
   };
 
+  // ── Stat card click → set filterTab ──────────────────────────────────────
   const STATS = [
-    { label: "Total",     value: projects.length,         color: "#4988C4", bg: "rgba(73,136,196,0.08)",  border: "rgba(73,136,196,0.15)"  },
-    { label: "Active",    value: activeProjects.length,    color: "#0F2854", bg: "rgba(15,40,84,0.05)",    border: "rgba(15,40,84,0.1)"     },
-    { label: "Delayed",   value: delayedProjects.length,   color: "#FF3B30", bg: "rgba(255,59,48,0.06)",   border: "rgba(255,59,48,0.15)"   },
-    { label: "Completed", value: completedProjects.length, color: "#34C759", bg: "rgba(52,199,89,0.07)",   border: "rgba(52,199,89,0.18)"   },
+    { label: "Total",     value: projects.length,         color: "#4988C4", bg: "rgba(73,136,196,0.08)",  border: "rgba(73,136,196,0.15)",  filterKey: "all"       },
+    { label: "Active",    value: activeProjects.length,    color: "#0F2854", bg: "rgba(15,40,84,0.05)",    border: "rgba(15,40,84,0.1)",     filterKey: "active"    },
+    { label: "Delayed",   value: delayedProjects.length,   color: "#FF3B30", bg: "rgba(255,59,48,0.06)",   border: "rgba(255,59,48,0.15)",   filterKey: "delayed"   },
+    { label: "Completed", value: completedProjects.length, color: "#34C759", bg: "rgba(52,199,89,0.07)",   border: "rgba(52,199,89,0.18)",   filterKey: "completed" },
   ];
 
   const filtered = (() => {
@@ -813,7 +792,6 @@ export default function EngineerMyProjects() {
     <>
       <style>{ANIM_CSS + FONTS}</style>
 
-      {/* Card-level edit modal */}
       {editingProject && (
         <EditProjectModal
           project={editingProject}
@@ -840,13 +818,34 @@ export default function EngineerMyProjects() {
         </div>
       )}
 
+      {/* ── Stat Cards (clickable filters) ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        {STATS.map((s) => (
-          <div key={s.label} className="card-hover rounded-2xl px-5 py-4" style={{ background: s.bg, border: `1px solid ${s.border}` }}>
-            <p className="text-xs font-semibold tracking-widest mb-1 uppercase" style={{ color: "#4988C4" }}>{s.label}</p>
-            <p className="text-3xl font-extrabold m-0" style={{ color: s.color, fontFamily: "'Syne',sans-serif" }}>{s.value}</p>
-          </div>
-        ))}
+        {STATS.map((s) => {
+          const isActive = filterTab === s.filterKey;
+          return (
+            <button
+              key={s.label}
+              onClick={() => setFilterTab(s.filterKey)}
+              className="card-hover rounded-2xl px-5 py-4 text-left w-full"
+              style={{
+                background: s.bg,
+                border: isActive
+                  ? `2px solid ${s.color}`
+                  : `1px solid ${s.border}`,
+                boxShadow: isActive ? `0 4px 16px ${s.color}30` : "none",
+                cursor: "pointer",
+                transition: "border .15s, box-shadow .15s",
+                outline: "none",
+              }}
+            >
+              <p className="text-xs font-semibold tracking-widest mb-1 uppercase m-0" style={{ color: "#4988C4" }}>{s.label}</p>
+              <p className="text-3xl font-extrabold m-0" style={{ color: s.color, fontFamily: "'Syne',sans-serif" }}>{s.value}</p>
+              {isActive && (
+                <p className="text-xs font-bold mt-1 m-0" style={{ color: s.color }}>● Active filter</p>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex items-center gap-3 mb-3 flex-wrap">
