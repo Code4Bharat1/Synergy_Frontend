@@ -29,6 +29,7 @@ import {
   UserCog,
   FlaskConical,
   UserCheck,
+  ListTodo,
 } from "lucide-react";
 
 import Navbar from "@/components/common/Navbar";
@@ -55,6 +56,7 @@ const ROLE_NAVIGATION = {
       href: "/director/complaint",
     },
     { label: "Performance", icon: BarChart3, href: "/director/performance" },
+    { label: "Task Panel", icon: ListTodo, href: "/director/tasks" },
   ],
   engineer: [
     { href: "/engineer/", icon: LayoutDashboard, label: "Dashboard" },

@@ -1,231 +1,488 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { FolderKanban, AlertTriangle, DollarSign, Clock, MessageSquareWarning, TrendingUp, TrendingDown, ArrowRight, Loader } from "lucide-react";
+import {
+  FolderKanban, AlertTriangle, Clock, Users, FileText,
+  RefreshCw, Loader2, TrendingUp, CheckCircle2, BarChart3,
+  Activity, ChevronRight, Calendar
+} from "lucide-react";
+import {
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend
+} from "recharts";
+import axiosInstance from "../../lib/axios";
 
-// Config
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
-const getToken = () => typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-const authHeaders = () => ({
-  "Content-Type": "application/json",
-  Authorization: `Bearer ${getToken()}`,
-});
-
-// API calls
-const api = {
-  async fetchDashboardData() {
-    const fetchApi = async (url) => {
-      try {
-        const res = await fetch(`${API_BASE}${url}`, { headers: authHeaders() });
-        if (!res.ok) {
-          console.error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
-          return [];
-        }
-        const data = await res.json();
-        if (Array.isArray(data)) return data;
-        if (data && Array.isArray(data.projects)) return data.projects;
-        if (data && Array.isArray(data.documents)) return data.documents;
-        if (data && Array.isArray(data.complaints)) return data.complaints;
-        if (data && data.data && Array.isArray(data.data)) return data.data;
-        return [];
-      } catch (err) {
-        console.error(`Error fetching ${url}:`, err);
-        return [];
-      }
-    };
-
-    const [projects, documents, complaints] = await Promise.all([
-      fetchApi("/projects"),
-      fetchApi("/documents"),
-      fetchApi("/complaints")
-    ]);
-
-    return { projects, documents, complaints };
-  }
+// ── API Helper ────────────────────────────────────────────────────────────────
+const apiFetch = async (path) => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  const res = await axiosInstance({ method: "GET", url: path, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  return res.data;
 };
 
-const PRIORITY_STYLE = {
-  high: "bg-red-50 text-red-500",
-  medium: "bg-amber-50 text-amber-600",
-  low: "bg-gray-100 text-gray-500",
-  critical: "bg-red-100 text-red-600",
+const safeArray = (data, key) => {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data[key])) return data[key];
+  if (data && Array.isArray(data.data)) return data.data;
+  return [];
 };
 
-// ── Stat Card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, trend, up, icon: Icon, color }) {
+// ── Color Tokens ──────────────────────────────────────────────────────────────
+const STATUS_COLORS = {
+  "initiated":   "#6366f1",
+  "in-progress": "#3b82f6",
+  "installation":"#f59e0b",
+  "testing":     "#8b5cf6",
+  "completed":   "#10b981",
+  "on-hold":     "#ef4444",
+};
+
+const PRIORITY_COLORS = {
+  low:      "#94a3b8",
+  medium:   "#3b82f6",
+  high:     "#f59e0b",
+  critical: "#ef4444",
+};
+
+const PHASE_COLORS = {
+  "Site Preparation": "#6366f1",
+  "Wiring & Plumbing": "#3b82f6",
+  "Equipment Setup":  "#f59e0b",
+  "Installation":     "#8b5cf6",
+  "Final Testing":    "#10b981",
+  "Completed":        "#22c55e",
+};
+
+const TRIAL_COLORS = {
+  "Not Started": "#94a3b8",
+  "Scheduled":   "#3b82f6",
+  "In Trial":    "#f59e0b",
+  "Completed":   "#10b981",
+};
+
+// ── Custom Tooltip ─────────────────────────────────────────────────────────────
+const CustomTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-start gap-4">
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
-        <Icon size={18} />
+    <div className="bg-white border border-gray-100 rounded-xl shadow-lg px-3 py-2">
+      <p className="text-xs font-bold text-gray-800">{payload[0].name}</p>
+      <p className="text-xs text-gray-500">Count: <span className="font-bold text-extra-darkblue">{payload[0].value}</span></p>
+    </div>
+  );
+};
+
+// ── KPI Card ──────────────────────────────────────────────────────────────────
+function KPICard({ label, value, icon: Icon, color, sub, loading }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-start gap-4 hover:shadow-md transition-shadow">
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
+        <Icon size={20} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-2xl font-bold text-extra-darkblue">{value}</p>
-        <p className="text-sm font-medium text-gray-700 mt-0.5 leading-tight">{label}</p>
-        <div className={`flex items-center gap-1 mt-1 text-xs font-semibold ${up ? "text-green-500" : "text-red-400"}`}>
-          {up ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-          {trend}
-        </div>
+        {loading ? (
+          <div className="h-7 w-12 bg-gray-100 rounded animate-pulse mb-1" />
+        ) : (
+          <p className="text-2xl font-bold text-extra-darkblue">{value}</p>
+        )}
+        <p className="text-sm font-medium text-gray-600 mt-0.5 leading-tight">{label}</p>
+        {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
       </div>
     </div>
   );
 }
 
-// ── Mini progress bar ─────────────────────────────────────────────────────────
-function MiniBar({ value, max, color }) {
-  const pct = Math.min(100, Math.round((value / max) * 100));
+// ── Section Header ────────────────────────────────────────────────────────────
+function SectionHeader({ icon: Icon, iconColor, title, sub }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+    <div className="flex items-center gap-2.5 px-5 py-4 border-b border-gray-100">
+      <Icon size={15} className={iconColor} />
+      <div>
+        <h3 className="text-sm font-bold text-extra-darkblue leading-tight">{title}</h3>
+        {sub && <p className="text-xs text-gray-400">{sub}</p>}
       </div>
-      <span className="text-xs font-bold w-8 text-right" style={{ color }}>{value}d</span>
     </div>
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── Donut Chart Panel ─────────────────────────────────────────────────────────
+function DonutPanel({ title, sub, icon, iconColor, data, note }) {
+  const hasData = data.some(d => d.value > 0);
+  const RADIAN = Math.PI / 180;
+  const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value, name }) => {
+    if (value === 0) return null;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    return (
+      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight="bold">{value}</text>
+    );
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <SectionHeader icon={icon} iconColor={iconColor} title={title} sub={sub} />
+      <div className="p-5">
+        {!hasData ? (
+          <div className="py-8 text-center text-gray-300 text-sm">No data available</div>
+        ) : (
+          <>
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie data={data} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2}
+                  dataKey="value" labelLine={false} label={renderLabel}>
+                  {data.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
+              {data.filter(d => d.value > 0).map(d => (
+                <div key={d.name} className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
+                  <span className="text-xs text-gray-600 capitalize">{d.name}</span>
+                  <span className="text-xs font-bold text-extra-darkblue">{d.value}</span>
+                </div>
+              ))}
+            </div>
+            {note && (
+              <p className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-50 italic">{note}</p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Bar Chart Panel ───────────────────────────────────────────────────────────
+function BarPanel({ title, sub, icon, iconColor, data, colors, note }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <SectionHeader icon={icon} iconColor={iconColor} title={title} sub={sub} />
+      <div className="p-5">
+        {!data.some(d => d.value > 0) ? (
+          <div className="py-8 text-center text-gray-300 text-sm">No data available</div>
+        ) : (
+          <>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={data} barCategoryGap="35%">
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={28} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f8fafc" }} />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                  {data.map((entry, i) => (
+                    <Cell key={entry.name} fill={colors[entry.name] || "#3b82f6"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            {note && <p className="text-xs text-gray-400 mt-2 italic">{note}</p>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Phase Progress Panel ──────────────────────────────────────────────────────
+function PhaseProgressPanel({ projects }) {
+  const phaseCounts = {};
+  const phaseOrder = ["Site Preparation", "Wiring & Plumbing", "Equipment Setup", "Installation", "Final Testing", "Completed"];
+  phaseOrder.forEach(p => { phaseCounts[p] = 0; });
+  projects.filter(p => p.status !== "completed").forEach(p => {
+    if (p.phase && phaseCounts[p.phase] !== undefined) phaseCounts[p.phase]++;
+  });
+  const total = projects.filter(p => p.status !== "completed").length || 1;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <SectionHeader
+        icon={Activity}
+        iconColor="text-indigo-500"
+        title="Active Projects by Phase"
+        sub="Based on project.phase field — active projects only (excludes completed)"
+      />
+      <div className="p-5 space-y-3">
+        {phaseOrder.map(phase => {
+          const count = phaseCounts[phase];
+          const pct = Math.round((count / total) * 100);
+          const color = PHASE_COLORS[phase] || "#94a3b8";
+          return (
+            <div key={phase}>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-medium text-gray-600">{phase}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-extra-darkblue">{count}</span>
+                  <span className="text-xs text-gray-400">{pct}%</span>
+                </div>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${pct}%`, backgroundColor: color }} />
+              </div>
+            </div>
+          );
+        })}
+        <p className="text-xs text-gray-400 pt-2 border-t border-gray-50 italic">
+          Metric: count of active projects per phase enum value from <code className="bg-gray-50 px-1 rounded">project.phase</code>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Trial Status Panel ────────────────────────────────────────────────────────
+function TrialStatusPanel({ projects }) {
+  const trialCounts = { "Not Started": 0, "Scheduled": 0, "In Trial": 0, "Completed": 0 };
+  projects.forEach(p => {
+    if (p.trialStatus && trialCounts[p.trialStatus] !== undefined) trialCounts[p.trialStatus]++;
+  });
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <SectionHeader
+        icon={CheckCircle2}
+        iconColor="text-emerald-500"
+        title="Trial Run Status"
+        sub="Based on project.trialStatus field — across all projects"
+      />
+      <div className="p-5">
+        <div className="grid grid-cols-2 gap-3">
+          {Object.entries(trialCounts).map(([status, count]) => (
+            <div key={status} className="rounded-xl p-3 border border-gray-100 bg-gray-50 flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: TRIAL_COLORS[status] }} />
+              <div>
+                <p className="text-lg font-bold text-extra-darkblue">{count}</p>
+                <p className="text-xs text-gray-500">{status}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-50 italic">
+          Metric: count per <code className="bg-gray-50 px-1 rounded">project.trialStatus</code> enum value
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Pending Documents Panel ───────────────────────────────────────────────────
+function PendingDocsPanel({ documents }) {
+  const pending = documents
+    .filter(d => d.status === "pending")
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 6);
+
+  const DOC_TYPE_COLOR = {
+    qc: "bg-purple-50 text-purple-600",
+    installation: "bg-blue-50 text-blue-600",
+    "daily-report": "bg-amber-50 text-amber-600",
+    "trail-qc": "bg-red-50 text-red-500",
+    reference: "bg-gray-100 text-gray-500",
+    other: "bg-gray-100 text-gray-500",
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <SectionHeader
+        icon={FileText}
+        iconColor="text-orange-500"
+        title="Pending Document Approvals"
+        sub={`${documents.filter(d => d.status === 'pending').length} total awaiting review — sorted by upload date`}
+      />
+      <div className="divide-y divide-gray-50">
+        {pending.length === 0 ? (
+          <p className="px-5 py-8 text-sm text-gray-400 text-center">No pending documents.</p>
+        ) : (
+          pending.map(doc => (
+            <div key={doc._id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50/50 transition-colors">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-extra-darkblue truncate">{doc.title}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${DOC_TYPE_COLOR[doc.documentType] || DOC_TYPE_COLOR.other}`}>
+                    {doc.documentType}
+                  </span>
+                  <span className="text-xs text-gray-400">{doc.project?.name || "No project"}</span>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-xs text-gray-400">By {doc.uploadedBy?.name || "Unknown"}</p>
+                <p className="text-xs text-gray-300">{new Date(doc.createdAt).toLocaleDateString()}</p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      {pending.length > 0 && (
+        <div className="px-5 py-3 border-t border-gray-50">
+          <a href="/director/approval" className="text-xs font-semibold text-extra-blue hover:underline flex items-center gap-1">
+            Review all approvals <ChevronRight size={12} />
+          </a>
+        </div>
+      )}
+      <div className="px-5 py-2.5 border-t border-gray-50 bg-gray-50/40">
+        <p className="text-xs text-gray-400 italic">
+          Metric: <code className="bg-white px-1 rounded">document.status === &quot;pending&quot;</code> from <code className="bg-white px-1 rounded">GET /documents</code>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function DirectorDashboard() {
-  const [data, setData] = useState({ projects: [], documents: [], complaints: [] });
-  const [fetching, setFetching] = useState(true);
+  const [projects, setProjects] = useState([]);
+  const [complaints, setComplaints] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
-    setFetching(true);
-    const dashboardData = await api.fetchDashboardData();
-    setData(dashboardData);
-    setFetching(false);
+    try {
+      const [pRes, cRes, dRes, uRes] = await Promise.all([
+        apiFetch("/projects"),
+        apiFetch("/complaints"),
+        apiFetch("/documents"),
+        apiFetch("/admin/users"),
+      ]);
+      setProjects(safeArray(pRes, "projects"));
+      setComplaints(safeArray(cRes, "complaints"));
+      setDocuments(safeArray(dRes, "documents"));
+      setUsers(safeArray(uRes, "users"));
+    } catch (err) {
+      console.error("Dashboard load error:", err);
+    }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    setLoading(true);
+    loadData().finally(() => setLoading(false));
+  }, [loadData]);
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
 
-  // Derived Stats
-  const activeProjects = data.projects.filter(p => p.status !== "completed");
-  const totalActiveProjects = activeProjects.length;
-  const projectsAtRisk = activeProjects.filter(p => p.status === "on-hold" || (p.complaints?.length > 3)); // Dummy condition for risk if not explicit
-  const openComplaintsCount = data.complaints.filter(c => c.status === "open").length;
-  const pendingApprovalsCount = data.documents.filter(d => (d.status || "pending") === "pending").length;
+  // ── KPI Derivations (all annotated) ─────────────────────────────────────────
+  // projects.filter(p => p.status !== "completed")  →  active projects
+  const activeProjects = projects.filter(p => p.status !== "completed");
+  // complaints where status = "open" or "in-progress"
+  const activeComplaints = complaints.filter(c => c.status === "open" || c.status === "in-progress");
+  // documents where status = "pending"
+  const pendingDocs = documents.filter(d => d.status === "pending");
+  // users where status = "active"
+  const activeUsers = users.filter(u => u.status === "active");
 
-  const STATS = [
-    { label: "Total Active Projects", value: totalActiveProjects, trend: "+2 this month", up: true, icon: FolderKanban, color: "bg-lightblue text-extra-blue" },
-    { label: "Projects At Risk", value: projectsAtRisk.length, trend: "Requires attention", up: false, icon: AlertTriangle, color: "bg-red-50 text-red-500" },
-    { label: "Pending Approvals", value: pendingApprovalsCount, trend: "Docs awaiting review", up: false, icon: Clock, color: "bg-orange-50 text-orange-500" },
-    { label: "Open Complaints", value: openComplaintsCount, trend: "Requires action", up: false, icon: MessageSquareWarning, color: "bg-purple-50 text-purple-600" },
-  ];
+  // ── Project Status Donut data (from project.status enum) ─────────────────────
+  const projectStatusData = Object.entries(STATUS_COLORS).map(([s, color]) => ({
+    name: s, value: projects.filter(p => p.status === s).length, color,
+  }));
 
-  const AT_RISK_PROJECTS_MAPPED = activeProjects
-    .slice(0, 3) // Example dummy mapping using real projects
-    .map(p => ({
-      name: p.name,
-      delay: Math.floor(Math.random() * 15),
-      budgetOver: Math.floor(Math.random() * 20),
-      complaints: 0,
-      status: p.status === "on-hold" ? "At Risk" : "Budget Alert",
-      id: p._id
-    }));
+  // ── Complaint Priority Bar data (from complaint.priority enum) ───────────────
+  const complaintPriorityData = ["low", "medium", "high", "critical"].map(p => ({
+    name: p.charAt(0).toUpperCase() + p.slice(1),
+    value: complaints.filter(c => c.priority === p).length,
+    color: PRIORITY_COLORS[p],
+  }));
 
-  const PENDING_APPROVALS_MAPPED = data.documents
-    .filter(d => (d.status || "pending") === "pending")
-    .slice(0, 4)
-    .map((doc, idx) => ({
-      id: doc._id || `APR-00${idx}`,
-      type: doc.documentType || "Document",
-      project: doc.project?.name || doc.project || "Company Project",
-      priority: idx % 2 === 0 ? "high" : "medium",
-      amount: "N/A",
-      age: "2d",
-    }));
+  const complaintPriorityColors = {
+    Low: PRIORITY_COLORS.low,
+    Medium: PRIORITY_COLORS.medium,
+    High: PRIORITY_COLORS.high,
+    Critical: PRIORITY_COLORS.critical,
+  };
 
-  if (fetching) return <div className="py-10 text-gray-500 text-sm flex gap-2 items-center"><Loader size={16} className="animate-spin" /> Loading director dashboard...</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center py-24 gap-3 text-gray-400">
+      <Loader2 size={20} className="animate-spin" />
+      <span className="text-sm font-medium">Loading Director Analytics…</span>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
 
-      <div>
-        <h2 className="text-lg font-bold text-extra-darkblue">Director Dashboard</h2>
-        <p className="text-sm text-gray-400 mt-0.5">Executive overview</p>
+      {/* ── Page Header ──────────────────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-xl font-bold text-extra-darkblue">Director Dashboard</h2>
+          <p className="text-sm text-gray-400 mt-0.5">Live analytics from all projects, complaints & documents</p>
+        </div>
+        <button onClick={handleRefresh} disabled={refreshing}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50">
+          <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /> Refresh
+        </button>
       </div>
 
-      {/* Stats — 2 cols mobile, 4 desktop */}
+      {/* ── KPI Row ───────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {STATS.map(s => <StatCard key={s.label} {...s} />)}
+        <KPICard
+          label="Active Projects"
+          value={activeProjects.length}
+          icon={FolderKanban}
+          color="bg-blue-50 text-blue-600"
+          sub="Excludes status=completed"
+          loading={loading}
+        />
+        <KPICard
+          label="Active Complaints"
+          value={activeComplaints.length}
+          icon={AlertTriangle}
+          color="bg-amber-50 text-amber-600"
+          sub="Status: open or in-progress"
+          loading={loading}
+        />
+        <KPICard
+          label="Pending Documents"
+          value={pendingDocs.length}
+          icon={Clock}
+          color="bg-orange-50 text-orange-500"
+          sub="Awaiting director review"
+          loading={loading}
+        />
+        <KPICard
+          label="Active Team Members"
+          value={activeUsers.length}
+          icon={Users}
+          color="bg-emerald-50 text-emerald-600"
+          sub="User status=active"
+          loading={loading}
+        />
       </div>
 
+      {/* ── Charts Row 1 ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-        {/* At Risk Projects */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <AlertTriangle size={15} className="text-red-500" />
-              <h3 className="text-sm font-bold text-extra-darkblue">Projects At Risk (Overview)</h3>
-            </div>
-            <a href="/director/project" className="text-xs font-semibold text-extra-blue hover:underline flex items-center gap-1">
-              View all <ArrowRight size={11} />
-            </a>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {AT_RISK_PROJECTS_MAPPED.map(p => (
-              <div key={p.id} className="px-5 py-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-extra-darkblue">{p.name}</p>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${p.status === "At Risk" ? "bg-red-50 text-red-500" : "bg-amber-50 text-amber-600"}`}>
-                    {p.status}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-xs text-gray-500">
-                  <div>
-                    <p className="text-gray-400 mb-1">Estimated Delay</p>
-                    <MiniBar value={p.delay} max={21} color="#ef4444" />
-                  </div>
-                  <div>
-                    <p className="text-gray-400 mb-1">Budget Over %</p>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, p.budgetOver * 5)}%` }} />
-                      </div>
-                      <span className="text-xs font-bold text-amber-600 w-8 text-right">{p.budgetOver}%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {AT_RISK_PROJECTS_MAPPED.length === 0 && (
-              <p className="px-5 py-6 text-sm text-center text-gray-400">No projects currently at risk.</p>
-            )}
-          </div>
-        </div>
-
-        {/* Pending Approvals */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <Clock size={15} className="text-orange-500" />
-              <h3 className="text-sm font-bold text-extra-darkblue">Pending Approvals</h3>
-            </div>
-            <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">{PENDING_APPROVALS_MAPPED.length}</span>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {PENDING_APPROVALS_MAPPED.map(a => (
-              <div key={a.id} className="flex items-center gap-3 px-5 py-3.5">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-mono font-bold text-extra-blue truncate w-16">{a.id}</span>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PRIORITY_STYLE[a.priority] || PRIORITY_STYLE.medium}`}>{a.priority}</span>
-                  </div>
-                  <p className="text-sm font-semibold text-extra-darkblue mt-0.5">{a.type}</p>
-                  <p className="text-xs text-gray-400">{a.project}</p>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-xs text-gray-300">{a.age} ago</span>
-                  <a href="/director/approvals" className="text-xs font-bold px-3 py-1.5 rounded-lg bg-extra-darkblue text-white hover:bg-extra-blue transition-colors">Review</a>
-                </div>
-              </div>
-            ))}
-            {PENDING_APPROVALS_MAPPED.length === 0 && (
-              <p className="px-5 py-6 text-sm text-center text-gray-400">No pending approvals.</p>
-            )}
-          </div>
-        </div>
+        <DonutPanel
+          title="Project Status Distribution"
+          sub="Source: project.status enum — all projects"
+          icon={FolderKanban}
+          iconColor="text-blue-500"
+          data={projectStatusData}
+          note="Metric: count of projects per status enum value from GET /projects"
+        />
+        <BarPanel
+          title="Complaint Priority Breakdown"
+          sub="Source: complaint.priority enum — all complaints on record"
+          icon={AlertTriangle}
+          iconColor="text-amber-500"
+          data={complaintPriorityData}
+          colors={complaintPriorityColors}
+          note="Metric: count per priority level from GET /complaints"
+        />
       </div>
+
+      {/* ── Charts Row 2 ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <PhaseProgressPanel projects={projects} />
+        <TrialStatusPanel projects={projects} />
+      </div>
+
+      {/* ── Pending Documents ─────────────────────────────────────────────────── */}
+      <PendingDocsPanel documents={documents} />
+
     </div>
   );
 }
