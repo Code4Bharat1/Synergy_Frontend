@@ -4,8 +4,6 @@ import axiosInstance from "../lib/axios";
 export const loginUser = async (data) => {
   const response = await axiosInstance.post("/auth/login", data);
 
-  console.log(response);
-
   const { accessToken, user } = response.data;
 
   const minimalUser = {
@@ -27,4 +25,38 @@ export const logoutUser = async () => {
 
   localStorage.removeItem("accessToken");
   localStorage.removeItem("user");
+};
+
+/* ---------------- SWITCH ROLE ---------------- */
+export const switchRole = async (role) => {
+  const token = localStorage.getItem("accessToken");
+
+  const response = await axiosInstance.post(
+    "/auth/switch-role",
+    { role },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return response.data;
+};
+
+/* ---------------- RESTORE ROLE ---------------- */
+export const restoreRole = async () => {
+  const token = localStorage.getItem("accessToken");
+
+  const response = await axiosInstance.post(
+    "/auth/restore-role",
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return response.data;
 };

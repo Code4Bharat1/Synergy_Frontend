@@ -1,6 +1,9 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { switchRole, restoreRole } from "@/services/auth.service";
+
 import {
   FolderKanban, AlertTriangle, Clock, Users, FileText,
   RefreshCw, Loader2, TrendingUp, CheckCircle2, BarChart3,
@@ -11,6 +14,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend
 } from "recharts";
 import axiosInstance from "../../lib/axios";
+
 
 // ── API Helper ────────────────────────────────────────────────────────────────
 const apiFetch = async (path) => {
@@ -369,6 +373,7 @@ function PendingDocsPanel({ documents }) {
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function DirectorDashboard() {
   const router = useRouter();
+  const { user, switchUserRole, restoreUserRole } = useAuth();
   const [projects, setProjects] = useState([]);
   const [complaints, setComplaints] = useState([]);
   const [documents, setDocuments] = useState([]);
@@ -402,6 +407,45 @@ export default function DirectorDashboard() {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
+  };
+
+  /* ---------------- SWITCH ROLE ---------------- */
+  const handleSwitchRole = async (role) => {
+    try {
+      const res = await switchRole(role);
+
+      // store new access token with switched role
+      localStorage.setItem("accessToken", res.accessToken);
+
+      // update React context and user object in localStorage
+      switchUserRole(role, res.user?.originalRole || "director");
+
+      // redirect to selected role dashboard
+      window.location.href = `/${role === 'installationIncharge' ? 'installationIncharge' : role}`;
+
+    } catch (err) {
+      console.error("Switch role error:", err);
+    }
+  };
+
+
+  /* ---------------- RESTORE ROLE ---------------- */
+  const handleBackToDirector = async () => {
+    try {
+      const res = await restoreRole();
+
+      // restore director token
+      localStorage.setItem("accessToken", res.accessToken);
+
+      // restore user state to director
+      restoreUserRole();
+
+      // redirect to director dashboard
+      window.location.href = "/director";
+
+    } catch (err) {
+      console.error("Restore role error:", err);
+    }
   };
 
   // ── KPI Derivations (all annotated) ─────────────────────────────────────────
@@ -443,16 +487,33 @@ export default function DirectorDashboard() {
   return (
     <div className="space-y-6">
 
+
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
+
         <div>
-          <h2 className="text-xl font-bold text-extra-darkblue">Director Dashboard</h2>
-          <p className="text-sm text-gray-400 mt-0.5">Live analytics from all projects, complaints & documents</p>
+          <h2 className="text-xl font-bold text-extra-darkblue">
+            Director Dashboard
+          </h2>
+
+          <p className="text-sm text-gray-400 mt-0.5">
+            Live analytics from all projects, complaints & documents
+          </p>
         </div>
-        <button onClick={handleRefresh} disabled={refreshing}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50">
-          <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /> Refresh
-        </button>
+
+        <div className="flex items-center gap-2 flex-wrap">
+
+          {/* Refresh Button */}
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+            Refresh
+          </button>
+        </div>
+
       </div>
 
       {/* ── KPI Row ───────────────────────────────────────────────────────────── */}
