@@ -30,4 +30,9 @@
   "password": "qualityControl@123",
   "role": "qualityControl"
 
+  "email": "attendance@synergy.com",
+  "password": "attendance@123",
+  "role": "attendance"
+
+
   
