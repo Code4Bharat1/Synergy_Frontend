@@ -5,6 +5,7 @@ import {
   ChevronLeft, ChevronRight, HardHat, Clock, Users,
   CheckCircle2, XCircle, AlertCircle, TrendingUp,
   MapPin, Briefcase, Phone, X, Activity, ChevronDown,
+  CalendarDays,
 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
@@ -33,6 +34,26 @@ function fmtDuration(inIso, outIso) {
   const mins = Math.round((new Date(outIso) - new Date(inIso)) / 60000);
   if (mins <= 0) return "—";
   return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
+
+// ── Contract expiry helpers ───────────────────────────────────────────────────
+function isExpired(end) {
+  if (!end) return false;
+  return new Date(end) < new Date();
+}
+function daysLeft(end) {
+  if (!end) return null;
+  const diff = Math.ceil((new Date(end) - new Date()) / 86400000);
+  return diff;
+}
+function expiryLabel(end) {
+  if (!end) return null;
+  const d = daysLeft(end);
+  if (d < 0)  return { text: `Expired ${Math.abs(d)}d ago`, cls: "bg-red-50 text-red-600 border-red-200" };
+  if (d === 0) return { text: "Expires today",               cls: "bg-red-50 text-red-600 border-red-200" };
+  if (d <= 3)  return { text: `Expires in ${d}d`,            cls: "bg-amber-50 text-amber-700 border-amber-200" };
+  if (d <= 7)  return { text: `Expires in ${d}d`,            cls: "bg-yellow-50 text-yellow-700 border-yellow-200" };
+  return       { text: `Until ${fmtDate(end)}`,              cls: "bg-gray-100 text-gray-500 border-gray-200" };
 }
 
 const STATUS_CONFIG = {
@@ -99,7 +120,6 @@ function SectionCard({ icon: Icon, iconColor, iconBg, title, sub, children, acti
 function Pagination({ page, totalPages, onChange }) {
   if (totalPages <= 1) return null;
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
-  // show at most 5 page buttons around current
   let start = Math.max(1, page - 2);
   let end = Math.min(totalPages, start + 4);
   if (end - start < 4) start = Math.max(1, end - 4);
@@ -133,6 +153,8 @@ function RecordDetailPopup({ rec, onClose }) {
   const status = STATUS_CONFIG[rec.status] || STATUS_CONFIG.absent;
   const trade = worker.trade || "general";
   const tradeCls = TRADE_COLORS[trade] || TRADE_COLORS.general;
+  const expiry = expiryLabel(worker.assignmentEnd);
+  const expired = isExpired(worker.assignmentEnd);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
@@ -156,15 +178,15 @@ function RecordDetailPopup({ rec, onClose }) {
 
         {/* Date */}
         <div className="px-5 py-2.5 bg-gray-50 border-b border-gray-100">
-          <p className="text-xs text-gray-400 font-semibold">Date: <span className="text-gray-700">{fmtDate(rec.date)}</span></p>
+          <p className="text-xs text-gray-400 font-semibold">Attendance date: <span className="text-gray-700">{fmtDate(rec.date)}</span></p>
         </div>
 
         {/* Times */}
         <div className="px-5 py-4 grid grid-cols-3 gap-3 border-b border-gray-100">
           {[
-            { label: "Punch In", value: fmtTime(rec.punchInTime), color: "text-emerald-600" },
-            { label: "Punch Out", value: fmtTime(rec.punchOutTime), color: "text-red-500" },
-            { label: "Duration", value: fmtDuration(rec.punchInTime, rec.punchOutTime), color: "text-gray-700" },
+            { label: "Punch In",  value: fmtTime(rec.punchInTime),  color: "text-emerald-600" },
+            { label: "Punch Out", value: fmtTime(rec.punchOutTime), color: "text-red-500"     },
+            { label: "Duration",  value: fmtDuration(rec.punchInTime, rec.punchOutTime), color: "text-gray-700" },
           ].map(t => (
             <div key={t.label} className="bg-gray-50 rounded-xl px-3 py-2.5 text-center border border-gray-100">
               <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">{t.label}</p>
@@ -173,14 +195,41 @@ function RecordDetailPopup({ rec, onClose }) {
           ))}
         </div>
 
+        {/* ── Contract expiry ── */}
+        <div className="px-5 py-3 border-b border-gray-100">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Contract Period</p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+              <CalendarDays size={12} className="text-gray-400 shrink-0" />
+              <div>
+                <p className="text-[10px] text-gray-400 font-semibold">Start</p>
+                <p className="text-xs font-bold text-gray-700">{fmtDate(worker.assignmentStart)}</p>
+              </div>
+            </div>
+            <span className="text-gray-300 text-xs">→</span>
+            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+              <CalendarDays size={12} className={expired ? "text-red-400 shrink-0" : "text-gray-400 shrink-0"} />
+              <div>
+                <p className="text-[10px] text-gray-400 font-semibold">End</p>
+                <p className={`text-xs font-bold ${expired ? "text-red-500" : "text-gray-700"}`}>{fmtDate(worker.assignmentEnd)}</p>
+              </div>
+            </div>
+            {expiry && (
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${expiry.cls}`}>
+                {expiry.text}
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* Details */}
         <div className="px-5 py-4 space-y-3">
           {[
-            { icon: Phone, label: "Phone", value: worker.phone },
-            { icon: Briefcase, label: "Contractor", value: worker.contractor },
-            { icon: MapPin, label: "Site", value: worker.site || rec.site },
-            { icon: MapPin, label: "Zone", value: rec.zone || worker.zone },
-            { icon: HardHat, label: "Task", value: rec.taskAssigned },
+            { icon: Phone,    label: "Phone",      value: worker.phone       },
+            { icon: Briefcase,label: "Contractor", value: worker.contractor  },
+            { icon: MapPin,   label: "Site",       value: worker.site || rec.site },
+            { icon: MapPin,   label: "Zone",       value: rec.zone || worker.zone },
+            { icon: HardHat,  label: "Task",       value: rec.taskAssigned   },
           ].filter(f => f.value).map(f => (
             <div key={f.label} className="flex items-center gap-3">
               <div className="w-7 h-7 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0">
@@ -228,18 +277,21 @@ function RecordDetailPopup({ rec, onClose }) {
   );
 }
 
-// ── Record Card (compact) ─────────────────────────────────────────────────────
+// ── Record Card (compact list item) ──────────────────────────────────────────
 function RecordCard({ rec, onClick }) {
   const worker = rec.worker || {};
   const status = STATUS_CONFIG[rec.status] || STATUS_CONFIG.absent;
   const trade = worker.trade || "general";
   const tradeCls = TRADE_COLORS[trade] || TRADE_COLORS.general;
   const borderCls = status.border || "border-l-gray-200";
+  const expiry = expiryLabel(worker.assignmentEnd);
+  const expired = isExpired(worker.assignmentEnd);
 
   return (
     <button
       onClick={onClick}
       className={`w-full text-left bg-white rounded-xl border border-gray-100 border-l-4 ${borderCls} shadow-sm px-4 py-3 flex items-center gap-3 hover:shadow-md hover:border-gray-200 transition-all duration-150 active:scale-[0.99] group`}>
+
       {/* Avatar */}
       <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${avatarBg(worker.name)}`}>
         {worker.name?.charAt(0)?.toUpperCase() || "?"}
@@ -250,13 +302,19 @@ function RecordCard({ rec, onClick }) {
         <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm font-bold text-extra-darkblue truncate">{worker.name || "Unknown"}</p>
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border capitalize ${tradeCls}`}>{trade}</span>
+          {/* ── Expiry badge ── */}
+          {expiry && (
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${expiry.cls}`}>
+              {expiry.text}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400 flex-wrap">
-          {rec.punchInTime && <span className="text-emerald-600 font-medium">{fmtTime(rec.punchInTime)}</span>}
-          {rec.punchInTime && rec.punchOutTime && <span>→ {fmtTime(rec.punchOutTime)}</span>}
-          {rec.punchInTime && rec.punchOutTime && <span className="text-gray-500 font-medium">· {fmtDuration(rec.punchInTime, rec.punchOutTime)}</span>}
+          {rec.punchInTime  && <span className="text-emerald-600 font-medium">{fmtTime(rec.punchInTime)}</span>}
+          {rec.punchInTime  && rec.punchOutTime && <span>→ {fmtTime(rec.punchOutTime)}</span>}
+          {rec.punchInTime  && rec.punchOutTime && <span className="text-gray-500 font-medium">· {fmtDuration(rec.punchInTime, rec.punchOutTime)}</span>}
           {!rec.punchInTime && <span>Not punched in</span>}
-          {worker.site && <span>· {worker.site}</span>}
+          {worker.site      && <span>· {worker.site}</span>}
         </div>
       </div>
 
@@ -292,7 +350,7 @@ export default function SiteAttendanceViewPage() {
     try {
       const params = new URLSearchParams({ all: "true" });
       if (dateFrom) params.set("dateFrom", dateFrom);
-      if (dateTo) params.set("dateTo", dateTo);
+      if (dateTo)   params.set("dateTo", dateTo);
       const res = await fetch(`${API_BASE}/site-attendance/all?${params}`, { headers: authHeaders() });
       const ct = res.headers.get("content-type") || "";
       if (!ct.includes("application/json")) throw new Error("Server error — check API_BASE in .env");
@@ -316,13 +374,13 @@ export default function SiteAttendanceViewPage() {
       (r.worker?.contractor || "").toLowerCase().includes(search.toLowerCase());
     const mSite   = !siteFilter || (r.worker?.site || r.site) === siteFilter;
     const mStatus = statusFilter === "all" || r.status === statusFilter;
-    const mTrade  = tradeFilter === "all" || r.worker?.trade === tradeFilter;
+    const mTrade  = tradeFilter  === "all" || r.worker?.trade === tradeFilter;
     return ms && mSite && mStatus && mTrade;
   });
 
   const stats = {
     total:    filtered.length,
-    present:  filtered.filter(r => ["present", "late", "half-day"].includes(r.status)).length,
+    present:  filtered.filter(r => ["present","late","half-day"].includes(r.status)).length,
     absent:   filtered.filter(r => r.status === "absent" || r.status === "on-leave").length,
     late:     filtered.filter(r => r.status === "late").length,
     halfDay:  filtered.filter(r => r.status === "half-day").length,
@@ -330,48 +388,44 @@ export default function SiteAttendanceViewPage() {
     overtime: filtered.reduce((s, r) => s + (r.overtime || 0), 0),
   };
 
-  // Flatten for pagination (all records in date order)
-  const grouped = groupByDate(filtered);
-  const allSorted = grouped.flatMap(g => g.rows);
-  const totalPages = Math.ceil(allSorted.length / PAGE_SIZE);
-  const paginated = allSorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  // Re-group the paginated slice by date for headers
+  const grouped      = groupByDate(filtered);
+  const allSorted    = grouped.flatMap(g => g.rows);
+  const totalPages   = Math.ceil(allSorted.length / PAGE_SIZE);
+  const paginated    = allSorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const paginatedGrouped = groupByDate(paginated);
 
   const activeFilters = [siteFilter, statusFilter !== "all" && statusFilter, tradeFilter !== "all" && tradeFilter].filter(Boolean).length;
 
   const exportCSV = () => {
-    const headers = ["Name", "Trade", "Phone", "Contractor", "Site", "Zone", "Date", "Punch In", "Punch Out", "Duration", "Status", "OT (mins)", "Task", "Notes", "Marked By"];
+    const headers = ["Name","Trade","Phone","Contractor","Site","Zone","Date","Punch In","Punch Out","Duration","Status","OT (mins)","Task","Notes","Marked By","Contract End"];
     const rows = filtered.map(r => [
-      r.worker?.name || "", r.worker?.trade || "", r.worker?.phone || "",
-      r.worker?.contractor || "", r.worker?.site || r.site || "", r.zone || r.worker?.zone || "",
+      r.worker?.name||"", r.worker?.trade||"", r.worker?.phone||"",
+      r.worker?.contractor||"", r.worker?.site||r.site||"", r.zone||r.worker?.zone||"",
       fmtDate(r.date), fmtTime(r.punchInTime), fmtTime(r.punchOutTime),
-      fmtDuration(r.punchInTime, r.punchOutTime), r.status || "", r.overtime || 0,
-      r.taskAssigned || "", r.notes || "", r.markedBy?.name || r.markedBy?.email || "",
+      fmtDuration(r.punchInTime, r.punchOutTime), r.status||"", r.overtime||0,
+      r.taskAssigned||"", r.notes||"", r.markedBy?.name||r.markedBy?.email||"",
+      fmtDate(r.worker?.assignmentEnd),
     ]);
-    const csv = [headers, ...rows].map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = [headers,...rows].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    a.download = `attendance_${dateFrom}_to_${dateTo}.csv`;
-    a.click();
+    a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+    a.download = `workers_attendance_${dateFrom}_to_${dateTo}.csv`; a.click();
   };
 
   return (
     <div className="space-y-5">
 
-      {/* Detail popup */}
       {selectedRec && <RecordDetailPopup rec={selectedRec} onClose={() => setSelectedRec(null)} />}
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-xl font-bold text-extra-darkblue">Attendance Records</h2>
+          <h2 className="text-xl font-bold text-extra-darkblue">Worker's Attendance Records</h2>
           <p className="text-sm text-gray-400 mt-0.5">
             {fetching ? "Loading records…" : `${filtered.length} records · ${fmtDate(dateFrom)} – ${fmtDate(dateTo)}`}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Date range */}
           <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
             <Calendar size={13} className="text-blue-500 shrink-0" />
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
@@ -397,12 +451,12 @@ export default function SiteAttendanceViewPage() {
 
       {/* ── KPI Row ── */}
       {!fetching && records.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           {[
-            { label: "Total Records", value: stats.total,   icon: Users,        color: "bg-blue-50 text-blue-600"       },
-            { label: "Present",       value: stats.present, icon: CheckCircle2, color: "bg-emerald-50 text-emerald-600" },
-            { label: "Absent",        value: stats.absent,  icon: XCircle,      color: "bg-red-50 text-red-500"         },
-            { label: "Late / Half",   value: `${stats.late} · ${stats.halfDay}`, icon: AlertCircle, color: "bg-amber-50 text-amber-600" },
+            { label:"Total Records", value:stats.total,   icon:Users,        color:"bg-blue-50 text-blue-600"       },
+            { label:"Present",       value:stats.present, icon:CheckCircle2, color:"bg-emerald-50 text-emerald-600" },
+            { label:"Absent",        value:stats.absent,  icon:XCircle,      color:"bg-red-50 text-red-500"         },
+            { label:"Late / Half",   value:`Late: ${stats.late} | Half Day: ${stats.halfDay}`, icon:AlertCircle, color:"bg-amber-50 text-amber-600" },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${s.color}`}>
@@ -417,7 +471,7 @@ export default function SiteAttendanceViewPage() {
         </div>
       )}
 
-      {/* ── Status Breakdown — compact 2×3 grid instead of long bar ── */}
+      {/* ── Status Breakdown ── */}
       {!fetching && records.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -429,21 +483,21 @@ export default function SiteAttendanceViewPage() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[
-              { label: "Present",  value: stats.present, pct: filtered.length ? Math.round((stats.present / filtered.length) * 100) : 0,  color: "bg-emerald-500", light: "bg-emerald-50 text-emerald-700" },
-              { label: "Absent",   value: stats.absent,  pct: filtered.length ? Math.round((stats.absent  / filtered.length) * 100) : 0,  color: "bg-red-400",     light: "bg-red-50 text-red-600"         },
-              { label: "Late",     value: stats.late,    pct: filtered.length ? Math.round((stats.late    / filtered.length) * 100) : 0,  color: "bg-amber-400",   light: "bg-amber-50 text-amber-700"     },
-              { label: "Half Day", value: stats.halfDay, pct: filtered.length ? Math.round((stats.halfDay / filtered.length) * 100) : 0,  color: "bg-purple-400",  light: "bg-purple-50 text-purple-700"   },
-              { label: "On Leave", value: stats.onLeave, pct: filtered.length ? Math.round((stats.onLeave / filtered.length) * 100) : 0,  color: "bg-sky-400",     light: "bg-sky-50 text-sky-700"         },
-              { label: "OT (min)", value: stats.overtime, pct: null, color: "bg-blue-400", light: "bg-blue-50 text-blue-700" },
+              { label:"Present",  value:stats.present, pct:filtered.length?Math.round((stats.present/filtered.length)*100):0, color:"bg-emerald-500", light:"bg-emerald-50 text-emerald-700" },
+              { label:"Absent",   value:stats.absent,  pct:filtered.length?Math.round((stats.absent/filtered.length)*100):0,  color:"bg-red-400",     light:"bg-red-50 text-red-600"         },
+              { label:"Late",     value:stats.late,    pct:filtered.length?Math.round((stats.late/filtered.length)*100):0,    color:"bg-amber-400",   light:"bg-amber-50 text-amber-700"     },
+              { label:"Half Day", value:stats.halfDay, pct:filtered.length?Math.round((stats.halfDay/filtered.length)*100):0, color:"bg-purple-400",  light:"bg-purple-50 text-purple-700"   },
+              { label:"On Leave", value:stats.onLeave, pct:filtered.length?Math.round((stats.onLeave/filtered.length)*100):0, color:"bg-sky-400",     light:"bg-sky-50 text-sky-700"         },
+              { label:"OT (min)", value:stats.overtime,pct:null,                                                               color:"bg-blue-400",    light:"bg-blue-50 text-blue-700"       },
             ].map(s => (
-              <div key={s.label} className={`rounded-xl px-3 py-2.5 ${s.light} border border-transparent`}>
+              <div key={s.label} className={`rounded-xl px-3 py-2.5 ${s.light}`}>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-semibold">{s.label}</span>
                   <span className="text-sm font-bold">{s.value}</span>
                 </div>
                 {s.pct !== null && (
                   <div className="w-full bg-white/60 rounded-full h-1.5 overflow-hidden">
-                    <div className={`h-full rounded-full ${s.color} transition-all duration-700`} style={{ width: `${s.pct}%` }} />
+                    <div className={`h-full rounded-full ${s.color} transition-all duration-700`} style={{width:`${s.pct}%`}} />
                   </div>
                 )}
               </div>
@@ -462,9 +516,9 @@ export default function SiteAttendanceViewPage() {
               className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-gray-800 placeholder-gray-300" />
           </div>
           {[
-            { label: "Site", value: siteFilter, set: setSiteFilter, opts: sites.map(s => ({ v: s, l: s })) },
-            { label: "Status", value: statusFilter, set: setStatusFilter, opts: Object.entries(STATUS_CONFIG).map(([v, s]) => ({ v, l: s.label })) },
-            { label: "Trade", value: tradeFilter, set: setTradeFilter, opts: trades.map(t => ({ v: t, l: t.charAt(0).toUpperCase() + t.slice(1) })) },
+            { label:"Site",   value:siteFilter,   set:setSiteFilter,   opts:sites.map(s=>({v:s,l:s})) },
+            { label:"Status", value:statusFilter, set:setStatusFilter, opts:Object.entries(STATUS_CONFIG).map(([v,s])=>({v,l:s.label})) },
+            { label:"Trade",  value:tradeFilter,  set:setTradeFilter,  opts:trades.map(t=>({v:t,l:t.charAt(0).toUpperCase()+t.slice(1)})) },
           ].map(f => (
             <div key={f.label}>
               <label className="text-xs font-semibold text-gray-500 block mb-1">{f.label}</label>
@@ -484,7 +538,7 @@ export default function SiteAttendanceViewPage() {
         </div>
       )}
 
-      {/* Quick search (when filter panel hidden) */}
+      {/* Quick search */}
       {!showFilters && (
         <div className="relative">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
@@ -508,10 +562,9 @@ export default function SiteAttendanceViewPage() {
         title="Attendance Log"
         sub={fetching ? "Loading…" : `${filtered.length} records${filtered.length !== records.length ? ` (filtered from ${records.length})` : ""}${totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ""}`}>
 
-        {/* Skeleton */}
         {fetching && (
           <div className="space-y-2">
-            {[1, 2, 3, 4, 5].map(i => (
+            {[1,2,3,4,5].map(i => (
               <div key={i} className="rounded-xl border border-gray-100 p-3 animate-pulse flex items-center gap-3 bg-gray-50">
                 <div className="w-9 h-9 rounded-full bg-gray-200 shrink-0" />
                 <div className="flex-1 space-y-2">
@@ -524,7 +577,6 @@ export default function SiteAttendanceViewPage() {
           </div>
         )}
 
-        {/* Empty */}
         {!fetching && filtered.length === 0 && !error && (
           <div className="py-12 text-center">
             <p className="text-4xl mb-3">📋</p>
@@ -538,12 +590,10 @@ export default function SiteAttendanceViewPage() {
           </div>
         )}
 
-        {/* Record cards grouped by date */}
         {!fetching && paginated.length > 0 && (
           <div className="space-y-4">
             {paginatedGrouped.map(({ date, rows }) => (
               <div key={date}>
-                {/* Date header */}
                 <div className="flex items-center gap-3 mb-2">
                   <div className="bg-extra-darkblue text-white text-xs font-bold px-3 py-1 rounded-lg whitespace-nowrap">{fmtDate(date)}</div>
                   <div className="flex-1 h-px bg-gray-100" />

@@ -171,7 +171,7 @@ export default function RoleAssignment() {
       {projects.length === 0 && <p className="text-sm text-gray-400">No projects found.</p>}
 
       {/* ── 2 project cards per row ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-5">
         {projects.map(project => {
           const a = assignments[project._id] || { engineers: [], qc: [], complaints: [] };
           const isSaving = savingId === project._id;

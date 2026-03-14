@@ -5,7 +5,7 @@ import {
   FolderOpen, AlertTriangle, CheckSquare, ChevronRight,
   MapPin, Loader2, ArrowLeft, User, Calendar, Package,
   CheckCircle2, XCircle, Clock, Search, ClipboardList,
-  Edit2, X, Save, Loader, ListTodo, ChevronDown,
+  Edit2, X, Save, Loader, ListTodo, ChevronDown, FileText, Eye, ExternalLink
 } from "lucide-react";
 import { PageHeader, Card, SectionHead, StatusPill, FONTS } from "./shared";
 import axiosInstance from "../../lib/axios";
@@ -502,7 +502,25 @@ function ProjectTaskChecklist({ projectId, engineerId }) {
 function ProjectDetail({ project, onBack, onProjectUpdated }) {
   const [editOpen,      setEditOpen]      = useState(false);
   const [localProject,  setLocalProject]  = useState(project);
+  const [documents,     setDocuments]     = useState([]);
+  const [docsLoading,   setDocsLoading]   = useState(false);
   const engineerId = getCurrentEngineerId();
+
+  useEffect(() => {
+    const fetchDocs = async () => {
+      setDocsLoading(true);
+      try {
+        const data = await apiFetch("/documents");
+        const allDocs = Array.isArray(data) ? data : (data.documents || []);
+        setDocuments(allDocs.filter(d => (d.project?._id || d.project) === project._id));
+      } catch (err) {
+        console.error("Failed to load documents", err);
+      } finally {
+        setDocsLoading(false);
+      }
+    };
+    if (project?._id) fetchDocs();
+  }, [project._id]);
 
   const checks   = localProject.eligibilityChecks || {};
   const phase    = localProject.phase || "Site Preparation";
@@ -729,6 +747,44 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
                 <p className="text-xs text-center py-4" style={{ color: "#4988C4" }}>No team members assigned yet.</p>
               )}
             </div>
+          </Card>
+
+          <Card style={{ padding: "22px" }}>
+            <SectionHead icon={<FileText size={16} color="#BDE8F5" />} title="Uploaded Documents" />
+            {docsLoading ? (
+              <div className="flex items-center justify-center gap-2 py-4" style={{ color: "#94aac4" }}>
+                <Loader size={14} className="animate-spin" /> <span className="text-xs">Loading documents...</span>
+              </div>
+            ) : documents.length === 0 ? (
+              <p className="text-xs text-center py-4" style={{ color: "#4988C4" }}>No documents uploaded for this project yet.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {documents.map(doc => (
+                  <div key={doc._id} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl" style={{ background: "rgba(73,136,196,0.04)", border: "1px solid rgba(73,136,196,0.1)" }}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center" style={{ background: "#f0f4fa", color: "#4988C4" }}>
+                        <FileText size={14} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold truncate m-0" style={{ color: "#0F2854" }}>{doc.title || doc.name || "Untitled"}</p>
+                        <p className="text-[10px] m-0 flex gap-1.5" style={{ color: "#4988C4" }}>
+                          <span className="capitalize">{doc.documentType || "Other"}</span>
+                          <span>•</span>
+                          <span>{new Date(doc.createdAt).toLocaleDateString("en-GB",{day:"2-digit",month:"short"})}</span>
+                        </p>
+                      </div>
+                    </div>
+                    {doc.url && typeof doc.url === "string" && doc.url.startsWith("http") ? (
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="shrink-0 p-2 rounded-lg flex items-center justify-center" style={{ background: "#eef2f8", color: "#4988C4" }} title="View Document">
+                        <Eye size={13} />
+                      </a>
+                    ) : (
+                      <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-md" style={{ background: "#f0f4fa", color: "#94aac4" }}>Pending</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
       </div>

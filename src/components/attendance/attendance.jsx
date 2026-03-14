@@ -203,17 +203,26 @@ function SectionCard({ icon: Icon, iconColor, iconBg, title, sub, children, acti
 
 // ── Add Worker Modal ──────────────────────────────────────────────────────────
 function AddWorkerModal({ site, onClose, onAdded }) {
-  const [form, setForm] = useState({ name:"", phone:"", trade:"general", contractor:"", idProof:"", zone:"", durationDays:1 });
+  const [form, setForm] = useState({ name:"", phone:"", trade:"general", contractor:"", idProof:"", zone:"", durationDays:1, customDays:"", customUnit:"days" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const set = (k, v) => setForm(f => ({...f, [k]: v}));
-  const expiry = new Date(); expiry.setDate(expiry.getDate() + Number(form.durationDays));
+  // Expiry preview — respects custom date mode
+  const expiry = (() => {
+    if (form.durationMode === "custom" && form.customEnd) return new Date(form.customEnd);
+    const d = new Date(); d.setDate(d.getDate() + Number(form.durationDays)); return d;
+  })();
 
   const handleSubmit = async () => {
     if (!form.name.trim()) { setError("Name is required"); return; }
+    if (form.durationMode === "custom" && !form.customEnd) { setError("Pick a custom end date"); return; }
     setSaving(true); setError("");
     try {
-      const worker = await api.createWorker({...form, site});
+      // Build payload — custom mode sends assignmentStart+End, quick mode sends durationDays
+      const payload = form.durationMode === "custom"
+        ? { ...form, site, assignmentStart: form.customStart || todayISO(), assignmentEnd: form.customEnd, durationDays: undefined }
+        : { ...form, site };
+      const worker = await api.createWorker(payload);
       onAdded(worker); onClose();
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
@@ -295,21 +304,117 @@ function AddWorkerModal({ site, onClose, onAdded }) {
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-600 block mb-2">
-              Contract Duration <span className="text-gray-400 font-normal">(auto-deactivates)</span>
+              Active Until <span className="text-gray-400 font-normal">(worker auto-deactivates after this)</span>
             </label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {DURATION_OPTIONS.map(d => (
-                <button key={d.days} type="button" onClick={() => set("durationDays", d.days)}
-                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                    form.durationDays === d.days ? "bg-extra-darkblue text-white border-extra-darkblue" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
-                  }`}>{d.label}</button>
+
+            {/* Toggle: Quick pick vs Custom date */}
+            <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-2">
+              {["quick", "custom"].map(m => (
+                <button key={m} type="button" onClick={() => set("durationMode", m)}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    (form.durationMode || "quick") === m ? "bg-white text-extra-darkblue shadow-sm" : "text-gray-400"
+                  }`}>
+                  {m === "quick" ? "⚡ Quick Pick" : "📅 Custom Date"}
+                </button>
               ))}
             </div>
+
+            {/* Quick pick grid */}
+            {(form.durationMode || "quick") === "quick" && (
+              <div className="space-y-2">
+                <div className="grid grid-cols-4 gap-1.5">
+                  {DURATION_OPTIONS.map(d => (
+                    <button key={d.days} type="button"
+                      onClick={() => { set("durationDays", d.days); set("customDays", ""); }}
+                      className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                        form.durationDays === d.days && !form.customDays ? "bg-extra-darkblue text-white border-extra-darkblue" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+                      }`}>{d.label}</button>
+                  ))}
+                </div>
+                {/* Custom duration input with unit selector */}
+                <div className={`flex items-center gap-2 border rounded-xl px-3 py-2 transition-all ${form.customDays ? "border-extra-darkblue bg-blue-50/30" : "border-gray-200 bg-white"}`}>
+                  <span className="text-xs font-semibold text-gray-400 shrink-0">Custom:</span>
+                  <input
+                    type="number" min="1" max="999"
+                    placeholder="e.g. 4"
+                    value={form.customDays || ""}
+                    onChange={e => {
+                      const val = e.target.value;
+                      set("customDays", val);
+                      const unit = form.customUnit || "days";
+                      if (val && Number(val) > 0) {
+                        const multiplier = unit === "weeks" ? 7 : unit === "months" ? 30 : 1;
+                        set("durationDays", Number(val) * multiplier);
+                      }
+                    }}
+                    className="w-16 text-sm outline-none bg-transparent font-bold text-extra-darkblue placeholder-gray-300"
+                  />
+                  {/* Unit selector pills */}
+                  <div className="flex items-center gap-1 ml-auto">
+                    {["days","weeks","months"].map(u => (
+                      <button key={u} type="button"
+                        onClick={() => {
+                          set("customUnit", u);
+                          if (form.customDays && Number(form.customDays) > 0) {
+                            const multiplier = u === "weeks" ? 7 : u === "months" ? 30 : 1;
+                            set("durationDays", Number(form.customDays) * multiplier);
+                          }
+                        }}
+                        className={`px-2 py-0.5 rounded-lg text-xs font-bold transition-all ${
+                          (form.customUnit || "days") === u
+                            ? "bg-extra-darkblue text-white"
+                            : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                        }`}>{u}</button>
+                    ))}
+                    {form.customDays && (
+                      <button type="button" onClick={() => { set("customDays", ""); set("durationDays", 1); }}
+                        className="ml-1 text-gray-300 hover:text-red-400 transition-colors text-xs">✕</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Custom date picker */}
+            {form.durationMode === "custom" && (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Start Date</label>
+                    <input type="date"
+                      value={form.customStart || todayISO()}
+                      onChange={e => set("customStart", e.target.value)}
+                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-gray-700"/>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">End Date</label>
+                    <input type="date"
+                      value={form.customEnd || ""}
+                      min={form.customStart || todayISO()}
+                      onChange={e => set("customEnd", e.target.value)}
+                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-gray-700"/>
+                  </div>
+                </div>
+                {form.customStart && form.customEnd && (
+                  <p className="text-xs text-gray-400">
+                    Duration: <span className="font-semibold text-gray-600">
+                      {Math.round((new Date(form.customEnd) - new Date(form.customStart)) / 86400000)} days
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Expiry preview */}
             <div className="mt-3 flex items-start gap-2 bg-amber-50 border border-amber-100 px-3 py-2.5 rounded-xl">
               <CalendarDays size={13} className="text-amber-500 shrink-0 mt-0.5"/>
               <div className="text-xs text-amber-700">
                 <p className="font-semibold">Auto-deactivates: {fmtDate(expiry)}</p>
-                <p className="text-amber-500 mt-0.5">{form.durationDays === 1 ? "Today only." : `Active for ${form.durationDays} days.`}</p>
+                <p className="text-amber-500 mt-0.5">
+                  {form.durationMode === "custom"
+                    ? form.customEnd ? `From ${fmtDate(form.customStart || todayISO())} to ${fmtDate(form.customEnd)}` : "Pick an end date above"
+                    : form.durationDays === 1 ? "Today only." : `Active for ${form.durationDays} days from today.`}
+                </p>
               </div>
             </div>
           </div>
@@ -328,15 +433,37 @@ function AddWorkerModal({ site, onClose, onAdded }) {
 
 // ── Renew Contract Modal ──────────────────────────────────────────────────────
 function RenewModal({ worker, onClose, onRenewed }) {
-  const [durationDays, setDurationDays] = useState(30);
+  const [durationDays,    setDurationDays]    = useState(30);
+  const [customDaysInput, setCustomDaysInput] = useState("");
+  const [customUnit,      setCustomUnit]      = useState("days");
+  const [mode,            setMode]            = useState("quick");
+  const [customStart,     setCustomStart]     = useState(todayISO());
+  const [customEnd,       setCustomEnd]       = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const expiry = new Date(); expiry.setDate(expiry.getDate() + durationDays);
+  const [error,  setError]  = useState("");
+
+  const expiry = (() => {
+    if (mode === "custom" && customEnd) return new Date(customEnd);
+    const d = new Date(); d.setDate(d.getDate() + durationDays); return d;
+  })();
 
   const handleRenew = async () => {
+    if (mode === "custom" && !customEnd) { setError("Pick a custom end date"); return; }
     setSaving(true); setError("");
     try {
-      const updated = await api.renewWorker(worker._id, durationDays);
+      // For custom mode, pass dates directly via updateWorker patch
+      let updated;
+      if (mode === "custom") {
+        const res = await fetch(`${API_BASE}/site-workers/${worker._id}`, {
+          method: "PATCH", headers: authHeaders(),
+          body: JSON.stringify({ assignmentStart: customStart, assignmentEnd: customEnd, isActive: true }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Failed to renew");
+        updated = data.worker;
+      } else {
+        updated = await api.renewWorker(worker._id, durationDays);
+      }
       onRenewed(updated); onClose();
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
@@ -371,21 +498,104 @@ function RenewModal({ worker, onClose, onRenewed }) {
             </p>
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-600 block mb-2">Extend by</label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {DURATION_OPTIONS.map(d => (
-                <button key={d.days} type="button" onClick={() => setDurationDays(d.days)}
-                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                    durationDays === d.days ? "bg-extra-darkblue text-white border-extra-darkblue" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
-                  }`}>{d.label}</button>
+            <label className="text-xs font-semibold text-gray-600 block mb-2">Extend until</label>
+
+            {/* Mode toggle */}
+            <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-2">
+              {["quick", "custom"].map(m => (
+                <button key={m} type="button" onClick={() => setMode(m)}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    mode === m ? "bg-white text-extra-darkblue shadow-sm" : "text-gray-400"
+                  }`}>
+                  {m === "quick" ? "⚡ Quick Pick" : "📅 Custom Date"}
+                </button>
               ))}
             </div>
+
+            {mode === "quick" && (
+              <div className="space-y-2">
+                <div className="grid grid-cols-4 gap-1.5">
+                  {DURATION_OPTIONS.map(d => (
+                    <button key={d.days} type="button"
+                      onClick={() => { setDurationDays(d.days); setCustomDaysInput(""); }}
+                      className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                        durationDays === d.days && !customDaysInput ? "bg-extra-darkblue text-white border-extra-darkblue" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+                      }`}>{d.label}</button>
+                  ))}
+                </div>
+                {/* Custom duration input with unit selector */}
+                <div className={`flex items-center gap-2 border rounded-xl px-3 py-2 transition-all ${customDaysInput ? "border-extra-darkblue bg-blue-50/30" : "border-gray-200 bg-white"}`}>
+                  <span className="text-xs font-semibold text-gray-400 shrink-0">Custom:</span>
+                  <input
+                    type="number" min="1" max="999"
+                    placeholder="e.g. 4"
+                    value={customDaysInput}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setCustomDaysInput(val);
+                      if (val && Number(val) > 0) {
+                        const multiplier = customUnit === "weeks" ? 7 : customUnit === "months" ? 30 : 1;
+                        setDurationDays(Number(val) * multiplier);
+                      }
+                    }}
+                    className="w-16 text-sm outline-none bg-transparent font-bold text-extra-darkblue placeholder-gray-300"
+                  />
+                  <div className="flex items-center gap-1 ml-auto">
+                    {["days","weeks","months"].map(u => (
+                      <button key={u} type="button"
+                        onClick={() => {
+                          setCustomUnit(u);
+                          if (customDaysInput && Number(customDaysInput) > 0) {
+                            const multiplier = u === "weeks" ? 7 : u === "months" ? 30 : 1;
+                            setDurationDays(Number(customDaysInput) * multiplier);
+                          }
+                        }}
+                        className={`px-2 py-0.5 rounded-lg text-xs font-bold transition-all ${
+                          customUnit === u
+                            ? "bg-extra-darkblue text-white"
+                            : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                        }`}>{u}</button>
+                    ))}
+                    {customDaysInput && (
+                      <button type="button" onClick={() => { setCustomDaysInput(""); setDurationDays(30); }}
+                        className="ml-1 text-gray-300 hover:text-red-400 transition-colors text-xs">✕</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {mode === "custom" && (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Start</label>
+                    <input type="date" value={customStart}
+                      onChange={e => setCustomStart(e.target.value)}
+                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 text-gray-700"/>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">End</label>
+                    <input type="date" value={customEnd} min={customStart}
+                      onChange={e => setCustomEnd(e.target.value)}
+                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 text-gray-700"/>
+                  </div>
+                </div>
+                {customStart && customEnd && (
+                  <p className="text-xs text-gray-400">Duration: <span className="font-semibold text-gray-600">{Math.round((new Date(customEnd)-new Date(customStart))/86400000)} days</span></p>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-100 px-3 py-2.5 rounded-xl">
             <CalendarDays size={13} className="text-emerald-500 shrink-0 mt-0.5"/>
             <div className="text-xs text-emerald-700">
               <p className="font-semibold">New expiry: {fmtDate(expiry)}</p>
-              <p className="text-emerald-500 mt-0.5">Renewed from today for {durationDays} days.</p>
+              <p className="text-emerald-500 mt-0.5">
+                {mode === "custom"
+                  ? customEnd ? `${fmtDate(customStart)} → ${fmtDate(customEnd)}` : "Pick an end date above"
+                  : `Renewed from today for ${durationDays} days.`}
+              </p>
             </div>
           </div>
         </div>
@@ -401,8 +611,124 @@ function RenewModal({ worker, onClose, onRenewed }) {
   );
 }
 
+// ── Deactivate Confirm Modal ──────────────────────────────────────────────────
+const DEACTIVATE_REASONS = [
+  { value: "contract_ended",  label: "Contract Ended",   icon: "📅" },
+  { value: "absent_long",     label: "Long Absence",     icon: "🚫" },
+  { value: "misconduct",      label: "Misconduct",       icon: "⚠️" },
+  { value: "work_completed",  label: "Work Completed",   icon: "✅" },
+  { value: "other",           label: "Other",            icon: "📝" },
+];
+
+function DeactivateModal({ worker, onClose, onDeactivated }) {
+  const [reason,  setReason]  = useState("contract_ended");
+  const [notes,   setNotes]   = useState("");
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState("");
+
+  const handleDeactivate = async () => {
+    setSaving(true); setError("");
+    try {
+      await api.deactivateWorker(worker._id);
+      onDeactivated(worker._id, reason, notes);
+      onClose();
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center">
+              <Trash2 size={15} className="text-red-500"/>
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-extra-darkblue">Deactivate Worker</h3>
+              <p className="text-xs text-gray-400">{worker.name} · {worker.trade}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={15}/></button>
+        </div>
+
+        <div className="p-4 space-y-3">
+          {error && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-100 text-red-600 text-xs px-3 py-2.5 rounded-xl">
+              <AlertCircle size={13}/> {error}
+            </div>
+          )}
+
+          {/* Worker summary */}
+          <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${avatarBg(worker.name)}`}>
+              {worker.name?.charAt(0)?.toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-extra-darkblue truncate">{worker.name}</p>
+              <p className="text-xs text-gray-400">
+                {worker.contractor && `${worker.contractor} · `}
+                Contract ends {fmtDate(worker.assignmentEnd)}
+              </p>
+            </div>
+          </div>
+
+          {/* Reason selector */}
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-2">Reason for deactivation</label>
+            <div className="grid grid-cols-1 gap-1.5">
+              {DEACTIVATE_REASONS.map(r => (
+                <button key={r.value} type="button" onClick={() => setReason(r.value)}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold border transition-all text-left ${
+                    reason === r.value
+                      ? "bg-red-50 border-red-200 text-red-700"
+                      : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                  }`}>
+                  <span className="text-base shrink-0">{r.icon}</span>
+                  {r.label}
+                  {reason === r.value && <span className="ml-auto text-red-500">✓</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">
+              Additional notes <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Any additional context..."
+              rows={2}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-gray-700 placeholder-gray-300 resize-none"
+            />
+          </div>
+
+          {/* Warning */}
+          <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 px-3 py-2.5 rounded-xl">
+            <span className="text-amber-500 shrink-0 mt-0.5">⚠️</span>
+            <p className="text-xs text-amber-700">
+              Worker will be moved to <strong>Inactive</strong>. Their attendance history is preserved. You can re-activate anytime via <strong>Renew Contract</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 px-4 pb-4">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-colors">Cancel</button>
+          <button onClick={handleDeactivate} disabled={saving}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold disabled:opacity-40 transition-all active:scale-95">
+            {saving ? <><RefreshCw size={13} className="animate-spin"/> Deactivating…</> : <><Trash2 size={13}/> Deactivate</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Worker Detail Popup ───────────────────────────────────────────────────────
-function WorkerDetailPopup({ worker, record, onClose, onChange, onAutoSave, onRemove, onRenew }) {
+function WorkerDetailPopup({ worker, record, onClose, onChange, onAutoSave, onDeactivate, onRenew }) {
   const trade = worker.trade || "general";
   const tradeCls = TRADE_COLORS[trade] || TRADE_COLORS.general;
   const autoStatus = calcStatus(record.punchInTime, record.punchOutTime);
@@ -487,17 +813,11 @@ function WorkerDetailPopup({ worker, record, onClose, onChange, onAutoSave, onRe
                 className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-gray-700 placeholder-gray-300 bg-white"/>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1.5">Task</label>
-              <input type="text" placeholder="Today's task" value={record.taskAssigned || ""}
-                onChange={e => onChange({...record, taskAssigned: e.target.value})}
+              <label className="text-xs font-semibold text-gray-500 block mb-1.5">Notes</label>
+              <input type="text" placeholder="Any notes..." value={record.notes || ""}
+                onChange={e => onChange({...record, notes: e.target.value})}
                 className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-gray-700 placeholder-gray-300 bg-white"/>
             </div>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1.5">Notes</label>
-            <input type="text" placeholder="Any notes..." value={record.notes || ""}
-              onChange={e => onChange({...record, notes: e.target.value})}
-              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-gray-700 placeholder-gray-300 bg-white"/>
           </div>
         </div>
 
@@ -506,7 +826,8 @@ function WorkerDetailPopup({ worker, record, onClose, onChange, onAutoSave, onRe
             className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-blue-200 text-blue-600 text-xs font-bold hover:bg-blue-50 transition-all">
             <RotateCcw size={12}/> Renew
           </button>
-          <button onClick={() => { onRemove(worker._id); onClose(); }}
+          {/* ── Deactivate now opens modal instead of directly deactivating ── */}
+          <button onClick={() => { onDeactivate(worker); onClose(); }}
             className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-all">
             <Trash2 size={12}/> Deactivate
           </button>
@@ -736,6 +1057,7 @@ export default function SiteAttendanceMarkPage() {
   const [toast, setToast] = useState(null);
   const [showIdLookup, setShowIdLookup] = useState(false);
   const [renewingWorker, setRenewingWorker] = useState(null);
+  const [deactivatingWorker, setDeactivatingWorker] = useState(null); // ← new
   const [detailWorker, setDetailWorker] = useState(null);
   const [page, setPage] = useState(1);
   const [inactivePage, setInactivePage] = useState(1);
@@ -815,15 +1137,13 @@ export default function SiteAttendanceMarkPage() {
     showToast(`${worker.name} added to roster`, "success");
   };
 
-  const handleRemove = async (id) => {
-    try {
-      await api.deactivateWorker(id);
-      const deactivated = workers.find(w => w._id === id);
-      setWorkers(prev => prev.filter(w => w._id !== id));
-      setRecords(prev => { const n = {...prev}; delete n[id]; return n; });
-      if (deactivated) setInactiveWorkers(prev => [{ ...deactivated, isActive: false }, ...prev]);
-      showToast("Worker deactivated — find them in Inactive Workers below", "success");
-    } catch (err) { showToast(err.message); }
+  // ── handleRemove now just deactivates (called from DeactivateModal) ──
+  const handleDeactivated = (id) => {
+    const deactivated = workers.find(w => w._id === id);
+    setWorkers(prev => prev.filter(w => w._id !== id));
+    setRecords(prev => { const n = {...prev}; delete n[id]; return n; });
+    if (deactivated) setInactiveWorkers(prev => [{ ...deactivated, isActive: false }, ...prev]);
+    showToast("Worker deactivated — find them in Inactive Workers below", "success");
   };
 
   const handleRenewed = (updatedWorker) => {
@@ -881,17 +1201,18 @@ export default function SiteAttendanceMarkPage() {
   return (
     <div className="space-y-4 pb-6">
 
-      {showModal     && <AddWorkerModal site={site} onClose={() => setShowModal(false)} onAdded={handleWorkerAdded}/>}
-      {renewingWorker && <RenewModal worker={renewingWorker} onClose={() => setRenewingWorker(null)} onRenewed={handleRenewed}/>}
-      {showIdLookup  && <IdLookupModal onClose={() => setShowIdLookup(false)} onRenew={setRenewingWorker}/>}
-      {detailWorker  && (
+      {showModal        && <AddWorkerModal site={site} onClose={() => setShowModal(false)} onAdded={handleWorkerAdded}/>}
+      {renewingWorker   && <RenewModal worker={renewingWorker} onClose={() => setRenewingWorker(null)} onRenewed={handleRenewed}/>}
+      {deactivatingWorker && <DeactivateModal worker={deactivatingWorker} onClose={() => setDeactivatingWorker(null)} onDeactivated={handleDeactivated}/>}
+      {showIdLookup     && <IdLookupModal onClose={() => setShowIdLookup(false)} onRenew={setRenewingWorker}/>}
+      {detailWorker     && (
         <WorkerDetailPopup
           worker={detailWorker}
           record={records[detailWorker._id] || { workerId: detailWorker._id, status: "absent" }}
           onClose={() => setDetailWorker(null)}
           onChange={updated => setRecords(prev => ({...prev, [detailWorker._id]: updated}))}
           onAutoSave={autoSave}
-          onRemove={handleRemove}
+          onDeactivate={setDeactivatingWorker}
           onRenew={setRenewingWorker}
         />
       )}
@@ -908,7 +1229,6 @@ export default function SiteAttendanceMarkPage() {
 
       {/* ── Header ── */}
       <div className="space-y-2">
-        {/* Title row + action buttons */}
         <div className="flex items-start justify-between gap-2">
           <div>
             <h2 className="text-lg sm:text-xl font-bold text-extra-darkblue">Mark Attendance</h2>
@@ -916,7 +1236,6 @@ export default function SiteAttendanceMarkPage() {
               {fetching ? "Loading roster…" : site ? `${totalWorkers} workers · ${site}` : `${totalWorkers} workers (all sites)`}
             </p>
           </div>
-          {/* Action buttons — icon-only on mobile, icon+label on sm+ */}
           <div className="flex items-center gap-1.5 shrink-0">
             <button onClick={() => setShowIdLookup(true)}
               className="flex items-center gap-1 px-2 sm:px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all active:scale-95">
@@ -932,8 +1251,6 @@ export default function SiteAttendanceMarkPage() {
             </button>
           </div>
         </div>
-
-        {/* Site filter + date — always on one row */}
         <div className="flex items-center gap-2 flex-wrap">
           <input type="text" placeholder="Filter by site…" value={site} onChange={e => setSite(e.target.value)}
             className="text-xs border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 text-gray-700 placeholder-gray-300 bg-white w-28 sm:w-36"/>
@@ -974,7 +1291,6 @@ export default function SiteAttendanceMarkPage() {
             <span className="font-bold text-extra-darkblue text-xs sm:text-sm whitespace-nowrap">
               {submitted ? "✅ Day submitted" : `${markedCount} / ${totalWorkers} punched in`}
             </span>
-            {/* Horizontally scrollable pill row — no overflow on mobile */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5" style={{scrollbarWidth:"none"}}>
               {STATUSES.map(s => {
                 const count = Object.values(records).filter(r => calcStatus(r.punchInTime, r.punchOutTime) === s.value).length;
@@ -1013,7 +1329,6 @@ export default function SiteAttendanceMarkPage() {
           </>
         }>
 
-        {/* Collapsible filter row */}
         {showFilters && (
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             <div className="relative flex-1 min-w-[120px]">

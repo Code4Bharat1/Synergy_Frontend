@@ -17,6 +17,13 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Edit2,
+  X,
+  Save,
+  Loader,
+  FileText,
+  Eye,
+  ExternalLink,
 } from "lucide-react";
 import { PageHeader, Card, SectionHead, StatusPill, FONTS } from "./shared";
 import axiosInstance from "../../lib/axios";
@@ -29,6 +36,18 @@ const apiFetch = async (path) => {
     method: "GET",
     url: path,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  return res.data;
+};
+
+const apiPut = async (path, body) => {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  const res = await axiosInstance({
+    method: "PUT",
+    url: path,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    data: body,
   });
   return res.data;
 };
@@ -107,6 +126,43 @@ const phaseColors = {
   "Final Testing": "#34C759",
   Completed: "#34C759",
 };
+
+const ENGINEER_STATUS_OPTIONS = [
+  { value: "initiated",    label: "Initiated"    },
+  { value: "in-progress",  label: "In Progress"  },
+  { value: "installation", label: "Installation" },
+  { value: "testing",      label: "Testing"      },
+  { value: "completed",    label: "Completed"    },
+  { value: "on-hold",      label: "On Hold"      },
+];
+
+const STATUS_PHASE = {
+  "initiated":    "Site Preparation",
+  "in-progress":  "Wiring & Plumbing",
+  "installation": "Installation",
+  "testing":      "Final Testing",
+  "completed":    "Completed",
+  "on-hold":      "Site Preparation",
+};
+
+const STATUS_PROGRESS = {
+  "initiated":    5,
+  "in-progress":  40,
+  "installation": 65,
+  "testing":      80,
+  "completed":    100,
+  "on-hold":      30,
+};
+
+const inputCls = {
+  padding: "9px 12px", borderRadius: "10px",
+  border: "1px solid rgba(73,136,196,0.25)",
+  background: "rgba(73,136,196,0.04)",
+  color: "#0F2854", fontFamily: "'DM Sans',sans-serif",
+  fontSize: 13, width: "100%", outline: "none",
+  transition: "border-color .18s, background .18s",
+};
+
 
 const CSS = `
   @keyframes delayedPulse { 0%,100%{opacity:1} 50%{opacity:.55} }
@@ -237,19 +293,142 @@ const CSS = `
     color:#94aac4;font-size:12px;justify-content:center; }
 `;
 
+// ── Edit Project Modal ────────────────────────────────────────────────────────
+function EditProjectModal({ project, onClose, onSaved }) {
+  const [status, setStatus] = useState(project.status || "initiated");
+  const [notes,  setNotes]  = useState(project.engineerNotes || "");
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState("");
+
+  const previewPhase    = STATUS_PHASE[status]    || "Site Preparation";
+  const previewProgress = STATUS_PROGRESS[status] ?? 0;
+  const progressBg      = previewProgress > 80 ? "#34C759" : previewProgress > 50 ? "#4988C4" : "#FF9500";
+
+  const handleSave = async () => {
+    setSaving(true); setError("");
+    try {
+      const updated = await apiPut(`/projects/${project._id}`, {
+        status,
+        phase:    STATUS_PHASE[status],
+        progress: STATUS_PROGRESS[status] ?? 0,
+        ...(notes.trim() && { engineerNotes: notes.trim() }),
+      });
+      onSaved(updated.project || updated);
+      onClose();
+    } catch (err) {
+      setError(err?.response?.data?.message || err.message || "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(15,40,84,0.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+      onClick={onClose}
+    >
+      <div style={{ background: "#fff", borderRadius: 20, padding: "28px 26px", width: "100%", maxWidth: 460, boxShadow: "0 24px 64px rgba(15,40,84,0.18)", animation: "slideUp 0.3s ease" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 }}>
+          <div>
+            <p style={{ color: "#4988C4", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", margin: 0 }}>Update Project</p>
+            <h3 style={{ color: "#0F2854", fontSize: 17, fontWeight: 800, fontFamily: "'Syne',sans-serif", margin: 0, marginTop: 3 }}>{project.name}</h3>
+          </div>
+          <button onClick={onClose} style={{ background: "#f0f4fa", border: "1px solid #d4dff0", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "#4988C4" }}>
+            <X size={15} />
+          </button>
+        </div>
+        <div style={{ background: "rgba(73,136,196,0.06)", border: "1px solid rgba(73,136,196,0.15)", borderRadius: 10, padding: "9px 13px", marginBottom: 20 }}>
+          <span style={{ fontSize: 12, color: "#4988C4" }}>ℹ️ Set the <strong>status</strong> — phase and progress update automatically.</span>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#94aac4", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Status</label>
+          <select value={status} onChange={e => setStatus(e.target.value)} style={inputCls}
+            onFocus={e => { e.target.style.borderColor = "#4988C4"; e.target.style.background = "#fff"; }}
+            onBlur={e  => { e.target.style.borderColor = "rgba(73,136,196,0.25)"; e.target.style.background = "rgba(73,136,196,0.04)"; }}>
+            {ENGINEER_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <div style={{ background: "rgba(73,136,196,0.04)", border: "1px solid rgba(73,136,196,0.15)", borderRadius: 12, padding: "14px 16px", marginBottom: 18 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: "#94aac4", letterSpacing: 1, textTransform: "uppercase", margin: "0 0 10px 0" }}>Will be set automatically</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: "#4988C4", fontWeight: 600 }}>Phase</span>
+            <span style={{ fontSize: 12, color: "#0F2854", fontWeight: 700 }}>{previewPhase}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: "#4988C4", fontWeight: 600 }}>Progress</span>
+            <span style={{ fontSize: 12, color: "#0F2854", fontWeight: 700 }}>{previewProgress}%</span>
+          </div>
+          <div style={{ background: "#eef2f8", borderRadius: 99, height: 5 }}>
+            <div style={{ height: 5, borderRadius: 99, background: progressBg, width: `${previewProgress}%`, transition: "width .35s ease" }}/>
+          </div>
+        </div>
+        <div style={{ marginBottom: 22 }}>
+          <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#94aac4", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>
+            Notes <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+          </label>
+          <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+            placeholder="Any site updates, blockers, or observations…"
+            style={{ ...inputCls, resize: "none", lineHeight: 1.5 }}
+            onFocus={e => { e.target.style.borderColor = "#4988C4"; e.target.style.background = "#fff"; }}
+            onBlur={e  => { e.target.style.borderColor = "rgba(73,136,196,0.25)"; e.target.style.background = "rgba(73,136,196,0.04)"; }}
+          />
+        </div>
+        {error && <p style={{ color: "#FF3B30", fontSize: 12, fontWeight: 600, marginBottom: 14, textAlign: "center" }}>⚠ {error}</p>}
+        <button onClick={handleSave} disabled={saving}
+          style={{ width: "100%", padding: "12px", borderRadius: 12, border: "none", background: saving ? "#94aac4" : "#0F2854", color: "#fff", fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "'DM Sans',sans-serif", transition: "background .2s" }}>
+          {saving ? <><Loader size={15} className="animate-spin" /> Saving…</> : <><Save size={15} /> Save Changes</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Project Detail ────────────────────────────────────────────────────────────
-function ProjectDetail({ project, onBack }) {
-  const checks   = project.eligibilityChecks || {};
-  const phase    = project.phase || "Site Preparation";
+function ProjectDetail({ project, onBack, onProjectUpdated }) {
+  const [editOpen, setEditOpen] = useState(false);
+  const [localProject, setLocalProject] = useState(project);
+  const [documents, setDocuments] = useState([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+
+  useEffect(() => {
+    setLocalProject(project);
+  }, [project]);
+
+  useEffect(() => {
+    const fetchDocs = async () => {
+      setDocsLoading(true);
+      try {
+        const data = await apiFetch("/documents");
+        const allDocs = Array.isArray(data) ? data : (data.documents || []);
+        setDocuments(allDocs.filter(d => (d.project?._id || d.project) === project._id));
+      } catch (err) {
+        console.error("Failed to load documents", err);
+      } finally {
+        setDocsLoading(false);
+      }
+    };
+    if (project?._id) fetchDocs();
+  }, [project._id]);
+
+  const handleSaved = (updated) => {
+    setLocalProject(prev => ({ ...prev, ...updated }));
+    if (onProjectUpdated) onProjectUpdated(updated);
+  };
+
+  const checks   = localProject.eligibilityChecks || {};
+  const phase    = localProject.phase || "Site Preparation";
   const phaseList = ["Site Preparation","Wiring & Plumbing","Equipment Setup","Installation","Final Testing","Completed"];
   const phaseIdx = phaseList.indexOf(phase);
-  const delayed  = isProjectDelayed(project);
+  const delayed  = isProjectDelayed(localProject);
 
   const fmtDate = (d) =>
     d ? new Date(d).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}) : "—";
 
   return (
     <>
+      {editOpen && (
+        <EditProjectModal project={localProject} onClose={() => setEditOpen(false)} onSaved={handleSaved} />
+      )}
       <div className="pd-topbar">
         <button onClick={onBack} style={{
           display:"flex",alignItems:"center",gap:6,background:"#f0f6ff",
@@ -263,7 +442,7 @@ function ProjectDetail({ project, onBack }) {
         </button>
         <div>
           <p style={{color:"#4988C4",fontSize:11,fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",margin:0}}>Project Detail</p>
-          <h2 style={{color:"#0F2854",fontSize:20,fontWeight:800,fontFamily:"'Syne',sans-serif",margin:0}}>{project.name}</h2>
+          <h2 style={{color:"#0F2854",fontSize:20,fontWeight:800,fontFamily:"'Syne',sans-serif",margin:0}}>{localProject.name}</h2>
         </div>
         <div className="pd-topbar-right">
           {delayed && (
@@ -271,7 +450,17 @@ function ProjectDetail({ project, onBack }) {
               <Clock size={10}/> DELAYED
             </span>
           )}
-          <Link href={`/engineer/issue-log?projectId=${project._id}&projectName=${encodeURIComponent(project.name)}`} style={{textDecoration:"none"}}>
+          <button onClick={() => setEditOpen(true)} style={{
+            display:"flex",alignItems:"center",gap:6,background:"rgba(73,136,196,0.08)",
+            border:"1px solid rgba(73,136,196,0.22)",color:"#4988C4",padding:"8px 16px",
+            borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",
+          }}
+            onMouseEnter={e=>{e.currentTarget.style.background="rgba(73,136,196,0.15)"}}
+            onMouseLeave={e=>{e.currentTarget.style.background="rgba(73,136,196,0.08)"}}
+          >
+            <Edit2 size={13}/> Update Status
+          </button>
+          <Link href={`/engineer/issue-log?projectId=${localProject._id}&projectName=${encodeURIComponent(localProject.name)}`} style={{textDecoration:"none"}}>
             <button style={{
               display:"flex",alignItems:"center",gap:6,background:"rgba(255,149,0,0.08)",
               border:"1px solid rgba(255,149,0,0.22)",color:"#FF9500",padding:"8px 16px",
@@ -283,7 +472,7 @@ function ProjectDetail({ project, onBack }) {
               <AlertTriangle size={13}/> Log Issue
             </button>
           </Link>
-          <StatusPill label={project.status||"active"} color={statusColor[project.status]||"blue"}/>
+          <StatusPill label={localProject.status||"active"} color={statusColor[localProject.status]||"blue"}/>
         </div>
       </div>
 
@@ -313,11 +502,11 @@ function ProjectDetail({ project, onBack }) {
             </div>
             <div className="pd-info-grid">
               {[
-                {label:"Client",value:project.clientName||"—"},
-                {label:"Location",value:project.location||"—"},
-                {label:"Start Date",value:fmtDate(project.startDate)},
-                {label:"End Date",value:fmtDate(project.endDate),delayed},
-                {label:"Description",value:project.description||"—",full:true},
+                {label:"Client",value:localProject.clientName||"—"},
+                {label:"Location",value:localProject.location||"—"},
+                {label:"Start Date",value:fmtDate(localProject.startDate)},
+                {label:"End Date",value:fmtDate(localProject.endDate),delayed},
+                {label:"Description",value:localProject.description||"—",full:true},
               ].map(({label,value,full,delayed:d})=>(
                 <div key={label} style={full?{gridColumn:"1/-1"}:{}}>
                   <p style={{color:"#94aac4",fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>{label}</p>
@@ -326,6 +515,14 @@ function ProjectDetail({ project, onBack }) {
                   </p>
                 </div>
               ))}
+              {localProject.engineerNotes && (
+                <div style={{gridColumn:"1/-1"}}>
+                  <p style={{color:"#FF9500",fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>Engineer Notes</p>
+                  <p style={{color:"#0F2854",fontSize:13,fontWeight:600,margin:0}}>
+                    {localProject.engineerNotes}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -339,13 +536,13 @@ function ProjectDetail({ project, onBack }) {
             <div style={{marginBottom:22}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
                 <span style={{color:"#94aac4",fontSize:12,fontWeight:500}}>Overall Progress</span>
-                <span style={{color:"#0F2854",fontSize:12,fontWeight:800}}>{project.progress||0}%</span>
+                <span style={{color:"#0F2854",fontSize:12,fontWeight:800}}>{localProject.progress||0}%</span>
               </div>
               <div className="db-prog-track">
                 <div style={{
                   height:6,borderRadius:99,
-                  background:delayed?"#FF3B30":(project.progress||0)>80?"#34C759":(project.progress||0)>50?"#4988C4":"#FF9500",
-                  width:`${project.progress||0}%`,transition:"width .6s ease",
+                  background:delayed?"#FF3B30":(localProject.progress||0)>80?"#34C759":(localProject.progress||0)>50?"#4988C4":"#FF9500",
+                  width:`${localProject.progress||0}%`,transition:"width .6s ease",
                 }}/>
               </div>
             </div>
@@ -432,7 +629,7 @@ function ProjectDetail({ project, onBack }) {
               </div>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {(project.assignedEngineers||[]).map(e=>(
+              {(localProject.assignedEngineers||[]).map(e=>(
                 <div key={e._id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 13px",
                   background:"#fafbfe",borderRadius:12,border:"1.5px solid #eef2f8"}}>
                   <div style={{width:34,height:34,borderRadius:"50%",flexShrink:0,
@@ -446,10 +643,57 @@ function ProjectDetail({ project, onBack }) {
                   </div>
                 </div>
               ))}
-              {(project.assignedEngineers||[]).length===0&&!project.assignedMarketingExecutive&&!project.assignedInstallationIncharge&&(
+              {(localProject.assignedEngineers||[]).length===0&&!localProject.assignedMarketingExecutive&&!localProject.assignedInstallationIncharge&&(
                 <p style={{color:"#94aac4",fontSize:12,textAlign:"center",padding:"20px 0"}}>No team members assigned yet.</p>
               )}
             </div>
+          </div>
+
+          <div className="db-card">
+            <div className="db-card-header">
+              <div className="db-card-title-row">
+                <div className="db-sec-icon"><FileText size={16} color="#BDE8F5"/></div>
+                <span className="db-sec-title">Uploaded Documents</span>
+              </div>
+            </div>
+            {docsLoading ? (
+              <div style={{display:"flex",alignItems:"center",gap:8,padding:"20px",color:"#94aac4",fontSize:13,justifyContent:"center"}}>
+                <Loader size={14} className="animate-spin" /> Loading documents...
+              </div>
+            ) : documents.length === 0 ? (
+              <p style={{color:"#94aac4",fontSize:12,textAlign:"center",padding:"20px 0"}}>No documents uploaded for this project yet.</p>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {documents.map(doc => (
+                  <div key={doc._id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 13px",
+                    background:"#fafbfe",borderRadius:12,border:"1.5px solid #eef2f8",justifyContent:"space-between"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                      <div style={{width:34,height:34,borderRadius:"8px",flexShrink:0,
+                        background:"#f0f4fa",display:"flex",alignItems:"center",justifyContent:"center",color:"#4988C4"}}>
+                        <FileText size={16} />
+                      </div>
+                      <div style={{minWidth:0}}>
+                        <p style={{color:"#0F2854",fontSize:13,fontWeight:700,margin:0,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{doc.title || doc.name || "Untitled"}</p>
+                        <p style={{color:"#94aac4",fontSize:11,margin:0,display:"flex",gap:6}}>
+                          <span style={{textTransform:"capitalize"}}>{doc.documentType || "Other"}</span>
+                          <span>•</span>
+                          <span>{new Date(doc.createdAt).toLocaleDateString("en-GB",{day:"2-digit",month:"short"})}</span>
+                        </p>
+                      </div>
+                    </div>
+                    {doc.url && typeof doc.url === "string" && doc.url.startsWith("http") ? (
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" style={{
+                        padding:"8px",borderRadius:"8px",background:"#eef2f8",color:"#4988C4",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0
+                      }} title="View Document">
+                        <Eye size={14} />
+                      </a>
+                    ) : (
+                      <span style={{fontSize:10,color:"#94aac4",fontWeight:600,padding:"4px 8px",background:"#f0f4fa",borderRadius:6,flexShrink:0}}>Pending</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -632,7 +876,14 @@ export default function EngineerDashboard() {
         )}
 
         {selectedProject && (
-          <ProjectDetail project={selectedProject} onBack={() => setSelectedProject(null)} />
+          <ProjectDetail 
+            project={selectedProject} 
+            onBack={() => setSelectedProject(null)} 
+            onProjectUpdated={(updated) => {
+              setProjects(prev => prev.map(p => p._id === updated._id ? { ...p, ...updated } : p));
+              setSelectedProject(prev => ({ ...prev, ...updated }));
+            }}
+          />
         )}
 
         {!selectedProject && (

@@ -47,6 +47,7 @@ const ROLE_NAVIGATION = {
     { label: "Role Assignment", icon: ShieldCheck, href: "/admin/role" },
     { label: "Document Control", icon: FileText, href: "/admin/document" },
     { label: "Attendance", icon: CalendarCheck, href: "/admin/attendance" },
+    { label: "Worker attendance", icon: CalendarCheck, href: "/attendance/records" },
   ],
   director: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/director" },
@@ -59,6 +60,8 @@ const ROLE_NAVIGATION = {
     },
     { label: "Performance", icon: BarChart3, href: "/director/performance" },
     { label: "Task Panel", icon: ListTodo, href: "/director/tasks" },
+    { label: "Attendance", icon: CalendarCheck, href: "/admin/attendance" },
+    { label: "Worker attendance", icon: CalendarCheck, href: "/attendance/records" },
   ],
   engineer: [
     { href: "/engineer/", icon: LayoutDashboard, label: "Dashboard" },

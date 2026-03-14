@@ -106,12 +106,12 @@ const phaseFromStatus = (status) => ({
 
 // ── Trial badge ───────────────────────────────
 const trialBadgeMap = (status) => ({
-  "Completed":   { bg: C.darkBlue,  color: C.white,    icon: Icon.CheckCircle },
-  "In Trial":    { bg: C.blue,      color: C.white,    icon: Icon.Flask       },
-  "Scheduled":   { bg: C.lightBlue, color: C.darkBlue, icon: Icon.Calendar    },
-  "Pending":     { bg: "#d6ebf7",   color: C.blue,     icon: Icon.Clock       },
-  "Not Started": { bg: C.bg,        color: C.dimText,  icon: Icon.AlertCircle },
-}[status] || { bg: C.bg, color: C.dimText, icon: Icon.Clock });
+  "Completed":   { bg: "bg-[#0F2854] text-white" },
+  "In Trial":    { bg: "bg-[#1C4D8D] text-white" },
+  "Scheduled":   { bg: "bg-[#BDE8F5] text-[#0F2854]" },
+  "Pending":     { bg: "bg-[#d6ebf7] text-[#1C4D8D]" },
+  "Not Started": { bg: "bg-gray-100 text-gray-400" },
+}[status] || { bg: "bg-gray-100 text-gray-400" });
 
 // ── Sub-components ────────────────────────────
 function ProgressBar({ value }) {
@@ -121,21 +121,19 @@ function ProgressBar({ value }) {
     value >= 40   ? C.medBlue  : C.lightBlue;
   return (
     <div className="flex items-center gap-3">
-      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: C.divider }}>
+      <div className="flex-1 h-2 rounded-full overflow-hidden bg-gray-100">
         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${value}%`, backgroundColor: color }} />
       </div>
-      <span className="text-sm font-bold w-10 text-right" style={{ color: C.darkBlue }}>{value}%</span>
+      <span className="text-sm font-bold w-10 text-right text-extra-darkblue">{value}%</span>
     </div>
   );
 }
 
 function TrialBadge({ status }) {
   const s = trialBadgeMap(status);
-  const Ic = s.icon;
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap"
-      style={{ backgroundColor: s.bg, color: s.color }}>
-      <Ic />{status}
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap capitalize ${s.bg}`}>
+      {status}
     </span>
   );
 }
@@ -145,40 +143,38 @@ function DaysPill({ days, date }) {
   const done   = days === 0;
   return (
     <div>
-      <p className="text-sm font-semibold" style={{ color: C.darkBlue }}>{date}</p>
-      <p className="text-xs mt-0.5" style={{ color: done ? C.medBlue : urgent ? C.blue : C.dimText }}>
+      <p className="text-sm font-semibold text-extra-darkblue">{date}</p>
+      <p className={`text-xs mt-0.5 ${done ? "text-[#4988C4]" : urgent ? "text-[#1C4D8D] font-semibold" : "text-gray-400"}`}>
         {done ? "✓ Delivered" : `${days} days left`}
       </p>
     </div>
   );
 }
 
-// ── Stat Card (clickable filter) ──────────────
-function StatCard({ label, value, sub, barColor, iconBg, iconColor, icon: Ic, loading, isActive, onClick }) {
+// ── Stat Card ─────────────────────────────────
+function StatCard({ label, value, sub, icon: Ic, color, loading, isActive, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="relative bg-white rounded-xl p-5 flex flex-col gap-2 shadow-sm overflow-hidden text-left w-full transition-all"
-      style={{
-        border: isActive ? `2px solid ${barColor}` : `1px solid ${C.lightBlue}`,
-        boxShadow: isActive ? `0 4px 16px ${barColor}30` : "0 1px 3px rgba(0,0,0,0.06)",
-        cursor: "pointer",
-        outline: "none",
-      }}
+      className={`relative bg-white rounded-xl p-5 flex items-start gap-4 text-left w-full transition-all duration-200 shadow-sm overflow-hidden
+        ${isActive ? "border-2 shadow-md" : "border border-gray-100 hover:shadow-md hover:border-blue-200 hover:-translate-y-0.5"}
+      `}
+      style={isActive ? { borderColor: color.bar, boxShadow: `0 4px 16px ${color.bar}25` } : {}}
     >
-      <div className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: barColor }} />
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.dimText }}>{label}</span>
-        <span className="p-2 rounded-lg" style={{ backgroundColor: iconBg, color: iconColor }}><Ic /></span>
+      {isActive && <div className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: color.bar }} />}
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+        style={{ backgroundColor: color.iconBg, color: color.iconColor }}>
+        <Ic />
       </div>
-      {loading
-        ? <div className="h-8 w-16 rounded animate-pulse" style={{ backgroundColor: C.lightBlue }} />
-        : <div className="text-3xl font-bold tracking-tight" style={{ color: C.darkBlue }}>{value}</div>
-      }
-      <div className="text-xs font-semibold" style={{ color: C.medBlue }}>{sub}</div>
-      {isActive && (
-        <div className="text-[10px] font-bold mt-0.5" style={{ color: barColor }}>● Active filter</div>
-      )}
+      <div>
+        {loading
+          ? <div className="h-7 w-12 rounded animate-pulse bg-[#BDE8F5] mb-1" />
+          : <p className="text-2xl font-bold text-extra-darkblue">{value}</p>
+        }
+        <p className="text-sm font-medium text-gray-700 mt-0.5">{label}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
+        {isActive && <p className="text-[10px] font-bold mt-1" style={{ color: color.bar }}>● Active filter</p>}
+      </div>
     </button>
   );
 }
@@ -187,15 +183,12 @@ function HoverTr({ children, onClick, selected }) {
   const [hov, setHov] = useState(false);
   return (
     <tr
-      style={{
-        backgroundColor: selected ? `${C.lightBlue}60` : hov ? C.bg : "transparent",
-        borderBottom: `1px solid ${C.divider}`,
-        cursor: "pointer",
-      }}
+      className={`border-b border-gray-100 transition-colors cursor-pointer ${
+        selected ? "bg-[#e0eefa]" : hov ? "bg-gray-50" : ""
+      }`}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       onClick={onClick}
-      className="transition-colors"
     >
       {children}
     </tr>
@@ -204,11 +197,11 @@ function HoverTr({ children, onClick, selected }) {
 
 function SkeletonRow() {
   return (
-    <tr style={{ borderBottom: `1px solid ${C.divider}` }}>
+    <tr className="border-b border-gray-100">
       {[60, 40, 30, 25].map((w, i) => (
         <td key={i} className="px-5 py-4">
-          <div className="h-3 rounded animate-pulse" style={{ backgroundColor: C.lightBlue, width: `${w}%` }} />
-          <div className="h-3 rounded animate-pulse mt-1.5" style={{ backgroundColor: C.lightBlue, width: `${w * 0.6}%` }} />
+          <div className="h-3 rounded animate-pulse bg-[#BDE8F5] mb-1.5" style={{ width: `${w}%` }} />
+          <div className="h-3 rounded animate-pulse bg-[#BDE8F5]" style={{ width: `${w * 0.6}%` }} />
         </td>
       ))}
     </tr>
@@ -217,8 +210,7 @@ function SkeletonRow() {
 
 function ErrorBanner({ message, onRetry }) {
   return (
-    <div className="mx-5 my-3 px-3 py-2 rounded-lg flex items-center justify-between text-xs font-medium"
-      style={{ backgroundColor: "#fff0f0", color: "#b91c1c", border: "1px solid #fecaca" }}>
+    <div className="mx-5 my-3 px-3 py-2 rounded-lg flex items-center justify-between text-xs font-medium bg-red-50 text-red-600 border border-red-200">
       <span>⚠ {message}</span>
       {onRetry && <button onClick={onRetry} className="ml-3 underline hover:no-underline">Retry</button>}
     </div>
@@ -242,17 +234,15 @@ function DetailPanel({ project, onClose }) {
     "Unassigned";
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${C.lightBlue}` }}>
+    <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
       {/* Header */}
-      <div className="px-6 py-4 flex items-start justify-between gap-3"
-        style={{ borderBottom: `1px solid ${C.divider}`, backgroundColor: C.bg }}>
+      <div className="px-6 py-4 flex items-start justify-between gap-3 border-b border-gray-100 bg-gray-50">
         <div>
-          <h3 className="text-lg font-bold" style={{ color: C.darkBlue }}>{project.name}</h3>
-          <p className="text-sm mt-0.5" style={{ color: C.mutedText }}>{project.clientName}</p>
+          <h3 className="text-base font-bold text-extra-darkblue">{project.name}</h3>
+          <p className="text-sm mt-0.5 text-gray-400">{project.clientName}</p>
         </div>
         <button onClick={onClose}
-          className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-70"
-          style={{ backgroundColor: C.lightBlue, color: C.darkBlue }}>
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors hover:bg-gray-100 bg-white border border-gray-200 text-gray-600">
           Close
         </button>
       </div>
@@ -262,10 +252,10 @@ function DetailPanel({ project, onClose }) {
         {/* Progress */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-bold uppercase tracking-wide" style={{ color: C.darkBlue }}>Installation Progress</p>
-            <span className="text-2xl font-bold" style={{ color: C.darkBlue }}>{progress}%</span>
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Installation Progress</p>
+            <span className="text-2xl font-bold text-extra-darkblue">{progress}%</span>
           </div>
-          <div className="w-full h-3 rounded-full overflow-hidden" style={{ backgroundColor: C.divider }}>
+          <div className="w-full h-2.5 rounded-full overflow-hidden bg-gray-100">
             <div className="h-full rounded-full transition-all duration-700"
               style={{
                 width: `${progress}%`,
@@ -275,14 +265,14 @@ function DetailPanel({ project, onClose }) {
                   progress >= 40   ? C.medBlue  : C.lightBlue,
               }} />
           </div>
-          <p className="text-xs mt-1.5 font-medium" style={{ color: C.mutedText }}>
-            Current phase: <span className="font-bold" style={{ color: C.blue }}>{currentPhase}</span>
+          <p className="text-xs mt-1.5 text-gray-400">
+            Current phase: <span className="font-bold text-[#1C4D8D]">{currentPhase}</span>
           </p>
         </div>
 
         {/* Phase stepper */}
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: C.dimText }}>Phase Timeline</p>
+          <p className="text-xs font-bold uppercase tracking-wider mb-3 text-gray-400">Phase Timeline</p>
           <div className="space-y-2">
             {phases.map((phase, i) => {
               const done    = i < currentPhaseIdx;
@@ -291,16 +281,15 @@ function DetailPanel({ project, onClose }) {
                 <div key={phase} className="flex items-center gap-3">
                   <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
                     style={{
-                      backgroundColor: done ? C.darkBlue : current ? C.blue : C.divider,
-                      color: done || current ? C.white : C.dimText,
+                      backgroundColor: done ? C.darkBlue : current ? C.blue : "#f3f4f6",
+                      color: done || current ? C.white : "#9ca3af",
                     }}>
                     {done ? "✓" : i + 1}
                   </div>
-                  <p className="text-sm font-medium" style={{ color: current ? C.darkBlue : done ? C.medBlue : C.dimText }}>
+                  <p className={`text-sm font-medium ${current ? "text-extra-darkblue" : done ? "text-[#4988C4]" : "text-gray-400"}`}>
                     {phase}
                     {current && (
-                      <span className="ml-2 text-[11px] font-bold px-1.5 py-0.5 rounded"
-                        style={{ backgroundColor: C.lightBlue, color: C.blue }}>
+                      <span className="ml-2 text-[11px] font-bold px-1.5 py-0.5 rounded bg-[#e0eefa] text-[#1C4D8D]">
                         In Progress
                       </span>
                     )}
@@ -312,7 +301,7 @@ function DetailPanel({ project, onClose }) {
         </div>
 
         {/* Meta grid */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           {[
             {
               label: "Expected Completion",
@@ -339,13 +328,13 @@ function DetailPanel({ project, onClose }) {
               icon: Icon.User,
             },
           ].map(({ label, value, sub, icon: MetaIc }) => (
-            <div key={label} className="rounded-xl p-4" style={{ backgroundColor: C.bg, border: `1px solid ${C.divider}` }}>
-              <div className="flex items-center gap-2 mb-1.5">
-                <span style={{ color: C.medBlue }}><MetaIc /></span>
-                <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: C.dimText }}>{label}</p>
+            <div key={label} className="rounded-xl p-3.5 bg-gray-50 border border-gray-100">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-[#4988C4]"><MetaIc /></span>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
               </div>
-              <p className="text-sm font-bold" style={{ color: C.darkBlue }}>{value}</p>
-              <p className="text-[11px] mt-0.5" style={{ color: C.mutedText }}>{sub}</p>
+              <p className="text-sm font-bold text-extra-darkblue">{value}</p>
+              <p className="text-[11px] mt-0.5 text-gray-400">{sub}</p>
             </div>
           ))}
         </div>
@@ -380,19 +369,17 @@ function useAllProjects() {
 // ── Main ──────────────────────────────────────
 export default function ProjectStatusTracking() {
   const { data: projects, loading, error, refetch } = useAllProjects();
-  const [selected, setSelected]   = useState(null);
-  const [filter, setFilter]       = useState("All");
-  const [search, setSearch]       = useState("");
-  const [activeCard, setActiveCard] = useState(null); // "completed" | "trial" | "dueSoon" | null
+  const [selected, setSelected]     = useState(null);
+  const [filter, setFilter]         = useState("All");
+  const [search, setSearch]         = useState("");
+  const [activeCard, setActiveCard] = useState(null);
 
-  // Auto-select first project once loaded
   useEffect(() => {
     if (projects.length > 0 && !selected) setSelected(projects[0]);
   }, [projects]);
 
   const filters = ["All", "In Trial", "Scheduled", "Pending", "Completed", "Not Started"];
 
-  // Stats
   const completed  = projects.filter(p => p.status === "completed").length;
   const avgProgress = projects.length
     ? Math.round(projects.reduce((a, p) => a + (p.progress ?? 0), 0) / projects.length)
@@ -403,15 +390,13 @@ export default function ProjectStatusTracking() {
     return d !== null && d <= 7 && d > 0;
   }).length;
 
-  // Toggle stat card filter
   const handleCardClick = (key) => {
     setActiveCard(prev => {
       if (prev === key) { setFilter("All"); return null; }
-      // Map card key → filter pill value
       const cardToFilter = {
         completed: "Completed",
         trial:     "In Trial",
-        dueSoon:   "All", // no exact pill match — just reset pill, table filtered below
+        dueSoon:   "All",
       };
       setFilter(cardToFilter[key] || "All");
       return key;
@@ -420,15 +405,12 @@ export default function ProjectStatusTracking() {
 
   const filtered = projects.filter(p => {
     const ts = p.trialStatus || "Not Started";
-
-    // Stat card overrides
     if (activeCard === "completed") return p.status === "completed";
     if (activeCard === "trial")     return ts === "In Trial" || ts === "Scheduled";
     if (activeCard === "dueSoon") {
       const d = daysUntil(p.endDate);
       return d !== null && d <= 7 && d > 0;
     }
-
     const matchFilter = filter === "All" || ts === filter;
     const matchSearch =
       p.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -436,7 +418,6 @@ export default function ProjectStatusTracking() {
       p._id?.toLowerCase().includes(search.toLowerCase());
     return matchFilter && matchSearch;
   }).filter(p => {
-    // Search always applies even when card filter is active
     if (!activeCard) return true;
     return (
       p.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -446,182 +427,173 @@ export default function ProjectStatusTracking() {
   });
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: C.bg }}>
-      <main className="p-4 md:p-6 space-y-6">
+    <div className="space-y-6">
 
-        <div className="mb-6">
+      {/* Heading */}
+      <div className="flex items-center justify-between">
+        <div>
           <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-0.5">
             {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · All Sites Active
           </p>
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl sm:text-2xl font-bold text-blue-950">Project Tracking Status</h1>
-            <button onClick={refetch} className="p-2 rounded-lg hover:opacity-60 transition-opacity" style={{ color: C.medBlue, backgroundColor: C.white, border: `1px solid ${C.lightBlue}` }}>
-              <Icon.Refresh />
-            </button>
-          </div>
+          <h1 className="text-xl font-bold text-extra-darkblue">Project Tracking Status</h1>
         </div>
+        <button onClick={refetch}
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors bg-white border border-gray-200 text-gray-400">
+          <Icon.Refresh />
+        </button>
+      </div>
 
-        {error && (
-          <div className="px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-between"
-            style={{ backgroundColor: "#fff0f0", color: "#b91c1c", border: "1px solid #fecaca" }}>
-            <span>⚠ {error}</span>
-            <button onClick={refetch} className="underline ml-3">Retry</button>
-          </div>
-        )}
-
-        {/* ── Stat Cards (clickable filters) ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            label="Avg. Progress" value={`${avgProgress}%`} sub="Across all projects"
-            barColor={C.darkBlue} iconBg={C.darkBlue} iconColor={C.white} icon={Icon.Wrench}
-            loading={loading}
-            isActive={false}
-            onClick={() => { setActiveCard(null); setFilter("All"); }}
-          />
-          <StatCard
-            label="Completed" value={completed} sub="Fully delivered"
-            barColor={C.blue} iconBg={C.blue} iconColor={C.white} icon={Icon.CheckCircle}
-            loading={loading}
-            isActive={activeCard === "completed"}
-            onClick={() => handleCardClick("completed")}
-          />
-          <StatCard
-            label="Trial Active" value={inTrial} sub="In trial or scheduled"
-            barColor={C.medBlue} iconBg={C.medBlue} iconColor={C.white} icon={Icon.Flask}
-            loading={loading}
-            isActive={activeCard === "trial"}
-            onClick={() => handleCardClick("trial")}
-          />
-          <StatCard
-            label="Due Soon" value={dueSoon} sub="Within 7 days"
-            barColor={C.lightBlue} iconBg={C.lightBlue} iconColor={C.darkBlue} icon={Icon.AlertCircle}
-            loading={loading}
-            isActive={activeCard === "dueSoon"}
-            onClick={() => handleCardClick("dueSoon")}
-          />
+      {error && (
+        <div className="px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-between bg-red-50 text-red-600 border border-red-200">
+          <span>⚠ {error}</span>
+          <button onClick={refetch} className="underline ml-3">Retry</button>
         </div>
+      )}
 
-        {/* Table + Detail split */}
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+      {/* ── Stat Cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Avg. Progress" value={`${avgProgress}%`} sub="Across all projects"
+          icon={Icon.Wrench}
+          color={{ bar: C.darkBlue, iconBg: "#e0eefa", iconColor: C.blue }}
+          loading={loading} isActive={false}
+          onClick={() => { setActiveCard(null); setFilter("All"); }}
+        />
+        <StatCard
+          label="Completed" value={completed} sub="Fully delivered"
+          icon={Icon.CheckCircle}
+          color={{ bar: C.blue, iconBg: "#e0f0e8", iconColor: "#16a34a" }}
+          loading={loading} isActive={activeCard === "completed"}
+          onClick={() => handleCardClick("completed")}
+        />
+        <StatCard
+          label="Trial Active" value={inTrial} sub="In trial or scheduled"
+          icon={Icon.Flask}
+          color={{ bar: C.medBlue, iconBg: "#e0eefa", iconColor: C.medBlue }}
+          loading={loading} isActive={activeCard === "trial"}
+          onClick={() => handleCardClick("trial")}
+        />
+        <StatCard
+          label="Due Soon" value={dueSoon} sub="Within 7 days"
+          icon={Icon.AlertCircle}
+          color={{ bar: "#d97706", iconBg: "#fef3cd", iconColor: "#d97706" }}
+          loading={loading} isActive={activeCard === "dueSoon"}
+          onClick={() => handleCardClick("dueSoon")}
+        />
+      </div>
+
+      {/* Table + Detail split */}
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+
+        {/* Table */}
+        <div className="xl:col-span-3 bg-white rounded-xl shadow-sm overflow-hidden flex flex-col border border-gray-100">
+
+          <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 border-b border-gray-100">
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-[#4988C4]"><Icon.Filter /></span>
+              <h2 className="text-sm font-bold uppercase tracking-wide text-extra-darkblue">All Projects</h2>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#0F2854] text-white">
+                {filtered.length}
+              </span>
+              {activeCard && (
+                <button
+                  onClick={() => { setActiveCard(null); setFilter("All"); }}
+                  className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#e0eefa] text-[#1C4D8D]"
+                >
+                  Clear filter ✕
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 w-full sm:w-44 bg-gray-50 border border-gray-200">
+              <span className="text-gray-400"><Icon.Search /></span>
+              <input
+                placeholder="Search projects…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="bg-transparent text-sm outline-none w-full placeholder-gray-300 text-extra-darkblue"
+              />
+            </div>
+          </div>
+
+          {/* Filter pills */}
+          <div className="px-5 py-3 flex gap-2 overflow-x-auto border-b border-gray-100">
+            {filters.map(f => (
+              <button key={f} onClick={() => { setFilter(f); setActiveCard(null); }}
+                className="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all border"
+                style={{
+                  backgroundColor: filter === f && !activeCard ? C.darkBlue : "transparent",
+                  color:           filter === f && !activeCard ? C.white    : "#6b7280",
+                  borderColor:     filter === f && !activeCard ? C.darkBlue : "#e5e7eb",
+                }}>
+                {f}
+              </button>
+            ))}
+          </div>
 
           {/* Table */}
-          <div className="xl:col-span-3 bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col"
-            style={{ border: `1px solid ${C.lightBlue}` }}>
-
-            <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3"
-              style={{ borderBottom: `1px solid ${C.divider}` }}>
-              <div className="flex items-center gap-2 flex-1">
-                <span style={{ color: C.medBlue }}><Icon.Filter /></span>
-                <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: C.darkBlue }}>All Projects</h2>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: C.darkBlue, color: C.white }}>
-                  {filtered.length}
-                </span>
-                {activeCard && (
-                  <button
-                    onClick={() => { setActiveCard(null); setFilter("All"); }}
-                    className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-                    style={{ backgroundColor: C.lightBlue, color: C.blue }}
-                  >
-                    Clear filter ✕
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 w-full sm:w-44"
-                style={{ backgroundColor: C.bg, border: `1px solid ${C.lightBlue}` }}>
-                <span style={{ color: C.medBlue }}><Icon.Search /></span>
-                <input
-                  placeholder="Search projects…"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="bg-transparent text-sm outline-none w-full placeholder-[#8fa3b8]"
-                  style={{ color: C.darkBlue }}
-                />
-              </div>
-            </div>
-
-            {/* Filter pills */}
-            <div className="px-5 py-3 flex gap-2 overflow-x-auto" style={{ borderBottom: `1px solid ${C.divider}` }}>
-              {filters.map(f => (
-                <button key={f} onClick={() => { setFilter(f); setActiveCard(null); }}
-                  className="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all"
-                  style={{
-                    backgroundColor: filter === f && !activeCard ? C.darkBlue : C.bg,
-                    color:           filter === f && !activeCard ? C.white     : C.mutedText,
-                    border: `1px solid ${filter === f && !activeCard ? C.darkBlue : C.divider}`,
-                  }}>
-                  {f}
-                </button>
-              ))}
-            </div>
-
-            {/* Table */}
-            <div className="overflow-x-auto flex-1">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ backgroundColor: C.bg, borderBottom: `1px solid ${C.divider}` }}>
-                    {["Project", "Progress", "Due Date", "Trial"].map(h => (
-                      <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-5 py-3 whitespace-nowrap"
-                        style={{ color: C.medBlue }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading
-                    ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
-                    : filtered.length === 0
-                      ? (
-                        <tr><td colSpan={4} className="text-center py-12 text-sm" style={{ color: C.dimText }}>
-                          No projects match your search.
-                        </td></tr>
-                      )
-                      : filtered.map(p => {
-                          const days = daysUntil(p.endDate);
-                          const phase = p.phase || phaseFromStatus(p.status);
-                          const trialStatus = p.trialStatus || "Not Started";
-                          return (
-                            <HoverTr key={p._id} onClick={() => setSelected(p)} selected={selected?._id === p._id}>
-                              {/* ── Project cell: ID removed, name is now the top line ── */}
-                              <td className="px-5 py-4">
-                                <p className="text-sm font-semibold" style={{ color: C.darkBlue }}>{p.name}</p>
-                                <p className="text-xs mt-0.5" style={{ color: C.dimText }}>{p.clientName}</p>
-                              </td>
-                              <td className="px-5 py-4 min-w-[140px]">
-                                <ProgressBar value={p.progress ?? 0} />
-                                <p className="text-[11px] mt-1" style={{ color: C.dimText }}>{phase}</p>
-                              </td>
-                              <td className="px-5 py-4 whitespace-nowrap">
-                                {p.endDate
-                                  ? <DaysPill days={days} date={formatDate(p.endDate)} />
-                                  : <span className="text-xs" style={{ color: C.dimText }}>No date set</span>
-                                }
-                              </td>
-                              <td className="px-5 py-4 whitespace-nowrap">
-                                <TrialBadge status={trialStatus} />
-                              </td>
-                            </HoverTr>
-                          );
-                        })
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Detail panel */}
-          <div className="xl:col-span-2">
-            {selected
-              ? <DetailPanel project={selected} onClose={() => setSelected(null)} />
-              : (
-                <div className="bg-white rounded-2xl h-48 flex flex-col items-center justify-center gap-2 shadow-sm"
-                  style={{ border: `1px solid ${C.lightBlue}` }}>
-                  <span style={{ color: C.lightBlue }}><Icon.Wrench /></span>
-                  <p className="text-sm font-medium" style={{ color: C.dimText }}>Select a project to view details</p>
-                </div>
-              )
-            }
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  {["Project", "Progress", "Due Date", "Trial"].map(h => (
+                    <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-5 py-3 whitespace-nowrap text-[#4988C4]">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading
+                  ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
+                  : filtered.length === 0
+                    ? (
+                      <tr><td colSpan={4} className="text-center py-12 text-sm text-gray-400">
+                        No projects match your search.
+                      </td></tr>
+                    )
+                    : filtered.map(p => {
+                        const days = daysUntil(p.endDate);
+                        const phase = p.phase || phaseFromStatus(p.status);
+                        const trialStatus = p.trialStatus || "Not Started";
+                        return (
+                          <HoverTr key={p._id} onClick={() => setSelected(p)} selected={selected?._id === p._id}>
+                            <td className="px-5 py-4">
+                              <p className="text-sm font-semibold text-extra-darkblue">{p.name}</p>
+                              <p className="text-xs mt-0.5 text-gray-400">{p.clientName}</p>
+                            </td>
+                            <td className="px-5 py-4 min-w-[140px]">
+                              <ProgressBar value={p.progress ?? 0} />
+                              <p className="text-[11px] mt-1 text-gray-400">{phase}</p>
+                            </td>
+                            <td className="px-5 py-4 whitespace-nowrap">
+                              {p.endDate
+                                ? <DaysPill days={days} date={formatDate(p.endDate)} />
+                                : <span className="text-xs text-gray-400">No date set</span>
+                              }
+                            </td>
+                            <td className="px-5 py-4 whitespace-nowrap">
+                              <TrialBadge status={trialStatus} />
+                            </td>
+                          </HoverTr>
+                        );
+                      })
+                }
+              </tbody>
+            </table>
           </div>
         </div>
-      </main>
+
+        {/* Detail panel */}
+        <div className="xl:col-span-2">
+          {selected
+            ? <DetailPanel project={selected} onClose={() => setSelected(null)} />
+            : (
+              <div className="bg-white rounded-xl h-48 flex flex-col items-center justify-center gap-2 shadow-sm border border-gray-100">
+                <span className="text-gray-300"><Icon.Wrench /></span>
+                <p className="text-sm font-medium text-gray-400">Select a project to view details</p>
+              </div>
+            )
+          }
+        </div>
+      </div>
     </div>
   );
 }

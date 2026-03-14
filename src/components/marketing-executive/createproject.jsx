@@ -22,7 +22,7 @@ const authHeaders = () => ({
 const api = {
   async getAllUsers() {
     const res = await fetch(`${API_BASE}/admin/users`, { headers: authHeaders() });
-    if (res.status === 403) return []; // non-admin — hide assignment section
+    if (res.status === 403) return [];
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to load users");
     return Array.isArray(data) ? data : (data.users || []);
@@ -168,8 +168,8 @@ const Icon = {
 // ── Field Components ──────────────────────────────────────────────────────────
 function Label({ children, required }) {
   return (
-    <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: C.mutedText }}>
-      {children}{required && <span style={{ color: C.blue }}> *</span>}
+    <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-gray-400">
+      {children}{required && <span className="text-[#1C4D8D]"> *</span>}
     </label>
   );
 }
@@ -177,16 +177,13 @@ function Label({ children, required }) {
 function Input({ icon: Ic, placeholder, value, onChange, type = "text", error }) {
   const [focused, setFocused] = useState(false);
   return (
-    <div className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 transition-all"
-      style={{
-        border: `1.5px solid ${error ? C.red : focused ? C.blue : C.lightBlue}`,
-        backgroundColor: focused ? C.white : C.bg,
-      }}>
-      {Ic && <span style={{ color: focused ? C.blue : C.medBlue }}><Ic /></span>}
+    <div className={`flex items-center gap-3 rounded-lg px-3.5 py-2.5 bg-white transition-all border ${
+      error ? "border-red-400" : focused ? "border-[#1C4D8D]" : "border-gray-200"
+    } ${focused ? "shadow-sm" : ""}`}>
+      {Ic && <span className={focused ? "text-[#1C4D8D]" : "text-gray-400"}><Ic /></span>}
       <input type={type} placeholder={placeholder} value={value} onChange={onChange}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-        className="flex-1 bg-transparent text-sm outline-none placeholder-[#8fa3b8]"
-        style={{ color: C.darkBlue }} />
+        className="flex-1 bg-transparent text-sm outline-none placeholder-gray-300 text-extra-darkblue" />
     </div>
   );
 }
@@ -194,17 +191,14 @@ function Input({ icon: Ic, placeholder, value, onChange, type = "text", error })
 function Textarea({ icon: Ic, placeholder, value, onChange, rows = 3 }) {
   const [focused, setFocused] = useState(false);
   return (
-    <div className="flex gap-3 rounded-lg px-3.5 py-2.5 transition-all"
-      style={{
-        border: `1.5px solid ${focused ? C.blue : C.lightBlue}`,
-        backgroundColor: focused ? C.white : C.bg,
-        alignItems: "flex-start",
-      }}>
-      {Ic && <span className="mt-0.5" style={{ color: focused ? C.blue : C.medBlue }}><Ic /></span>}
+    <div className={`flex gap-3 rounded-lg px-3.5 py-2.5 bg-white transition-all border items-start ${
+      focused ? "border-[#1C4D8D] shadow-sm" : "border-gray-200"
+    }`}>
+      {Ic && <span className={`mt-0.5 ${focused ? "text-[#1C4D8D]" : "text-gray-400"}`}><Ic /></span>}
       <textarea placeholder={placeholder} value={value} onChange={onChange}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-        rows={rows} className="flex-1 bg-transparent text-sm outline-none resize-none placeholder-[#8fa3b8]"
-        style={{ color: C.darkBlue, fontFamily: "inherit" }} />
+        rows={rows} className="flex-1 bg-transparent text-sm outline-none resize-none placeholder-gray-300 text-extra-darkblue"
+        style={{ fontFamily: "inherit" }} />
     </div>
   );
 }
@@ -212,21 +206,19 @@ function Textarea({ icon: Ic, placeholder, value, onChange, rows = 3 }) {
 function SelectField({ icon: Ic, value, onChange, options, placeholder, error }) {
   const [focused, setFocused] = useState(false);
   return (
-    <div className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 transition-all"
-      style={{
-        border: `1.5px solid ${error ? C.red : focused ? C.blue : C.lightBlue}`,
-        backgroundColor: focused ? C.white : C.bg,
-      }}>
-      {Ic && <span style={{ color: focused ? C.blue : C.medBlue }}><Ic /></span>}
+    <div className={`flex items-center gap-3 rounded-lg px-3.5 py-2.5 bg-white transition-all border ${
+      error ? "border-red-400" : focused ? "border-[#1C4D8D]" : "border-gray-200"
+    } ${focused ? "shadow-sm" : ""}`}>
+      {Ic && <span className={focused ? "text-[#1C4D8D]" : "text-gray-400"}><Ic /></span>}
       <select value={value} onChange={onChange}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         className="flex-1 bg-transparent text-sm outline-none appearance-none cursor-pointer"
-        style={{ color: value ? C.darkBlue : C.dimText }}>
+        style={{ color: value ? C.darkBlue : "#9ca3af" }}>
         <option value="" disabled>{placeholder}</option>
         {options.map(o => <option key={o.value ?? o} value={o.value ?? o}>{o.label ?? o}</option>)}
       </select>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-        className="w-3.5 h-3.5 flex-shrink-0" style={{ color: C.medBlue }}>
+        className="w-3.5 h-3.5 flex-shrink-0 text-gray-400">
         <path d="M6 9l6 6 6-6" />
       </svg>
     </div>
@@ -235,7 +227,7 @@ function SelectField({ icon: Ic, value, onChange, options, placeholder, error })
 
 function ErrorMsg({ msg }) {
   if (!msg) return null;
-  return <p className="text-[11px] mt-1 font-medium" style={{ color: C.red }}>⚠ {msg}</p>;
+  return <p className="text-[11px] mt-1 font-medium text-red-500">⚠ {msg}</p>;
 }
 
 // ── Single user select with avatar ────────────────────────────────────────────
@@ -243,21 +235,19 @@ function UserSelect({ users, value, onChange, placeholder, icon: Ic }) {
   const [focused, setFocused] = useState(false);
   const selected = users.find(u => u._id === value);
   return (
-    <div className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 transition-all"
-      style={{
-        border: `1.5px solid ${focused ? C.blue : C.lightBlue}`,
-        backgroundColor: focused ? C.white : C.bg,
-      }}>
+    <div className={`flex items-center gap-3 rounded-lg px-3.5 py-2.5 bg-white transition-all border ${
+      focused ? "border-[#1C4D8D] shadow-sm" : "border-gray-200"
+    }`}>
       {selected ? (
         <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
           style={{ backgroundColor: C.blue }}>
           {(selected.name || selected.email || "?")[0].toUpperCase()}
         </div>
-      ) : Ic && <span style={{ color: focused ? C.blue : C.medBlue }}><Ic /></span>}
+      ) : Ic && <span className={focused ? "text-[#1C4D8D]" : "text-gray-400"}><Ic /></span>}
       <select value={value} onChange={onChange}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         className="flex-1 bg-transparent text-sm outline-none appearance-none cursor-pointer"
-        style={{ color: value ? C.darkBlue : C.dimText }}>
+        style={{ color: value ? C.darkBlue : "#9ca3af" }}>
         <option value="">{placeholder}</option>
         {users.map(u => (
           <option key={u._id} value={u._id}>
@@ -266,7 +256,7 @@ function UserSelect({ users, value, onChange, placeholder, icon: Ic }) {
         ))}
       </select>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-        className="w-3.5 h-3.5 flex-shrink-0" style={{ color: C.medBlue }}>
+        className="w-3.5 h-3.5 flex-shrink-0 text-gray-400">
         <path d="M6 9l6 6 6-6" />
       </svg>
     </div>
@@ -283,13 +273,11 @@ function MultiUserSelect({ users, selected, onChange, placeholder }) {
   return (
     <div className="relative">
       <button type="button" onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-left transition-all"
-        style={{
-          border: `1.5px solid ${open ? C.blue : C.lightBlue}`,
-          backgroundColor: open ? C.white : C.bg,
-        }}>
-        <span style={{ color: open ? C.blue : C.medBlue }}><Icon.Users /></span>
-        <span className="flex-1 text-sm truncate" style={{ color: selectedUsers.length ? C.darkBlue : C.dimText }}>
+        className={`w-full flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-left bg-white transition-all border ${
+          open ? "border-[#1C4D8D] shadow-sm" : "border-gray-200"
+        }`}>
+        <span className={open ? "text-[#1C4D8D]" : "text-gray-400"}><Icon.Users /></span>
+        <span className="flex-1 text-sm truncate" style={{ color: selectedUsers.length ? C.darkBlue : "#9ca3af" }}>
           {selectedUsers.length === 0
             ? placeholder
             : selectedUsers.map(u => u.name || u.email).join(", ")}
@@ -301,29 +289,24 @@ function MultiUserSelect({ users, selected, onChange, placeholder }) {
           </span>
         )}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-          className="w-3.5 h-3.5 flex-shrink-0" style={{ color: C.medBlue }}>
+          className="w-3.5 h-3.5 flex-shrink-0 text-gray-400">
           <path d={open ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
         </svg>
       </button>
 
       {open && (
         <>
-          {/* backdrop to close */}
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 mt-1 w-full rounded-xl overflow-hidden shadow-xl"
-            style={{ backgroundColor: C.white, border: `1px solid ${C.divider}` }}>
+          <div className="absolute z-20 mt-1 w-full rounded-xl overflow-hidden shadow-xl bg-white border border-gray-100">
             {users.length === 0 ? (
-              <p className="px-4 py-3 text-xs" style={{ color: C.dimText }}>No engineers found</p>
+              <p className="px-4 py-3 text-xs text-gray-400">No engineers found</p>
             ) : users.map(u => (
               <button key={u._id} type="button" onClick={() => toggle(u._id)}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors"
-                style={{ borderBottom: `1px solid ${C.divider}` }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = C.bg}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}>
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-gray-50 border-b border-gray-100">
                 <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0"
                   style={{
                     backgroundColor: selected.includes(u._id) ? C.blue : "transparent",
-                    border: `2px solid ${selected.includes(u._id) ? C.blue : C.lightBlue}`,
+                    border: `2px solid ${selected.includes(u._id) ? C.blue : "#e5e7eb"}`,
                   }}>
                   {selected.includes(u._id) && <span className="text-white"><Icon.Check /></span>}
                 </div>
@@ -332,8 +315,8 @@ function MultiUserSelect({ users, selected, onChange, placeholder }) {
                   {(u.name || u.email || "?")[0].toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: C.darkBlue }}>{u.name || u.email}</p>
-                  <p className="text-[10px]" style={{ color: C.dimText }}>{formatRole(u.role)}</p>
+                  <p className="text-sm font-semibold truncate text-extra-darkblue">{u.name || u.email}</p>
+                  <p className="text-[10px] text-gray-400">{formatRole(u.role)}</p>
                 </div>
               </button>
             ))}
@@ -363,27 +346,25 @@ function CreatorBadge({ user }) {
   const initials = (user.name || user.email || "?")
     .split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
-      style={{ backgroundColor: C.bg, border: `1px solid ${C.divider}` }}>
+    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white border border-gray-100 shadow-sm">
       <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
         style={{ background: `linear-gradient(135deg, ${C.darkBlue}, ${C.blue})` }}>
         {initials}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-bold truncate" style={{ color: C.darkBlue }}>{user.name || user.email}</p>
-        <p className="text-[11px] font-medium" style={{ color: C.medBlue }}>
+        <p className="text-xs font-bold truncate text-extra-darkblue">{user.name || user.email}</p>
+        <p className="text-[11px] font-medium text-gray-400">
           {formatRole(user.role)} · Creating this project
         </p>
       </div>
-      <span className="text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0"
-        style={{ backgroundColor: C.lightBlue, color: C.darkBlue }}>You</span>
+      <span className="text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 bg-[#e0eefa] text-[#1C4D8D]">You</span>
     </div>
   );
 }
 
 function SectionHead({ children }) {
   return (
-    <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: C.medBlue }}>
+    <p className="text-[11px] font-bold uppercase tracking-widest mb-3 text-[#4988C4]">
       {children}
     </p>
   );
@@ -392,14 +373,14 @@ function SectionHead({ children }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function CreateProject() {
   const fileInputRef = useRef(null);
-  const [submitted,    setSubmitted]    = useState(false);
-  const [submitting,   setSubmitting]   = useState(false);
-  const [toast,        setToast]        = useState(null);
+  const [submitted,      setSubmitted]      = useState(false);
+  const [submitting,     setSubmitting]     = useState(false);
+  const [toast,          setToast]          = useState(null);
   const [createdProject, setCreatedProject] = useState(null);
-  const [currentUser,  setCurrentUser]  = useState({});
-  const [allUsers,     setAllUsers]     = useState([]);
-  const [usersLoading, setUsersLoading] = useState(false);
-  const [canAssign,    setCanAssign]    = useState(false);
+  const [currentUser,    setCurrentUser]    = useState({});
+  const [allUsers,       setAllUsers]       = useState([]);
+  const [usersLoading,   setUsersLoading]   = useState(false);
+  const [canAssign,      setCanAssign]      = useState(false);
 
   useEffect(() => {
     const u = getUser();
@@ -489,66 +470,62 @@ export default function CreateProject() {
     const assignedEng = allUsers.filter(u => form.assignedEngineers.includes(u._id));
 
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: C.bg }}>
-        <div className="bg-white rounded-2xl p-8 flex flex-col items-center gap-5 shadow-sm w-full max-w-md"
-          style={{ border: `1px solid ${C.lightBlue}` }}>
+      <div className="flex items-center justify-center p-6">
+        <div className="bg-white rounded-2xl p-8 flex flex-col items-center gap-5 shadow-sm w-full max-w-md border border-gray-100">
           <div className="w-16 h-16 rounded-full flex items-center justify-center"
             style={{ background: `linear-gradient(135deg, ${C.darkBlue}, ${C.blue})` }}>
             <span className="text-white"><Icon.CheckCircle /></span>
           </div>
           <div className="text-center">
-            <h2 className="text-lg font-bold" style={{ color: C.darkBlue }}>Project Created!</h2>
-            <p className="text-sm mt-1" style={{ color: C.mutedText }}>Successfully submitted for review.</p>
+            <h2 className="text-lg font-bold text-extra-darkblue">Project Created!</h2>
+            <p className="text-sm mt-1 text-gray-400">Successfully submitted for review.</p>
           </div>
 
-          <div className="w-full rounded-xl overflow-hidden" style={{ border: `1px solid ${C.divider}` }}>
+          <div className="w-full rounded-xl overflow-hidden border border-gray-100">
             {[
               { label: "Project Name", value: createdProject.name },
               { label: "Client",       value: createdProject.clientName },
               { label: "Status",       value: createdProject.status },
               { label: "Location",     value: createdProject.location || "—" },
             ].map(({ label, value }) => (
-              <div key={label} className="flex items-center justify-between px-4 py-2.5"
-                style={{ borderBottom: `1px solid ${C.divider}` }}>
-                <span className="text-xs font-semibold" style={{ color: C.mutedText }}>{label}</span>
-                <span className="text-xs font-bold capitalize" style={{ color: C.darkBlue }}>{value}</span>
+              <div key={label} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
+                <span className="text-xs font-semibold text-gray-400">{label}</span>
+                <span className="text-xs font-bold capitalize text-extra-darkblue">{value}</span>
               </div>
             ))}
-            {/* Created by */}
             <div className="flex items-center justify-between px-4 py-2.5"
-              style={{ borderBottom: assignedME || assignedII || assignedEng.length ? `1px solid ${C.divider}` : "none" }}>
-              <span className="text-xs font-semibold" style={{ color: C.mutedText }}>Created by</span>
+              style={{ borderBottom: assignedME || assignedII || assignedEng.length ? "1px solid #f3f4f6" : "none" }}>
+              <span className="text-xs font-semibold text-gray-400">Created by</span>
               <div className="flex items-center gap-1.5">
                 <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
                   style={{ backgroundColor: C.blue }}>
                   {(currentUser.name || "?")[0]?.toUpperCase()}
                 </div>
-                <span className="text-xs font-bold" style={{ color: C.darkBlue }}>
+                <span className="text-xs font-bold text-extra-darkblue">
                   {currentUser.name || currentUser.email || "You"}
                 </span>
-                <span className="text-[10px]" style={{ color: C.dimText }}>({formatRole(currentUser.role)})</span>
+                <span className="text-[10px] text-gray-400">({formatRole(currentUser.role)})</span>
               </div>
             </div>
             {assignedME && (
-              <div className="flex items-center justify-between px-4 py-2.5"
-                style={{ borderBottom: `1px solid ${C.divider}` }}>
-                <span className="text-xs font-semibold" style={{ color: C.mutedText }}>Marketing Exec</span>
-                <span className="text-xs font-bold" style={{ color: C.darkBlue }}>{assignedME.name || assignedME.email}</span>
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
+                <span className="text-xs font-semibold text-gray-400">Marketing Exec</span>
+                <span className="text-xs font-bold text-extra-darkblue">{assignedME.name || assignedME.email}</span>
               </div>
             )}
             {assignedII && (
               <div className="flex items-center justify-between px-4 py-2.5"
-                style={{ borderBottom: assignedEng.length ? `1px solid ${C.divider}` : "none" }}>
-                <span className="text-xs font-semibold" style={{ color: C.mutedText }}>Installation IC</span>
-                <span className="text-xs font-bold" style={{ color: C.darkBlue }}>{assignedII.name || assignedII.email}</span>
+                style={{ borderBottom: assignedEng.length ? "1px solid #f3f4f6" : "none" }}>
+                <span className="text-xs font-semibold text-gray-400">Installation IC</span>
+                <span className="text-xs font-bold text-extra-darkblue">{assignedII.name || assignedII.email}</span>
               </div>
             )}
             {assignedEng.length > 0 && (
               <div className="flex items-start justify-between px-4 py-2.5">
-                <span className="text-xs font-semibold" style={{ color: C.mutedText }}>Engineers</span>
+                <span className="text-xs font-semibold text-gray-400">Engineers</span>
                 <div className="flex flex-col items-end gap-0.5">
                   {assignedEng.map(u => (
-                    <span key={u._id} className="text-xs font-bold" style={{ color: C.darkBlue }}>
+                    <span key={u._id} className="text-xs font-bold text-extra-darkblue">
                       {u.name || u.email}
                     </span>
                   ))}
@@ -569,35 +546,31 @@ export default function CreateProject() {
 
   // ── Form ──────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen" style={{ backgroundColor: C.bg }}>
-      <main className="p-4 md:p-6 max-w-3xl mx-auto">
+    <div>
+      <main className="p-4 md:p-6">
 
         <div className="flex items-center gap-3 mb-5">
-          <button className="p-2 rounded-lg transition-colors"
-            style={{ backgroundColor: C.white, border: `1px solid ${C.lightBlue}`, color: C.medBlue }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = C.lightBlue}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = C.white}>
+          <button className="p-2 rounded-lg transition-colors bg-white border border-gray-200 text-gray-400 hover:bg-gray-50">
             <Icon.ChevronLeft />
           </button>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: C.dimText }}>Projects</p>
-            <h2 className="text-base font-bold leading-tight" style={{ color: C.darkBlue }}>Create New Project</h2>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Projects</p>
+            <h2 className="text-base font-bold leading-tight text-extra-darkblue">Create New Project</h2>
           </div>
         </div>
 
         <div className="mb-4"><CreatorBadge user={currentUser} /></div>
 
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${C.lightBlue}` }}>
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
 
           {/* Header */}
-          <div className="px-5 md:px-7 py-4 flex items-center gap-3"
-            style={{ borderBottom: `1px solid ${C.divider}`, backgroundColor: C.bg }}>
+          <div className="px-5 md:px-7 py-4 flex items-center gap-3 border-b border-gray-100 bg-gray-50">
             <div className="p-2 rounded-lg" style={{ backgroundColor: C.darkBlue }}>
               <span style={{ color: C.white }}><Icon.Clipboard /></span>
             </div>
             <div>
-              <h3 className="text-sm font-bold" style={{ color: C.darkBlue }}>Project Details</h3>
-              <p className="text-[11px]" style={{ color: C.dimText }}>Fill in all required information to register a new project</p>
+              <h3 className="text-sm font-bold text-extra-darkblue">Project Details</h3>
+              <p className="text-[11px] text-gray-400">Fill in all required information to register a new project</p>
             </div>
           </div>
 
@@ -637,7 +610,7 @@ export default function CreateProject() {
               </div>
             </div>
 
-            <div style={{ borderTop: `1px solid ${C.divider}` }} />
+            <div className="border-t border-gray-100" />
 
             {/* ── 2. Schedule ── */}
             <div>
@@ -654,7 +627,7 @@ export default function CreateProject() {
               </div>
             </div>
 
-            <div style={{ borderTop: `1px solid ${C.divider}` }} />
+            <div className="border-t border-gray-100" />
 
             {/* ── 3. Staff Assignment (admin/director only) ── */}
             {canAssign && (
@@ -662,17 +635,15 @@ export default function CreateProject() {
                 <div>
                   <SectionHead>Staff Assignment</SectionHead>
                   {usersLoading ? (
-                    <div className="flex items-center gap-2 py-3" style={{ color: C.dimText }}>
+                    <div className="flex items-center gap-2 py-3 text-gray-400">
                       <Icon.Loader /><span className="text-xs">Loading users…</span>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      {/* Marketing Executive */}
                       <div>
                         <Label>Marketing Executive</Label>
                         {marketingExecs.length === 0 ? (
-                          <div className="rounded-lg px-3.5 py-2.5 text-xs"
-                            style={{ border: `1.5px solid ${C.lightBlue}`, backgroundColor: C.bg, color: C.dimText }}>
+                          <div className="rounded-lg px-3.5 py-2.5 text-xs bg-white border border-gray-200 text-gray-400">
                             No marketing executives in system
                           </div>
                         ) : (
@@ -682,12 +653,10 @@ export default function CreateProject() {
                         )}
                       </div>
 
-                      {/* Installation Incharge */}
                       <div>
                         <Label>Installation Incharge</Label>
                         {installationIncharges.length === 0 ? (
-                          <div className="rounded-lg px-3.5 py-2.5 text-xs"
-                            style={{ border: `1.5px solid ${C.lightBlue}`, backgroundColor: C.bg, color: C.dimText }}>
+                          <div className="rounded-lg px-3.5 py-2.5 text-xs bg-white border border-gray-200 text-gray-400">
                             No installation incharges in system
                           </div>
                         ) : (
@@ -697,7 +666,6 @@ export default function CreateProject() {
                         )}
                       </div>
 
-                      {/* Engineers — multi-select */}
                       <div className="sm:col-span-2">
                         <Label>Assigned Engineers</Label>
                         <MultiUserSelect
@@ -707,13 +675,13 @@ export default function CreateProject() {
                           placeholder="Select one or more engineers…"
                         />
                         {engineers.length === 0 && (
-                          <p className="text-[11px] mt-1" style={{ color: C.dimText }}>No engineers found in the system.</p>
+                          <p className="text-[11px] mt-1 text-gray-400">No engineers found in the system.</p>
                         )}
                       </div>
                     </div>
                   )}
                 </div>
-                <div style={{ borderTop: `1px solid ${C.divider}` }} />
+                <div className="border-t border-gray-100" />
               </>
             )}
 
@@ -726,18 +694,18 @@ export default function CreateProject() {
                 value={form.description} onChange={set("description")} rows={3} />
             </div>
 
-            <div style={{ borderTop: `1px solid ${C.divider}` }} />
+            <div className="border-t border-gray-100" />
 
             {/* ── 5. Documents ── */}
             <div>
               <SectionHead>Design Documents</SectionHead>
-              <p className="text-[11px] mb-3" style={{ color: C.dimText }}>
+              <p className="text-[11px] mb-3 text-gray-400">
                 Upload PDFs, drawings, or design files. Max 20 MB each.
               </p>
               <div className="rounded-xl transition-all cursor-pointer"
                 style={{
-                  border: `2px dashed ${dragOver ? C.blue : C.lightBlue}`,
-                  backgroundColor: dragOver ? `${C.lightBlue}40` : C.bg,
+                  border: `2px dashed ${dragOver ? C.blue : "#e5e7eb"}`,
+                  backgroundColor: dragOver ? "#eff6ff" : "#f9fafb",
                   padding: "2rem 1.5rem",
                 }}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -752,27 +720,24 @@ export default function CreateProject() {
                     style={{ backgroundColor: dragOver ? C.blue : C.lightBlue }}>
                     <span style={{ color: dragOver ? C.white : C.darkBlue }}><Icon.Upload /></span>
                   </div>
-                  <p className="text-sm font-semibold" style={{ color: C.darkBlue }}>
+                  <p className="text-sm font-semibold text-extra-darkblue">
                     {dragOver ? "Drop files here" : "Click to upload or drag & drop"}
                   </p>
-                  <p className="text-[11px]" style={{ color: C.dimText }}>PDF, DOC, DWG, PNG, JPG supported</p>
+                  <p className="text-[11px] text-gray-400">PDF, DOC, DWG, PNG, JPG supported</p>
                 </div>
               </div>
 
               {files.length > 0 && (
                 <div className="mt-3 space-y-2">
                   {files.map(f => (
-                    <div key={f.name} className="flex items-center gap-3 rounded-lg px-3.5 py-2.5"
-                      style={{ backgroundColor: C.white, border: `1px solid ${C.divider}` }}>
+                    <div key={f.name} className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 bg-white border border-gray-100">
                       <span style={{ color: C.blue }}><Icon.File /></span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold truncate" style={{ color: C.darkBlue }}>{f.name}</p>
-                        <p className="text-[11px]" style={{ color: C.dimText }}>{formatSize(f.size)}</p>
+                        <p className="text-xs font-semibold truncate text-extra-darkblue">{f.name}</p>
+                        <p className="text-[11px] text-gray-400">{formatSize(f.size)}</p>
                       </div>
                       <button onClick={(e) => { e.stopPropagation(); setFiles(prev => prev.filter(x => x.name !== f.name)); }}
-                        className="p-1 rounded-md flex-shrink-0 transition-colors" style={{ color: C.dimText }}
-                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = C.lightBlue; e.currentTarget.style.color = C.darkBlue; }}
-                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = C.dimText; }}>
+                        className="p-1 rounded-md flex-shrink-0 transition-colors text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                         <Icon.X />
                       </button>
                     </div>
@@ -783,27 +748,25 @@ export default function CreateProject() {
           </div>
 
           {/* Footer */}
-          <div className="px-5 md:px-7 py-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3"
-            style={{ borderTop: `1px solid ${C.divider}`, backgroundColor: C.bg }}>
-            <p className="text-[11px]" style={{ color: C.dimText }}>
+          <div className="px-5 md:px-7 py-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-gray-100 bg-gray-50">
+            <p className="text-[11px] text-gray-400">
               Fields marked with <span style={{ color: C.blue }}>*</span> are required
             </p>
             <div className="flex gap-3">
               <button onClick={handleReset} disabled={submitting}
-                className="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-semibold hover:opacity-80 disabled:opacity-40 transition-opacity"
-                style={{ backgroundColor: C.white, border: `1px solid ${C.lightBlue}`, color: C.mutedText }}>
+                className="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-100 disabled:opacity-40 transition-colors bg-white border border-gray-200 text-gray-500">
                 Clear
               </button>
               <button onClick={handleSubmit} disabled={submitting}
-                className="flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-bold hover:opacity-90 disabled:opacity-60 flex items-center gap-2 justify-center transition-opacity"
-                style={{ backgroundColor: C.darkBlue, color: C.white }}>
+                className="flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-bold hover:opacity-90 disabled:opacity-60 flex items-center gap-2 justify-center transition-opacity text-white"
+                style={{ backgroundColor: C.darkBlue }}>
                 {submitting ? <><Icon.Loader /> Creating…</> : "Create Project"}
               </button>
             </div>
           </div>
         </div>
 
-        <p className="text-center text-[11px] mt-4" style={{ color: C.dimText }}>
+        <p className="text-center text-[11px] mt-4 text-gray-400">
           Project will be submitted for eligibility review after creation.
         </p>
       </main>
