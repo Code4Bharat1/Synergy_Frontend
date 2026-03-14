@@ -31,6 +31,7 @@ import {
   UserCheck,
   ListTodo,
   Banknote,
+  HardHat,
 } from "lucide-react";
 
 import Navbar from "@/components/common/Navbar";
@@ -84,6 +85,10 @@ const ROLE_NAVIGATION = {
     { href: "/support/analytics", icon: BarChart2, label: "Analytics" },
     // { href: "/support/profile", icon: User, label: "Profile" },
   ],
+  attendance: [
+  { label: "Mark Attendance", icon: HardHat,        href: "/attendance" },
+  { label: "Records",         icon: ClipboardList,   href: "/attendance/records" },
+],
   "installationIncharge": [
     {
       href: "/installationIncharge",
