@@ -1,417 +1,557 @@
 "use client";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, FileText, Wrench, Camera, Package,
-  Settings, PenLine, MapPin, User, Hash, Calendar,
-  Clock, Layers, HardHat, Palette, Loader2,
+  MessageSquareWarning,
+  AlertTriangle,
+  Plus,
+  X,
+  RefreshCw,
+  Eye,
+  Pencil,
+  Trash2,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  XCircle,
+  Loader2,
 } from "lucide-react";
+
 import axiosInstance from "../../lib/axios";
 
-const getToken = () => typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-const authCfg = () => ({ headers: { Authorization: `Bearer ${getToken()}` } });
-const daysSince = d => Math.floor((Date.now() - new Date(d)) / 86400000);
-
-// ── Badge Components ─────────────────────────────────────────────────────────
-function SeverityBadge({ level }) {
-  const map = {
-    critical: { bg: "#FF3B30", text: "#fff" },
-    high: { bg: "#FF9500", text: "#fff" },
-    medium: { bg: "#FFCC00", text: "#0F2854" },
-    low: { bg: "#34C759", text: "#fff" },
+const apiFetch = async (path, { method = "GET", body } = {}) => {
+  const token = localStorage.getItem("accessToken");
+  const config = {
+    method,
+    url: path,
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    ...(body ? { data: JSON.parse(body) } : {}),
   };
-  const c = map[level?.toLowerCase()] || map.low;
-  return (
-    <span style={{
-      background: c.bg, color: c.text,
-      padding: "2px 10px", borderRadius: 99,
-      fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
-      display: "inline-block", whiteSpace: "nowrap",
-    }}>{level}</span>
-  );
-}
+  const res = await axiosInstance(config);
+  return res.data;
+};
 
-function StatusBadge({ status }) {
-  const map = {
-    "open": { bg: "rgba(255,59,48,0.12)", border: "#FF3B30", text: "#FF3B30" },
-    "in-progress": { bg: "rgba(255,149,0,0.12)", border: "#FF9500", text: "#FF9500" },
-    "resolved": { bg: "rgba(52,199,89,0.12)", border: "#34C759", text: "#34C759" },
-    "closed": { bg: "rgba(73,136,196,0.12)", border: "#4988C4", text: "#4988C4" },
-  };
-  const c = map[status?.toLowerCase()] || map["open"];
-  const label = status === "in-progress" ? "Under Review" : status;
-  return (
-    <span style={{
-      background: c.bg, border: `1px solid ${c.border}`, color: c.text,
-      padding: "2px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
-      display: "inline-block", whiteSpace: "nowrap",
-    }}>{label}</span>
-  );
-}
+const STATUS_META = {
+  open:          { label: "Open",        color: "bg-blue-50 text-blue-600",   icon: AlertCircle,  dot: "bg-blue-500"  },
+  "in-progress": { label: "In Progress", color: "bg-amber-50 text-amber-600", icon: Clock,        dot: "bg-amber-400" },
+  resolved:      { label: "Resolved",    color: "bg-green-50 text-green-600", icon: CheckCircle2, dot: "bg-green-500" },
+  closed:        { label: "Closed",      color: "bg-gray-100 text-gray-500",  icon: XCircle,      dot: "bg-gray-400"  },
+};
 
-// ── InfoRow helper ─────────────────────────────────────────────────────────────
-function InfoRow({ label, value, icon: Icon }) {
+const PRIORITY_META = {
+  low:      { label: "Low",      color: "bg-gray-100 text-gray-500"  },
+  medium:   { label: "Medium",   color: "bg-blue-50 text-blue-600"   },
+  high:     { label: "High",     color: "bg-amber-50 text-amber-600" },
+  critical: { label: "Critical", color: "bg-red-50 text-red-500"     },
+};
+
+const EMPTY_FORM = {
+  title: "", description: "", project: "", priority: "medium",
+  status: "open", assignedTo: "", resolutionNotes: "",
+};
+
+const Badge = ({ text, colorClass }) => (
+  <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${colorClass}`}>{text}</span>
+);
+
+const StatusIcon = ({ status }) => {
+  const Meta = STATUS_META[status];
+  if (!Meta) return null;
+  const Icon = Meta.icon;
+  return <Icon size={13} />;
+};
+
+// ── Clickable Stat Card ───────────────────────────────────────────────────────
+function StatCard({ label, value, colorClass, active, onClick }) {
   return (
-    <div style={{
-      display: "flex", justifyContent: "space-between", alignItems: "center",
-      padding: "10px 0", borderBottom: "1px solid rgba(73,136,196,0.08)",
-    }}>
-      <span style={{ color: "#4988C4", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}>
-        {Icon && <Icon size={12} />} {label}
-      </span>
-      <span style={{ color: "#0F2854", fontSize: 13, fontWeight: 600, textAlign: "right", maxWidth: "60%" }}>{value}</span>
+    <div
+      onClick={onClick}
+      className={`rounded-xl border shadow-sm p-4 text-center cursor-pointer transition-all duration-200
+        hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]
+        ${active
+          ? "border-blue-400 bg-blue-50 ring-2 ring-blue-200"
+          : "border-gray-100 bg-white hover:border-blue-200"
+        }`}
+    >
+      <p className={`text-2xl font-bold ${colorClass}`}>{value}</p>
+      <p className="text-xs text-gray-400 mt-0.5">{label}</p>
+      {active && <p className="text-[10px] text-blue-500 font-semibold mt-1">● Filtering</p>}
     </div>
   );
 }
 
-// ── Main content (fetches by ID from backend) ───────────────────────────────────────
-function ComplaintDetailContent() {
-  const params = useSearchParams();
-  const id = params.get("id");
-
-  const [c, setC] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (!id) { setError("No complaint ID in URL."); setLoading(false); return; }
-    axiosInstance.get(`/complaints/${id}`, authCfg())
-      .then(r => {
-        const data = r.data.data || r.data;
-        setC(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching complaint:", err);
-        setError("Complaint not found.");
-      });
-  }, [id]);
-
-  if (loading) return <div style={{ padding: 32, color: "#4988C4", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 8 }}><Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} /> Loading complaint…<style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>;
-  if (error || !c) return <div style={{ padding: 32, color: "#FF3B30", fontFamily: "'DM Sans',sans-serif" }}>⚠ {error || "Complaint not found."} <Link href="/support/search" style={{ color: "#4988C4", marginLeft: 12 }}>← Back</Link></div>;
-
-  const loggedDate = new Date(c.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-
-  const materials = [
-    ["Gel Coat Resin", "5 kg", "$240", "Dispatched"],
-    ["Fiberglass Cloth", "10 m²", "$180", "Pending"],
-    ["Hardener", "2 L", "$60", "Pending"],
-  ];
-
+function Modal({ title, onClose, children }) {
   return (
-    <>
-      <style>{`
-        .dp-wrapper {
-          font-family: 'DM Sans', 'Segoe UI', sans-serif;
-          padding: 16px;
-          max-width: 100%;
-          box-sizing: border-box;
-        }
-
-        /* ── Page header top row ── */
-        .dp-title-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 28px;
-          flex-wrap: wrap;
-          gap: 12px;
-        }
-        .dp-badges { display: flex; gap: 10px; flex-wrap: wrap; }
-
-        /* ── Two-column info grid ── */
-        .info-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-          margin-bottom: 16px;
-        }
-        @media (max-width: 768px) {
-          .info-grid { grid-template-columns: 1fr; }
-        }
-
-        /* ── sp-card ── */
-        .dp-card {
-          background: #fff;
-          border-radius: 16px;
-          border: 1px solid rgba(73,136,196,0.15);
-          box-shadow: 0 2px 12px rgba(15,40,84,0.06);
-        }
-
-        /* ── Card section header ── */
-        .card-heading {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 16px;
-        }
-        .card-icon {
-          width: 30px; height: 30px; border-radius: 8px;
-          background: #0F2854;
-          display: flex; align-items: center; justify-content: center;
-          color: #BDE8F5; flex-shrink: 0;
-        }
-        .card-title { color: #0F2854; fontWeight: 700; fontSize: 14px; }
-
-        /* ── Photos grid ── */
-        .photos-grid {
-          display: flex;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-        .photo-thumb {
-          width: 110px; height: 90px; border-radius: 10px;
-          display: flex; align-items: center; justify-content: center;
-          border: 1px solid rgba(73,136,196,0.2); cursor: pointer; flex-shrink: 0;
-        }
-        @media (max-width: 540px) {
-          .photo-thumb { width: calc(50% - 6px); height: 80px; }
-        }
-
-        /* ── Materials table ── */
-        .mat-table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .mat-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 420px; }
-        .mat-th { padding: 9px 16px; text-align: left; color: #1C4D8D; font-size: 11px; font-weight: 600; }
-        .mat-td { padding: 11px 16px; }
-
-        /* Mobile cards for materials */
-        .mat-cards { display: none; }
-        @media (max-width: 768px) {
-          .mat-table-scroll { display: none; }
-          .mat-cards {
-            display: flex; flex-direction: column; gap: 10px; padding: 16px;
-          }
-          .mat-card {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 12px 14px; border-radius: 10px;
-            border: 1px solid rgba(73,136,196,0.12);
-            background: rgba(189,232,245,0.04);
-            flex-wrap: wrap; gap: 8px;
-          }
-          .mat-name { color: #0F2854; font-weight: 600; font-size: 13px; }
-          .mat-meta { color: #4988C4; font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
-          .mat-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-        }
-
-        /* ── Action buttons ── */
-        .action-row {
-          display: flex;
-          gap: 12px;
-          margin-top: 20px;
-          flex-wrap: wrap;
-        }
-        .btn-primary {
-          background: linear-gradient(135deg, #0F2854, #1C4D8D);
-          color: #BDE8F5;
-          padding: 11px 24px; border-radius: 10px;
-          font-size: 13px; font-weight: 700; cursor: pointer;
-          display: inline-flex; align-items: center; gap: 8px;
-          text-decoration: none; border: none; font-family: inherit;
-        }
-        .btn-secondary {
-          background: #fff;
-          border: 1px solid rgba(73,136,196,0.3);
-          color: #4988C4;
-          padding: 11px 24px; border-radius: 10px;
-          font-size: 13px; font-weight: 600; cursor: pointer;
-          display: inline-flex; align-items: center; gap: 8px;
-          font-family: inherit;
-        }
-        @media (max-width: 480px) {
-          .btn-primary, .btn-secondary { flex: 1; justify-content: center; }
-        }
-
-        /* ── Complaint info stat row ── */
-        .stat-row {
-          display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap;
-        }
-        .stat-item { display: flex; flex-direction: column; gap: 4px; }
-        .stat-label {
-          color: #4988C4; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
-          text-transform: uppercase;
-        }
-      `}</style>
-
-      <div className="dp-wrapper">
-
-        {/* ── Back ── */}
-        <div style={{ marginBottom: 12 }}>
-          <Link href="/support/search" style={{ color: "#4988C4", fontSize: 13, cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <ArrowLeft size={14} /> Back to Search
-          </Link>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h3 className="text-sm font-bold text-gray-800">{title}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={16} /></button>
         </div>
-
-        {/* ── Title Row ── */}
-        <div className="dp-title-row">
-          <div>
-            <div style={{ color: "#4988C4", fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>
-              Complaint Detail
-            </div>
-            <h1 style={{ color: "#0F2854", fontSize: "clamp(20px, 4vw, 26px)", fontWeight: 800, margin: 0 }}>{c.title}</h1>
-            <p style={{ color: "#4988C4", fontSize: 13, margin: "4px 0 0" }}>{c.project?.name || "—"} · {c.priority} priority</p>
-          </div>
-          <div className="dp-badges">
-            <SeverityBadge level={c.priority} />
-            <StatusBadge status={c.status} />
-          </div>
-        </div>
-
-        {/* ── Info Grid ── */}
-        <div className="info-grid">
-
-          {/* Basic Info */}
-          <div className="dp-card" style={{ padding: "22px" }}>
-            <div className="card-heading">
-              <div className="card-icon"><FileText size={15} /></div>
-              <span className="card-title">Basic Information</span>
-            </div>
-            <InfoRow label="Project" value={c.project?.name || "—"} icon={Hash} />
-            <InfoRow label="Logged By" value={c.loggedBy?.name || "—"} icon={User} />
-            <InfoRow label="Status" value={c.status} icon={Clock} />
-            <InfoRow label="Priority" value={c.priority} icon={Package} />
-          </div>
-
-          {/* Complaint Info */}
-          <div className="dp-card" style={{ padding: "22px" }}>
-            <div className="card-heading">
-              <div className="card-icon"><Wrench size={15} /></div>
-              <span className="card-title">Complaint Info</span>
-            </div>
-
-            <div style={{ marginBottom: 14 }}>
-              <div className="stat-label" style={{ marginBottom: 6 }}>Description</div>
-              <div style={{
-                color: "#0F2854", fontSize: 13, lineHeight: 1.6,
-                background: "rgba(189,232,245,0.1)", padding: "12px 14px", borderRadius: 8,
-              }}>
-                {c.description || "No detailed description provided."}
-              </div>
-            </div>
-
-            <div className="stat-row">
-              <div className="stat-item">
-                <span className="stat-label">Severity</span>
-                <SeverityBadge level={c.priority} />
-              </div>
-              <div className="stat-item">
-                <span className="stat-label">Status</span>
-                <StatusBadge status={c.status} />
-              </div>
-              <div className="stat-item">
-                <span className="stat-label">Days Open</span>
-                <span style={{ color: daysSince(c.createdAt) > 10 ? "#FF3B30" : "#34C759", fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", gap: 4 }}>
-                  <Clock size={13} /> {daysSince(c.createdAt)}d
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <div className="stat-label" style={{ marginBottom: 6 }}>Logged Date</div>
-              <div style={{ color: "#0F2854", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
-                <Calendar size={13} color="#4988C4" /> {loggedDate}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Photos ── */}
-        <div className="dp-card" style={{ padding: "22px", marginBottom: 16 }}>
-          <div className="card-heading">
-            <div className="card-icon"><Camera size={15} /></div>
-            <span className="card-title">Complaint Photos</span>
-          </div>
-          <div className="photos-grid">
-            {[1, 2, 3, 4].map(n => (
-              <div key={n} className="photo-thumb" style={{
-                background: `linear-gradient(135deg, rgba(73,136,196,${0.1 + n * 0.05}), rgba(189,232,245,0.3))`,
-              }}>
-                <Camera size={24} color="rgba(73,136,196,0.4)" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Materials ── */}
-        <div className="dp-card" style={{ overflow: "hidden", marginBottom: 0 }}>
-          <div style={{ padding: "16px 22px", borderBottom: "1px solid rgba(73,136,196,0.1)", display: "flex", alignItems: "center", gap: 8 }}>
-            <Package size={15} color="#4988C4" />
-            <span style={{ color: "#0F2854", fontWeight: 700, fontSize: 14 }}>Required Materials</span>
-          </div>
-
-          {/* Desktop table */}
-          <div className="mat-table-scroll">
-            <table className="mat-table">
-              <thead>
-                <tr style={{ background: "rgba(189,232,245,0.2)" }}>
-                  {["Material", "Quantity", "Est. Cost", "Status"].map(h => (
-                    <th key={h} className="mat-th">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {materials.map(([mat, qty, cost, st], i) => (
-                  <tr key={i} style={{ borderTop: "1px solid rgba(73,136,196,0.08)" }}>
-                    <td className="mat-td" style={{ color: "#0F2854" }}>{mat}</td>
-                    <td className="mat-td" style={{ color: "#4988C4" }}>{qty}</td>
-                    <td className="mat-td" style={{ color: "#34C759", fontWeight: 700 }}>{cost}</td>
-                    <td className="mat-td">
-                      <span style={{
-                        padding: "2px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
-                        background: st === "Dispatched" ? "rgba(52,199,89,0.12)" : "rgba(255,149,0,0.12)",
-                        border: `1px solid ${st === "Dispatched" ? "#34C759" : "#FF9500"}`,
-                        color: st === "Dispatched" ? "#34C759" : "#FF9500",
-                      }}>{st}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile cards */}
-          <div className="mat-cards">
-            {materials.map(([mat, qty, cost, st], i) => (
-              <div key={i} className="mat-card">
-                <div>
-                  <div className="mat-name">{mat}</div>
-                  <div className="mat-meta">
-                    <span>{qty}</span>
-                    <span style={{ color: "#34C759", fontWeight: 700 }}>{cost}</span>
-                  </div>
-                </div>
-                <div className="mat-right">
-                  <span style={{
-                    padding: "2px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
-                    background: st === "Dispatched" ? "rgba(52,199,89,0.12)" : "rgba(255,149,0,0.12)",
-                    border: `1px solid ${st === "Dispatched" ? "#34C759" : "#FF9500"}`,
-                    color: st === "Dispatched" ? "#34C759" : "#FF9500",
-                  }}>{st}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Actions ── */}
-        <div className="action-row">
-          <Link href={`/support/service?id=${id}`} className="btn-primary">
-            <Settings size={15} /> Start Service Execution
-          </Link>
-          <button className="btn-secondary">
-            <PenLine size={15} /> Edit Complaint
-          </button>
-        </div>
-
+        <div className="px-6 py-5">{children}</div>
       </div>
-    </>
+    </div>
   );
 }
 
-export default function ComplaintDetailPage() {
+function ComplaintForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel = "Submit" }) {
+  const [form, setForm] = useState(initial);
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
   return (
-    <Suspense fallback={<div style={{ color: "#4988C4", padding: 32, fontFamily: "'DM Sans', sans-serif" }}>Loading...</div>}>
-      <ComplaintDetailContent />
-    </Suspense>
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit(form); }} className="space-y-4">
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1 block">Title *</label>
+        <input required value={form.title} onChange={(e) => set("title", e.target.value)}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="Brief complaint title" />
+      </div>
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1 block">Description *</label>
+        <textarea required rows={3} value={form.description} onChange={(e) => set("description", e.target.value)}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+          placeholder="Detailed description of the complaint" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-semibold text-gray-600 mb-1 block">Priority</label>
+          <select value={form.priority} onChange={(e) => set("priority", e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+            {Object.entries(PRIORITY_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-gray-600 mb-1 block">Status</label>
+          <select value={form.status} onChange={(e) => set("status", e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+            {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1 block">Project ID</label>
+        <input value={form.project} onChange={(e) => set("project", e.target.value)}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="MongoDB Project ObjectId" />
+      </div>
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1 block">Assigned To (User ID)</label>
+        <input value={form.assignedTo} onChange={(e) => set("assignedTo", e.target.value)}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="MongoDB User ObjectId" />
+      </div>
+      {(form.status === "resolved" || form.status === "closed") && (
+        <div>
+          <label className="text-xs font-semibold text-gray-600 mb-1 block">Resolution Notes</label>
+          <textarea rows={2} value={form.resolutionNotes} onChange={(e) => set("resolutionNotes", e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+            placeholder="How was this complaint resolved?" />
+        </div>
+      )}
+      <button type="submit" disabled={loading}
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+        {loading && <Loader2 size={14} className="animate-spin" />}
+        {submitLabel}
+      </button>
+    </form>
+  );
+}
+
+function ComplaintDetail({ complaint }) {
+  const SM = STATUS_META[complaint.status] || {};
+  const PM = PRIORITY_META[complaint.priority] || {};
+  return (
+    <div className="space-y-4 text-sm">
+      <div className="flex flex-wrap gap-2">
+        <Badge text={SM.label || complaint.status} colorClass={SM.color || "bg-gray-100 text-gray-600"} />
+        <Badge text={PM.label || complaint.priority} colorClass={PM.color || "bg-gray-100 text-gray-600"} />
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-gray-400 mb-1">Description</p>
+        <p className="text-gray-700 leading-relaxed">{complaint.description}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-xs font-semibold text-gray-400 mb-1">Project</p>
+          <p className="text-gray-700">{complaint.project?.name || "—"}</p>
+          {complaint.project?.clientName && <p className="text-xs text-gray-400">{complaint.project.clientName}</p>}
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-gray-400 mb-1">Logged By</p>
+          <p className="text-gray-700">{complaint.loggedBy?.name || "—"}</p>
+          <p className="text-xs text-gray-400">{complaint.loggedBy?.role || ""}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-gray-400 mb-1">Assigned To</p>
+          <p className="text-gray-700">{complaint.assignedTo?.name || "Unassigned"}</p>
+          <p className="text-xs text-gray-400">{complaint.assignedTo?.role || ""}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-gray-400 mb-1">Created</p>
+          <p className="text-gray-700">{new Date(complaint.createdAt).toLocaleDateString()}</p>
+        </div>
+        {complaint.resolvedAt && (
+          <div>
+            <p className="text-xs font-semibold text-gray-400 mb-1">Resolved At</p>
+            <p className="text-gray-700">{new Date(complaint.resolvedAt).toLocaleDateString()}</p>
+          </div>
+        )}
+      </div>
+      {complaint.resolutionNotes && (
+        <div>
+          <p className="text-xs font-semibold text-gray-400 mb-1">Resolution Notes</p>
+          <p className="text-gray-700 bg-green-50 rounded-lg p-3 text-xs leading-relaxed">{complaint.resolutionNotes}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AnalyticsPanel({ complaints }) {
+  const byProject = {};
+  complaints.forEach((c) => {
+    const key = c.project?.name || "Unassigned";
+    if (!byProject[key]) byProject[key] = { total: 0, resolved: 0, open: 0, escalated: 0 };
+    byProject[key].total++;
+    if (c.status === "resolved" || c.status === "closed") byProject[key].resolved++;
+    else if (c.status === "open") byProject[key].open++;
+    else if (c.status === "in-progress") byProject[key].escalated++;
+  });
+  const byPriority = { low: 0, medium: 0, high: 0, critical: 0 };
+  complaints.forEach((c) => { if (byPriority[c.priority] !== undefined) byPriority[c.priority]++; });
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <MessageSquareWarning size={15} className="text-blue-500" />
+          <h3 className="text-sm font-bold text-gray-800">Complaints per Project</h3>
+        </div>
+        <div className="space-y-3">
+          {Object.entries(byProject).map(([name, d]) => (
+            <div key={name} className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="font-semibold text-gray-700 truncate max-w-[60%]">{name}</span>
+                <span className="text-gray-400">{d.total} total</span>
+              </div>
+              <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
+                <div className="bg-green-400" style={{ width: `${(d.resolved / d.total) * 100}%` }} />
+                <div className="bg-amber-400" style={{ width: `${(d.open / d.total) * 100}%` }} />
+                <div className="bg-blue-400" style={{ width: `${(d.escalated / d.total) * 100}%` }} />
+              </div>
+            </div>
+          ))}
+          {Object.keys(byProject).length === 0 && <p className="text-xs text-gray-400 text-center py-4">No data yet</p>}
+        </div>
+        <div className="flex gap-4 text-xs text-gray-400 pt-1 border-t border-gray-50">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" /> Resolved</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Open</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" /> In Progress</span>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <AlertTriangle size={15} className="text-amber-500" />
+          <h3 className="text-sm font-bold text-gray-800">Priority Breakdown</h3>
+        </div>
+        <div className="space-y-3">
+          {Object.entries(byPriority).map(([p, count]) => {
+            const PM = PRIORITY_META[p];
+            const pct = complaints.length ? Math.round((count / complaints.length) * 100) : 0;
+            return (
+              <div key={p} className="flex items-center gap-3">
+                <span className="text-xs text-gray-500 w-16 capitalize">{PM.label}</span>
+                <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${pct}%`, background: p === "critical" ? "#ef4444" : p === "high" ? "#d97706" : p === "medium" ? "#3b82f6" : "#9ca3af" }} />
+                </div>
+                <span className="text-xs font-bold text-gray-700 w-8 text-right">{count}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+export default function ComplaintAnalytics() {
+  const router = useRouter();
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [view, setView] = useState("list");
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [viewComplaint, setViewComplaint] = useState(null);
+  const [editComplaint, setEditComplaint] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // "all" | "open" | "in-progress" | "resolved-closed"
+  const [activeCard, setActiveCard] = useState("all");
+  const [filterPriority, setFilterPriority] = useState("all");
+  const [search, setSearch] = useState("");
+
+  const fetchComplaints = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await apiFetch("/complaints");
+      setComplaints(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchComplaints(); }, [fetchComplaints]);
+
+  const handleCreate = async (form) => {
+    try {
+      setActionLoading(true);
+      const payload = Object.fromEntries(Object.entries(form).filter(([, v]) => v !== ""));
+      await apiFetch("/complaints", { method: "POST", body: JSON.stringify(payload) });
+      setShowCreate(false);
+      fetchComplaints();
+    } catch (err) { alert(err.message); }
+    finally { setActionLoading(false); }
+  };
+
+  const handleUpdate = async (form) => {
+    try {
+      setActionLoading(true);
+      const payload = Object.fromEntries(Object.entries(form).filter(([, v]) => v !== ""));
+      await apiFetch(`/complaints/${editComplaint._id}`, { method: "PUT", body: JSON.stringify(payload) });
+      setEditComplaint(null);
+      fetchComplaints();
+    } catch (err) { alert(err.message); }
+    finally { setActionLoading(false); }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setActionLoading(true);
+      await apiFetch(`/complaints/${deleteTarget._id}`, { method: "DELETE" });
+      setDeleteTarget(null);
+      fetchComplaints();
+    } catch (err) { alert(err.message); }
+    finally { setActionLoading(false); }
+  };
+
+  // clicking the active card again → resets to "all"
+  const handleCardClick = (key) => {
+    setActiveCard(prev => prev === key ? "all" : key);
+    setView("list");
+  };
+
+  // ── Row click — navigates to detail page ──────────────────────────────────
+  const goToComplaint = (id) => router.push(`/support/detail?id=${id}`);
+
+  const filtered = complaints.filter((c) => {
+    if (activeCard === "open" && c.status !== "open") return false;
+    if (activeCard === "in-progress" && c.status !== "in-progress") return false;
+    if (activeCard === "resolved-closed" && c.status !== "resolved" && c.status !== "closed") return false;
+    if (filterPriority !== "all" && c.priority !== filterPriority) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!c.title?.toLowerCase().includes(q) &&
+          !c.description?.toLowerCase().includes(q) &&
+          !c.project?.name?.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const stats = {
+    total:      complaints.length,
+    open:       complaints.filter((c) => c.status === "open").length,
+    inProgress: complaints.filter((c) => c.status === "in-progress").length,
+    resolved:   complaints.filter((c) => c.status === "resolved" || c.status === "closed").length,
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Complaint Management</h2>
+          <p className="text-sm text-gray-400 mt-0.5">{complaints.length} total complaints across all projects</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+            <button onClick={() => setView("list")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${view === "list" ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}>
+              List
+            </button>
+            <button onClick={() => setView("analytics")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${view === "analytics" ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}>
+              Analytics
+            </button>
+          </div>
+          <button onClick={fetchComplaints}
+            className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all">
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          </button>
+          <button onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors">
+            <Plus size={13} /> New Complaint
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
+          <AlertCircle size={14} /><span>{error}</span>
+          <button onClick={fetchComplaints} className="ml-auto text-xs underline">Retry</button>
+        </div>
+      )}
+
+      {/* ── Clickable Stat Cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatCard label="Total"             value={stats.total}      colorClass="text-blue-600"  active={activeCard === "all"}             onClick={() => handleCardClick("all")} />
+        <StatCard label="Open"              value={stats.open}       colorClass="text-amber-600" active={activeCard === "open"}            onClick={() => handleCardClick("open")} />
+        <StatCard label="In Progress"       value={stats.inProgress} colorClass="text-blue-500"  active={activeCard === "in-progress"}     onClick={() => handleCardClick("in-progress")} />
+        <StatCard label="Resolved / Closed" value={stats.resolved}   colorClass="text-green-600" active={activeCard === "resolved-closed"} onClick={() => handleCardClick("resolved-closed")} />
+      </div>
+
+      {view === "analytics" && <AnalyticsPanel complaints={complaints} />}
+
+      {view === "list" && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex flex-wrap items-center gap-3 px-5 py-4 border-b border-gray-100">
+            <input value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search complaints…"
+              className="flex-1 min-w-48 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+
+            {activeCard !== "all" && (
+              <span className="flex items-center gap-1.5 text-xs font-semibold bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg border border-blue-200">
+                {activeCard === "open" && "Open"}
+                {activeCard === "in-progress" && "In Progress"}
+                {activeCard === "resolved-closed" && "Resolved / Closed"}
+                <button onClick={() => setActiveCard("all")} className="ml-1 hover:text-blue-800"><X size={11} /></button>
+              </span>
+            )}
+
+            <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+              <option value="all">All Priorities</option>
+              {Object.entries(PRIORITY_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-16 gap-2 text-gray-400">
+              <Loader2 size={18} className="animate-spin" /><span className="text-sm">Loading complaints…</span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-16 text-center text-gray-400 text-sm">
+              {complaints.length === 0 ? "No complaints found. Create the first one!" : "No complaints match your filters."}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {["Title", "Project", "Priority", "Status", "Logged By", "Assigned To", "Date", "Actions"].map((h) => (
+                      <th key={h} className="text-left text-xs font-semibold text-gray-500 px-5 py-3 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filtered.map((c) => {
+                    const SM = STATUS_META[c.status] || {};
+                    const PM = PRIORITY_META[c.priority] || {};
+                    return (
+                      <tr key={c._id} className="hover:bg-gray-50/60 transition-colors group">
+                        {/* ── Clicking these tds navigates to /support/detail?id= ── */}
+                        <td onClick={() => goToComplaint(c._id)} className="px-5 py-3.5 font-semibold text-gray-800 max-w-[180px] truncate cursor-pointer">{c.title}</td>
+                        <td onClick={() => goToComplaint(c._id)} className="px-5 py-3.5 text-gray-500 whitespace-nowrap cursor-pointer">{c.project?.name || "—"}</td>
+                        <td onClick={() => goToComplaint(c._id)} className="px-5 py-3.5 cursor-pointer">
+                          <Badge text={PM.label || c.priority} colorClass={PM.color || "bg-gray-100 text-gray-500"} />
+                        </td>
+                        <td onClick={() => goToComplaint(c._id)} className="px-5 py-3.5 cursor-pointer">
+                          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${SM.color || "bg-gray-100 text-gray-500"}`}>
+                            <StatusIcon status={c.status} />
+                            {SM.label || c.status}
+                          </span>
+                        </td>
+                        <td onClick={() => goToComplaint(c._id)} className="px-5 py-3.5 text-gray-500 whitespace-nowrap cursor-pointer">{c.loggedBy?.name || "—"}</td>
+                        <td onClick={() => goToComplaint(c._id)} className="px-5 py-3.5 text-gray-500 whitespace-nowrap cursor-pointer">{c.assignedTo?.name || <span className="text-gray-300">Unassigned</span>}</td>
+                        <td onClick={() => goToComplaint(c._id)} className="px-5 py-3.5 text-gray-400 whitespace-nowrap cursor-pointer">{new Date(c.createdAt).toLocaleDateString()}</td>
+                        {/* ── Actions td does NOT navigate ── */}
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => setViewComplaint(c)}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors" title="View">
+                              <Eye size={13} />
+                            </button>
+                            <button onClick={() => setEditComplaint(c)}
+                              className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors" title="Edit">
+                              <Pencil size={13} />
+                            </button>
+                            <button onClick={() => setDeleteTarget(c)}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors" title="Delete">
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {filtered.length > 0 && (
+            <div className="px-5 py-3 border-t border-gray-50 text-xs text-gray-400">
+              Showing {filtered.length} of {complaints.length} complaints
+            </div>
+          )}
+        </div>
+      )}
+
+      {showCreate && (
+        <Modal title="Log New Complaint" onClose={() => setShowCreate(false)}>
+          <ComplaintForm onSubmit={handleCreate} loading={actionLoading} submitLabel="Log Complaint" />
+        </Modal>
+      )}
+      {viewComplaint && (
+        <Modal title={viewComplaint.title} onClose={() => setViewComplaint(null)}>
+          <ComplaintDetail complaint={viewComplaint} />
+        </Modal>
+      )}
+      {editComplaint && (
+        <Modal title="Edit Complaint" onClose={() => setEditComplaint(null)}>
+          <ComplaintForm
+            initial={{
+              title: editComplaint.title || "", description: editComplaint.description || "",
+              project: editComplaint.project?._id || "", priority: editComplaint.priority || "medium",
+              status: editComplaint.status || "open", assignedTo: editComplaint.assignedTo?._id || "",
+              resolutionNotes: editComplaint.resolutionNotes || "",
+            }}
+            onSubmit={handleUpdate} loading={actionLoading} submitLabel="Save Changes"
+          />
+        </Modal>
+      )}
+      {deleteTarget && (
+        <Modal title="Delete Complaint" onClose={() => setDeleteTarget(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete <span className="font-semibold text-gray-800">"{deleteTarget.title}"</span>? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteTarget(null)}
+                className="flex-1 border border-gray-200 text-gray-600 text-sm font-semibold py-2 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+              <button onClick={handleDelete} disabled={actionLoading}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                {actionLoading && <Loader2 size={14} className="animate-spin" />} Delete
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
   );
 }

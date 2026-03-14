@@ -171,8 +171,8 @@ function TrialDetailFields({ details }) {
 function TrialCard({ trial, onApprove, onReject, actionLoading }) {
   const [expanded, setExpanded] = useState(false);
 
-  const status     = trial.status;
-  const isDecided  = status !== "Pending";
+  const status       = trial.status;
+  const isDecided    = status !== "Pending";
   const projectName  = trial.project?.name     || "—";
   const siteName     = trial.project?.location || "—";
   const inchargeName = trial.installationIncharge?.name || "—";
@@ -317,6 +317,30 @@ function FilterTabs({ active, onChange, counts }) {
   );
 }
 
+// ── Clickable Stat Card ───────────────────────────────────────────────────────
+function StatCard({ label, value, icon: Icon, cls, loading, active, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      className={`rounded-xl border shadow-sm p-4 flex items-center gap-3 cursor-pointer
+        transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]
+        ${active
+          ? "bg-blue-50 border-blue-300 ring-2 ring-blue-200"
+          : "bg-white border-gray-100 hover:border-blue-200"
+        }`}
+    >
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${cls}`}>
+        <Icon size={17} />
+      </div>
+      <div>
+        <p className="text-xl font-bold text-extra-darkblue">{loading ? "—" : value}</p>
+        <p className="text-xs text-gray-400">{label}</p>
+        {active && <p className="text-[10px] text-blue-500 font-semibold mt-0.5">● Filtering</p>}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function TrialApproval() {
   const [trials,         setTrials]         = useState([]);
@@ -381,12 +405,17 @@ export default function TrialApproval() {
     }
   };
 
-  // ── Counts & filter ───────────────────────────────────────────────────────
+  // ── Counts ────────────────────────────────────────────────────────────────
   const counts = {
     all:      trials.length,
     Pending:  trials.filter(t => t.status === "Pending").length,
     Approved: trials.filter(t => t.status === "Approved").length,
     Rejected: trials.filter(t => t.status === "Rejected").length,
+  };
+
+  // ── Card click — clicking active card resets to "all" ─────────────────────
+  const handleCardClick = (key) => {
+    setFilter(prev => prev === key ? "all" : key);
   };
 
   const filtered = filter === "all" ? trials : trials.filter(t => t.status === filter);
@@ -419,27 +448,47 @@ export default function TrialApproval() {
         </button>
       </div>
 
-      {/* Stats */}
+      {/* ── Clickable Stat Cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "Total Trials",  value: counts.all,      icon: FileText,     cls: "bg-lightblue text-extra-blue"  },
-          { label: "Pending",       value: counts.Pending,  icon: Clock,        cls: "bg-amber-50 text-amber-600"    },
-          { label: "Approved",      value: counts.Approved, icon: CheckCircle2, cls: "bg-green-50 text-green-600"    },
-          { label: "Rejected",      value: counts.Rejected, icon: XCircle,      cls: "bg-red-50 text-red-500"        },
-        ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${s.cls}`}>
-              <s.icon size={17} />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-extra-darkblue">{loading ? "—" : s.value}</p>
-              <p className="text-xs text-gray-400">{s.label}</p>
-            </div>
-          </div>
-        ))}
+        <StatCard
+          label="Total Trials"
+          value={counts.all}
+          icon={FileText}
+          cls="bg-lightblue text-extra-blue"
+          loading={loading}
+          active={filter === "all"}
+          onClick={() => handleCardClick("all")}
+        />
+        <StatCard
+          label="Pending"
+          value={counts.Pending}
+          icon={Clock}
+          cls="bg-amber-50 text-amber-600"
+          loading={loading}
+          active={filter === "Pending"}
+          onClick={() => handleCardClick("Pending")}
+        />
+        <StatCard
+          label="Approved"
+          value={counts.Approved}
+          icon={CheckCircle2}
+          cls="bg-green-50 text-green-600"
+          loading={loading}
+          active={filter === "Approved"}
+          onClick={() => handleCardClick("Approved")}
+        />
+        <StatCard
+          label="Rejected"
+          value={counts.Rejected}
+          icon={XCircle}
+          cls="bg-red-50 text-red-500"
+          loading={loading}
+          active={filter === "Rejected"}
+          onClick={() => handleCardClick("Rejected")}
+        />
       </div>
 
-      {/* Filter Tabs */}
+      {/* Filter Tabs — stays in sync with card clicks */}
       <FilterTabs active={filter} onChange={setFilter} counts={counts} />
 
       {/* Errors */}

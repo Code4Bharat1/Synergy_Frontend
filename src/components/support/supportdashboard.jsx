@@ -1,15 +1,14 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, RefreshCw } from "lucide-react";
 import axiosInstance from "../../lib/axios";
 
-// ── API helper ────────────────────────────────────────────────────────────────
 const getToken = () =>
   typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 const authCfg = () => ({ headers: { Authorization: `Bearer ${getToken()}` } });
 
-// ── Status / Severity badge helpers ──────────────────────────────────────────
 function SeverityBadge({ level }) {
   const map = {
     critical: { bg: "#FF3B30", text: "#fff" },
@@ -46,13 +45,13 @@ function StatusBadge({ status }) {
   );
 }
 
-// ── Helper: days since date ───────────────────────────────────────────────────
 const daysSince = (dateStr) => {
   if (!dateStr) return 0;
   return Math.floor((Date.now() - new Date(dateStr)) / 86400000);
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -73,17 +72,17 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchComplaints(); }, [fetchComplaints]);
 
-  // ── Compute live summary stats ─────────────────────────────────────────────
-  const open = complaints.filter(c => c.status === "open").length;
-  const review = complaints.filter(c => c.status === "in-progress").length;
+  const open     = complaints.filter(c => c.status === "open").length;
+  const review   = complaints.filter(c => c.status === "in-progress").length;
   const resolved = complaints.filter(c => c.status === "resolved" || c.status === "closed").length;
   const critical = complaints.filter(c => c.priority === "critical").length;
 
+  // ── All cards go to the complaint search/list page ────────────────────────
   const summaryCards = [
-    { label: "Total Open Complaints", value: open, color: "#FF3B30", sub: "Require action" },
-    { label: "Complaints Under Review", value: review, color: "#FF9500", sub: "Being processed" },
-    { label: "Resolved This Month", value: resolved, color: "#34C759", sub: "Closed / resolved" },
-    { label: "Critical Complaints", value: critical, color: "#FF3B30", sub: "Requires immediate action" },
+    { label: "Total Open Complaints",   value: open,     color: "#FF3B30", sub: "Require action"            },
+    { label: "Complaints Under Review", value: review,   color: "#FF9500", sub: "Being processed"           },
+    { label: "Resolved This Month",     value: resolved, color: "#34C759", sub: "Closed / resolved"         },
+    { label: "Critical Complaints",     value: critical, color: "#FF3B30", sub: "Requires immediate action" },
   ];
 
   const today = new Date().toLocaleDateString("en-GB", {
@@ -99,17 +98,32 @@ export default function DashboardPage() {
         @media (max-width: 480px) { .summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; } }
         .dash-header { margin-bottom: 28px; }
         .table-card-header { padding: 18px 22px; border-bottom: 1px solid rgba(73,136,196,0.1); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        .card-value { color: #0F2854; font-size: 34px; font-weight: 800; line-height: 1; margin-bottom: 8px; }
+        .card-value { font-size: 34px; font-weight: 800; line-height: 1; margin-bottom: 8px; }
         @media (max-width: 540px) { .card-value { font-size: 26px; } }
+        .summary-card {
+          background: #fff; border-radius: 16px;
+          border: 1px solid rgba(73,136,196,0.15);
+          box-shadow: 0 2px 12px rgba(15,40,84,0.06);
+          padding: 20px 22px; overflow: hidden;
+          cursor: pointer;
+          transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+        .summary-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 6px 20px rgba(15,40,84,0.12);
+          border-color: rgba(73,136,196,0.4);
+        }
+        .summary-card:active { transform: translateY(0) scale(0.98); }
         .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .complaints-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 620px; }
         .th-cell { padding: 10px 16px; text-align: left; color: #1C4D8D; font-weight: 600; font-size: 11px; letter-spacing: 0.5px; }
-        .td-cell { padding: 12px 16px; }
+        .td-cell { padding: 12px 16px; cursor: pointer; }
+        .complaint-row:hover { background: rgba(189,232,245,0.15) !important; }
         .complaint-cards { display: none; }
         @media (max-width: 768px) {
           .table-scroll { display: none; }
           .complaint-cards { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
-          .complaint-card { border-radius: 12px; border: 1px solid rgba(73,136,196,0.15); background: #fff; padding: 14px 16px; box-shadow: 0 1px 8px rgba(15,40,84,0.05); }
+          .complaint-card { border-radius: 12px; border: 1px solid rgba(73,136,196,0.15); background: #fff; padding: 14px 16px; box-shadow: 0 1px 8px rgba(15,40,84,0.05); cursor: pointer; }
           .cc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
           .cc-id { color: #1C4D8D; font-weight: 700; font-size: 13px; }
           .cc-days { font-weight: 700; font-size: 13px; }
@@ -118,6 +132,7 @@ export default function DashboardPage() {
           .cc-bottom { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
           .cc-badges { display: flex; gap: 6px; flex-wrap: wrap; }
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
       <div className="dash-wrapper">
@@ -129,7 +144,7 @@ export default function DashboardPage() {
           <p style={{ color: "#4988C4", fontSize: 13, margin: "4px 0 0" }}>{today} · All Sites Active</p>
         </div>
 
-        {/* ── Summary Cards ── */}
+        {/* ── Clickable Summary Cards ── */}
         {loading ? (
           <div style={{ display: "flex", gap: 8, alignItems: "center", color: "#4988C4", marginBottom: 28, fontSize: 13 }}>
             <Loader2 size={15} style={{ animation: "spin 0.8s linear infinite" }} /> Loading dashboard…
@@ -137,12 +152,11 @@ export default function DashboardPage() {
         ) : (
           <div className="summary-grid">
             {summaryCards.map((c, i) => (
-              <div key={i} style={{
-                background: "#fff", borderRadius: 16,
-                border: "1px solid rgba(73,136,196,0.15)",
-                boxShadow: "0 2px 12px rgba(15,40,84,0.06)",
-                padding: "20px 22px", overflow: "hidden",
-              }}>
+              <div
+                key={i}
+                className="summary-card"
+                onClick={() => router.push("/support/detail")}
+              >
                 <div style={{ color: "#4988C4", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, marginBottom: 8, textTransform: "uppercase" }}>{c.label}</div>
                 <div className="card-value" style={{ color: c.color }}>{c.value}</div>
                 <div style={{ color: c.color, fontSize: 11, fontWeight: 500, opacity: 0.8 }}>{c.sub}</div>
@@ -167,7 +181,7 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {/* ── Desktop Table ── */}
+          {/* Desktop Table */}
           <div className="table-scroll">
             <table className="complaints-table">
               <thead>
@@ -183,7 +197,12 @@ export default function DashboardPage() {
                 ) : complaints.length === 0 ? (
                   <tr><td colSpan={5} style={{ padding: "24px", textAlign: "center", color: "#4988C4", fontSize: 13 }}>No complaints found.</td></tr>
                 ) : complaints.slice(0, 6).map((c, i) => (
-                  <tr key={c._id} style={{ borderTop: "1px solid rgba(73,136,196,0.08)", background: i % 2 === 0 ? "#fff" : "rgba(189,232,245,0.04)" }}>
+                  <tr
+                    key={c._id}
+                    className="complaint-row"
+                    onClick={() => router.push(`/support/detail?id=${c._id}`)}
+                    style={{ borderTop: "1px solid rgba(73,136,196,0.08)", background: i % 2 === 0 ? "#fff" : "rgba(189,232,245,0.04)", cursor: "pointer" }}
+                  >
                     <td className="td-cell" style={{ color: "#0F2854", fontWeight: 600, maxWidth: 220, wordBreak: "break-word" }}>{c.title}</td>
                     <td className="td-cell" style={{ color: "#4988C4", fontSize: 12 }}>{c.project?.name || "—"}</td>
                     <td className="td-cell"><SeverityBadge level={c.priority} /></td>
@@ -195,10 +214,14 @@ export default function DashboardPage() {
             </table>
           </div>
 
-          {/* ── Mobile Cards ── */}
+          {/* Mobile Cards */}
           <div className="complaint-cards">
             {complaints.slice(0, 6).map(c => (
-              <div key={c._id} className="complaint-card">
+              <div
+                key={c._id}
+                className="complaint-card"
+                onClick={() => router.push(`/support/detail?id=${c._id}`)}
+              >
                 <div className="cc-top">
                   <span className="cc-id">{c._id?.slice(-6).toUpperCase()}</span>
                   <span className="cc-days" style={{ color: daysSince(c.createdAt) > 10 ? "#FF3B30" : "#34C759" }}>
@@ -219,8 +242,6 @@ export default function DashboardPage() {
         </div>
 
       </div>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </>
   );
 }

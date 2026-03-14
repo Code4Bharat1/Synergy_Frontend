@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { ClipboardList, Clock, CheckCircle2, XCircle, ArrowRight, FileText, Loader2 } from "lucide-react";
 import axiosInstance from "@/lib/axios";
 
@@ -33,9 +34,15 @@ function PriorityBadge({ priority }) {
   );
 }
 
-function StatCard({ label, value, sub, icon: Icon, colorClass, loading }) {
+// ── Clickable Stat Card ───────────────────────────────────────────────────────
+function StatCard({ label, value, sub, icon: Icon, colorClass, loading, onClick }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-3 shadow-sm">
+    <div
+      onClick={onClick}
+      className="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-3 shadow-sm
+        cursor-pointer transition-all duration-200
+        hover:shadow-md hover:border-blue-200 hover:-translate-y-0.5 active:scale-[0.98]"
+    >
       <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${colorClass}`}>
         <Icon size={18} />
       </div>
@@ -68,8 +75,9 @@ function InspectionCard({ row }) {
 }
 
 export default function QCDashboard() {
-  const [qcReports,  setQcReports]  = useState([]);
-  const [loading,    setLoading]    = useState(true);
+  const router = useRouter();
+  const [qcReports, setQcReports] = useState([]);
+  const [loading,   setLoading]   = useState(true);
 
   useEffect(() => {
     axiosInstance.get("/report/view-qc")
@@ -82,22 +90,22 @@ export default function QCDashboard() {
   }, []);
 
   // Derived stats
-  const total      = qcReports.length;
-  const approved   = qcReports.filter(r => r.status === "Approved").length;
-  const rejected   = qcReports.filter(r => r.status === "Rejected").length;
-  const pending    = qcReports.filter(r => !r.status || r.status === "Pending").length;
-
-  // Pending = reports with any null checks (not fully reviewed)
+  const total       = qcReports.length;
+  const approved    = qcReports.filter(r => r.status === "Approved").length;
+  const rejected    = qcReports.filter(r => r.status === "Rejected").length;
+  const pending     = qcReports.filter(r => !r.status || r.status === "Pending").length;
   const needsReview = qcReports.filter(r =>
     Array.isArray(r.qcChecks) && r.qcChecks.some(c => c.state === null)
   );
 
-  // Recent reports (last 5)
   const recentReports = [...qcReports]
     .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))
     .slice(0, 5);
 
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  // ── All cards navigate to Trial Approval page ─────────────────────────────
+  const goToTrialApproval = () => router.push("/qualityControl/trial-approval");
 
   return (
     <div className="space-y-6">
@@ -108,12 +116,44 @@ export default function QCDashboard() {
         <p className="text-sm text-gray-400 mt-0.5">{today}</p>
       </div>
 
-      {/* Stat Cards */}
+      {/* ── Clickable Stat Cards — all go to Trial Approval ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Total QC Reports"   value={total}    sub="All time"         icon={ClipboardList} colorClass="bg-blue-50 text-blue-500"   loading={loading} />
-        <StatCard label="Needs Re-review"    value={needsReview.length} sub="Pending items"  icon={Clock}         colorClass="bg-amber-50 text-amber-500" loading={loading} />
-        <StatCard label="Approved"           value={approved} sub="Signed off"       icon={CheckCircle2}  colorClass="bg-green-50 text-green-600"  loading={loading} />
-        <StatCard label="Rejected / Flagged" value={rejected} sub="Needs rework"     icon={XCircle}       colorClass="bg-red-50 text-red-500"      loading={loading} />
+        <StatCard
+          label="Total QC Reports"
+          value={total}
+          sub="All time"
+          icon={ClipboardList}
+          colorClass="bg-blue-50 text-blue-500"
+          loading={loading}
+          onClick={goToTrialApproval}
+        />
+        <StatCard
+          label="Needs Re-review"
+          value={needsReview.length}
+          sub="Pending items"
+          icon={Clock}
+          colorClass="bg-amber-50 text-amber-500"
+          loading={loading}
+          onClick={goToTrialApproval}
+        />
+        <StatCard
+          label="Approved"
+          value={approved}
+          sub="Signed off"
+          icon={CheckCircle2}
+          colorClass="bg-green-50 text-green-600"
+          loading={loading}
+          onClick={goToTrialApproval}
+        />
+        <StatCard
+          label="Rejected / Flagged"
+          value={rejected}
+          sub="Needs rework"
+          icon={XCircle}
+          colorClass="bg-red-50 text-red-500"
+          loading={loading}
+          onClick={goToTrialApproval}
+        />
       </div>
 
       {/* Needs Re-review */}
@@ -177,7 +217,6 @@ export default function QCDashboard() {
             <div className="md:hidden p-3 space-y-3">
               {recentReports.map(r => {
                 const project  = r.project;
-                const priority = priorityFromStatus(typeof project === "object" ? project?.status : "");
                 return (
                   <div key={r._id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-2">
                     <div className="flex items-center justify-between gap-2">
@@ -205,10 +244,10 @@ export default function QCDashboard() {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {recentReports.map(r => {
-                    const project    = r.project;
-                    const submitter  = r.submittedBy;
-                    const passed     = r.qcChecks?.filter(c => c.state === true).length ?? 0;
-                    const total      = r.qcChecks?.length ?? 0;
+                    const project   = r.project;
+                    const submitter = r.submittedBy;
+                    const passed    = r.qcChecks?.filter(c => c.state === true).length ?? 0;
+                    const total     = r.qcChecks?.length ?? 0;
                     const hasPending = r.qcChecks?.some(c => c.state === null);
                     return (
                       <tr key={r._id} className="hover:bg-gray-50 transition-colors">
@@ -236,7 +275,6 @@ export default function QCDashboard() {
       </div>
 
     </div>
-    
   );
 }
 
