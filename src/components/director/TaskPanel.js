@@ -2,8 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Plus, X, Loader2, CheckCircle2, Clock, AlertCircle,
-  Trash2, Pencil, ChevronDown, CircleDot, CalendarDays,
-  ListTodo, User2, FolderKanban, Filter, RefreshCw, Eye
+  Trash2, Pencil, CircleDot, CalendarDays,
+  User2, FolderKanban, RefreshCw, Eye, ChevronDown, ChevronRight
 } from "lucide-react";
 import axiosInstance from "../../lib/axios";
 
@@ -23,24 +23,21 @@ const safeArray = (d, key) =>
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const STATUS_META = {
-  pending:     { label: "Pending",     color: "bg-amber-50 text-amber-600",  icon: Clock,         dot: "bg-amber-400" },
-  "in-progress":{ label: "In Progress",color: "bg-blue-50 text-blue-600",   icon: CircleDot,     dot: "bg-blue-500"  },
-  completed:   { label: "Completed",   color: "bg-emerald-50 text-emerald-600", icon: CheckCircle2, dot: "bg-emerald-500" },
-  cancelled:   { label: "Cancelled",   color: "bg-gray-100 text-gray-400",   icon: X,             dot: "bg-gray-300"  },
+  pending:      { label: "Pending",     color: "bg-amber-50 text-amber-600",       icon: Clock,        dot: "bg-amber-400" },
+  "in-progress":{ label: "In Progress", color: "bg-blue-50 text-blue-600",         icon: CircleDot,    dot: "bg-blue-500"  },
+  completed:    { label: "Completed",   color: "bg-emerald-50 text-emerald-600",   icon: CheckCircle2, dot: "bg-emerald-500" },
+  cancelled:    { label: "Cancelled",   color: "bg-gray-100 text-gray-400",        icon: X,            dot: "bg-gray-300"  },
 };
 
 const PRIORITY_META = {
-  low:      { label: "Low",      bg: "bg-gray-100",   text: "text-gray-500"   },
-  medium:   { label: "Medium",   bg: "bg-blue-50",    text: "text-blue-600"   },
-  high:     { label: "High",     bg: "bg-amber-50",   text: "text-amber-600"  },
-  critical: { label: "Critical", bg: "bg-red-50",     text: "text-red-500"    },
+  low:      { label: "Low",      bg: "bg-gray-100",  text: "text-gray-500",   border: "border-gray-200"  },
+  medium:   { label: "Medium",   bg: "bg-blue-50",   text: "text-blue-600",   border: "border-blue-100"  },
+  high:     { label: "High",     bg: "bg-amber-50",  text: "text-amber-600",  border: "border-amber-100" },
+  critical: { label: "Critical", bg: "bg-red-50",    text: "text-red-500",    border: "border-red-100"   },
 };
 
 const TYPE_META = {
-  task:      "Task",
-  approval:  "Approval",
-  "follow-up": "Follow-up",
-  review:    "Review",
+  task: "Task", approval: "Approval", "follow-up": "Follow-up", review: "Review",
 };
 
 const EMPTY_FORM = {
@@ -93,7 +90,6 @@ function TaskDetailModal({ task, onClose }) {
   return (
     <Modal title="Task Details" onClose={onClose}>
       <div className="space-y-4">
-        {/* Title + badges */}
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${PM.bg} ${PM.text}`}>{PM.label}</span>
@@ -102,28 +98,20 @@ function TaskDetailModal({ task, onClose }) {
           </div>
           <p className="text-base font-bold text-extra-darkblue leading-snug">{task.title}</p>
         </div>
-
-        {/* Status pill */}
         <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ${SM.color}`}>
           <StatusIcon size={12} /> {SM.label}
         </span>
-
-        {/* Details rows */}
         <div className="bg-gray-50 rounded-xl px-4 py-1 mt-2">
           <Row label="Description">
-            {task.description ? (
-              <span className="whitespace-pre-wrap leading-relaxed">{task.description}</span>
-            ) : (
-              <span className="text-gray-300 italic">No description</span>
-            )}
+            {task.description
+              ? <span className="whitespace-pre-wrap leading-relaxed">{task.description}</span>
+              : <span className="text-gray-300 italic">No description</span>}
           </Row>
           <Row label="Assigned To">
             <span className="flex items-center gap-1.5">
               <User2 size={11} className="text-gray-400" />
               {task.assignedTo?.name || <span className="text-gray-300 italic">Unassigned</span>}
-              {task.assignedTo?.role && (
-                <span className="text-gray-400">({task.assignedTo.role})</span>
-              )}
+              {task.assignedTo?.role && <span className="text-gray-400">({task.assignedTo.role})</span>}
             </span>
           </Row>
           <Row label="Project">
@@ -148,13 +136,7 @@ function TaskDetailModal({ task, onClose }) {
               {new Date(task.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
             </Row>
           )}
-          {task.updatedAt && (
-            <Row label="Updated">
-              {new Date(task.updatedAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
-            </Row>
-          )}
         </div>
-
         <button onClick={onClose}
           className="w-full border border-gray-200 text-gray-600 text-sm font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
           Close
@@ -171,23 +153,18 @@ function TaskForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel, users,
 
   return (
     <form onSubmit={e => { e.preventDefault(); onSubmit(form); }} className="space-y-4">
-      {/* Title */}
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Title *</label>
         <input required value={form.title} onChange={e => set("title", e.target.value)}
           placeholder="Brief task title"
           className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-extra-blue focus:ring-2 focus:ring-blue-50 transition-all text-extra-darkblue" />
       </div>
-
-      {/* Description */}
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Description</label>
         <textarea rows={3} value={form.description} onChange={e => set("description", e.target.value)}
-          placeholder="Detailed instructions for this task…"
+          placeholder="Detailed instructions…"
           className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-extra-blue focus:ring-2 focus:ring-blue-50 transition-all resize-none text-extra-darkblue" />
       </div>
-
-      {/* Type + Priority */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Type</label>
@@ -204,34 +181,26 @@ function TaskForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel, users,
           </select>
         </div>
       </div>
-
-      {/* Assign To + Project */}
-      <div className="grid grid-cols-1 gap-3">
-        <div>
-          <label className="text-xs font-semibold text-gray-600 mb-1.5 block flex items-center gap-1">
-            <User2 size={11} /> Assign To
-          </label>
-          <select value={form.assignedTo} onChange={e => set("assignedTo", e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-extra-blue bg-white text-extra-darkblue">
-            <option value="">— Unassigned —</option>
-            {users.map(u => <option key={u._id} value={u._id}>{u.name} ({u.role})</option>)}
-          </select>
-          <p className="text-xs text-gray-400 mt-1">Source: <code className="bg-gray-50 px-1 rounded">GET /admin/users</code></p>
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-gray-600 mb-1.5 block flex items-center gap-1">
-            <FolderKanban size={11} /> Related Project
-          </label>
-          <select value={form.project} onChange={e => set("project", e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-extra-blue bg-white text-extra-darkblue">
-            <option value="">— No Project —</option>
-            {projects.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
-          </select>
-          <p className="text-xs text-gray-400 mt-1">Source: <code className="bg-gray-50 px-1 rounded">GET /projects</code></p>
-        </div>
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1.5 block flex items-center gap-1">
+          <FolderKanban size={11} /> Project *
+        </label>
+        <select required value={form.project} onChange={e => set("project", e.target.value)}
+          className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-extra-blue bg-white text-extra-darkblue">
+          <option value="">— Select Project —</option>
+          {projects.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+        </select>
       </div>
-
-      {/* Status + Due Date */}
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1.5 block flex items-center gap-1">
+          <User2 size={11} /> Assign To *
+        </label>
+        <select required value={form.assignedTo} onChange={e => set("assignedTo", e.target.value)}
+          className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-extra-blue bg-white text-extra-darkblue">
+          <option value="">— Select Worker —</option>
+          {users.map(u => <option key={u._id} value={u._id}>{u.name} ({u.role})</option>)}
+        </select>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Status</label>
@@ -248,7 +217,6 @@ function TaskForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel, users,
             className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-extra-blue text-extra-darkblue" />
         </div>
       </div>
-
       <button type="submit" disabled={loading}
         className="w-full bg-extra-darkblue hover:bg-extra-blue text-white text-sm font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60 mt-2">
         {loading && <Loader2 size={14} className="animate-spin" />}
@@ -258,73 +226,138 @@ function TaskForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel, users,
   );
 }
 
-// ── Task Card ──────────────────────────────────────────────────────────────────
-function TaskCard({ task, onEdit, onDelete, onStatusChange, onView }) {
-  const SM = STATUS_META[task.status] || STATUS_META.pending;
+// ── Checklist Row (single task) ────────────────────────────────────────────────
+function ChecklistRow({ task, onStatusChange, onEdit, onDelete, onView }) {
   const PM = PRIORITY_META[task.priority] || PRIORITY_META.medium;
-  const StatusIcon = SM.icon;
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "completed";
+  const done = task.status === "completed";
+  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !done;
+
+  const toggle = () => onStatusChange(task._id, done ? "pending" : "completed");
 
   return (
-    <div className={`bg-white rounded-2xl border shadow-sm p-5 space-y-3 hover:shadow-md transition-shadow ${isOverdue ? "border-red-200" : "border-gray-100"}`}>
-      {/* Top row */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${PM.bg} ${PM.text}`}>{PM.label}</span>
-            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full capitalize">{task.type}</span>
-            {isOverdue && <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">Overdue</span>}
-          </div>
-          <p className="text-sm font-bold text-extra-darkblue leading-snug">{task.title}</p>
-          {task.description && (
-            <p className="text-xs text-gray-400 mt-0.5 leading-relaxed line-clamp-2">{task.description}</p>
+    <div className={`flex items-center gap-3 py-3 border-b border-gray-50 last:border-0 group ${done ? "opacity-60" : ""}`}>
+      {/* Checkbox */}
+      <button
+        onClick={toggle}
+        className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all
+          ${done
+            ? "bg-emerald-500 border-emerald-500"
+            : "border-gray-300 hover:border-extra-blue bg-white"}`}
+      >
+        {done && <CheckCircle2 size={11} className="text-white" strokeWidth={3} />}
+      </button>
+
+      {/* Title + meta */}
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-semibold leading-snug ${done ? "line-through text-gray-300" : "text-extra-darkblue"}`}>
+          {task.title}
+        </p>
+        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          <span className="text-xs text-gray-400 flex items-center gap-1">
+            <User2 size={10} />
+            {task.assignedTo?.name || "Unassigned"}
+          </span>
+          {task.raisedBy?.name && (
+            <span className="text-xs text-extra-blue flex items-center gap-1 font-medium">
+              · raised by {task.raisedBy.name}
+            </span>
+          )}
+          {task.dueDate && (
+            <span className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-400 font-semibold" : "text-gray-400"}`}>
+              <CalendarDays size={10} />
+              {new Date(task.dueDate).toLocaleDateString()}
+              {isOverdue && " · Overdue"}
+            </span>
           )}
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <button onClick={() => onView(task)} className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-300 hover:text-blue-500 transition-colors">
-            <Eye size={13} />
-          </button>
-          <button onClick={() => onEdit(task)} className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-300 hover:text-amber-500 transition-colors">
-            <Pencil size={13} />
-          </button>
-          <button onClick={() => onDelete(task)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors">
-            <Trash2 size={13} />
-          </button>
+      </div>
+
+      {/* Priority badge */}
+      <span className={`text-xs font-bold px-2 py-0.5 rounded-full border shrink-0 ${PM.bg} ${PM.text} ${PM.border}`}>
+        {PM.label}
+      </span>
+
+      {/* Actions — visible on hover */}
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <button onClick={() => onView(task)} className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-300 hover:text-blue-500 transition-colors">
+          <Eye size={12} />
+        </button>
+        <button onClick={() => onEdit(task)} className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-300 hover:text-amber-500 transition-colors">
+          <Pencil size={12} />
+        </button>
+        <button onClick={() => onDelete(task)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors">
+          <Trash2 size={12} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Project Checklist Block ────────────────────────────────────────────────────
+function ProjectChecklist({ projectName, tasks, onStatusChange, onEdit, onDelete, onView, onAddTask }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const done = tasks.filter(t => t.status === "completed").length;
+  const total = tasks.length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* Project header */}
+      <div
+        className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
+        onClick={() => setCollapsed(c => !c)}
+      >
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-extra-darkblue/10 flex items-center justify-center shrink-0">
+            <FolderKanban size={15} className="text-extra-darkblue" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-extra-darkblue truncate">{projectName}</p>
+            <p className="text-xs text-gray-400">{done}/{total} tasks done</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Mini progress bar */}
+          <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-extra-darkblue rounded-full transition-all duration-500"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <span className="text-xs font-bold text-gray-400 w-8 text-right">{pct}%</span>
+          {collapsed
+            ? <ChevronRight size={14} className="text-gray-300" />
+            : <ChevronDown size={14} className="text-gray-300" />}
         </div>
       </div>
 
-      {/* Meta row */}
-      <div className="flex items-center gap-3 flex-wrap text-xs text-gray-400">
-        <div className="flex items-center gap-1">
-          <User2 size={11} />
-          <span>{task.assignedTo?.name || "Unassigned"}</span>
-        </div>
-        {task.project?.name && (
-          <div className="flex items-center gap-1">
-            <FolderKanban size={11} />
-            <span className="truncate max-w-28">{task.project.name}</span>
-          </div>
-        )}
-        {task.dueDate && (
-          <div className={`flex items-center gap-1 ${isOverdue ? "text-red-400" : ""}`}>
-            <CalendarDays size={11} />
-            <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-          </div>
-        )}
-      </div>
+      {/* Task checklist */}
+      {!collapsed && (
+        <div className="px-5 pb-2 border-t border-gray-50">
+          {tasks.length === 0 ? (
+            <p className="text-xs text-gray-300 italic py-4 text-center">No tasks yet for this project.</p>
+          ) : (
+            tasks.map(task => (
+              <ChecklistRow
+                key={task._id}
+                task={task}
+                onStatusChange={onStatusChange}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onView={onView}
+              />
+            ))
+          )}
 
-      {/* Status selector */}
-      <div className="pt-2 border-t border-gray-50 flex items-center justify-between gap-2">
-        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${SM.color}`}>
-          <StatusIcon size={11} /> {SM.label}
-        </span>
-        <select
-          value={task.status}
-          onChange={e => onStatusChange(task._id, e.target.value)}
-          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-extra-blue bg-white text-extra-darkblue">
-          {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
-      </div>
+          {/* Add task to this project */}
+          <button
+            onClick={() => onAddTask()}
+            className="mt-2 mb-3 flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-extra-blue transition-colors"
+          >
+            <Plus size={13} /> Add task to this project
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -338,10 +371,8 @@ export default function TaskPanel() {
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterPriority, setFilterPriority] = useState("all");
-
   const [showCreate, setShowCreate] = useState(false);
+  const [defaultProjectId, setDefaultProjectId] = useState("");
   const [editTask, setEditTask] = useState(null);
   const [deleteTask, setDeleteTask] = useState(null);
   const [viewTask, setViewTask] = useState(null);
@@ -350,8 +381,6 @@ export default function TaskPanel() {
     setToast({ msg, isError });
     setTimeout(() => setToast(null), 2800);
   };
-
-  const safeArray = (d, key) => Array.isArray(d) ? d : d?.[key] || d?.data || [];
 
   const loadData = useCallback(async () => {
     try {
@@ -374,13 +403,14 @@ export default function TaskPanel() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // ── CRUD ────────────────────────────────────────────────────────────────────
+  // ── CRUD ──────────────────────────────────────────────────────────────────────
   const handleCreate = async (form) => {
     try {
       setActionLoading(true);
       const payload = Object.fromEntries(Object.entries(form).filter(([, v]) => v !== ""));
       await apiFetch("/pending/create", { method: "POST", body: payload });
       setShowCreate(false);
+      setDefaultProjectId("");
       showToast("Task created successfully");
       await loadData();
     } catch (err) {
@@ -428,19 +458,37 @@ export default function TaskPanel() {
     }
   };
 
-  // ── Derived Data ─────────────────────────────────────────────────────────────
-  const filtered = tasks.filter(t => {
-    if (filterStatus !== "all" && t.status !== filterStatus) return false;
-    if (filterPriority !== "all" && t.priority !== filterPriority) return false;
-    return true;
+  // ── Group tasks by project ─────────────────────────────────────────────────
+  // Build a map: projectId → { name, tasks[] }
+  // Use projects list to preserve order; unassigned tasks go to a separate bucket.
+  const projectMap = {};
+
+  // Seed from projects list (preserves order)
+  projects.forEach(p => {
+    projectMap[p._id] = { name: p.name, tasks: [] };
   });
 
-  const stats = {
-    total: tasks.length,
-    pending: tasks.filter(t => t.status === "pending").length,
-    inProgress: tasks.filter(t => t.status === "in-progress").length,
-    completed: tasks.filter(t => t.status === "completed").length,
-  };
+  // Distribute tasks
+  tasks.forEach(task => {
+    const pid = task.project?._id;
+    if (pid && projectMap[pid]) {
+      projectMap[pid].tasks.push(task);
+    } else {
+      if (!projectMap["__none__"]) {
+        projectMap["__none__"] = { name: "No Project", tasks: [] };
+      }
+      projectMap["__none__"].tasks.push(task);
+    }
+  });
+
+  // Only show projects that have tasks
+  const activeProjects = Object.entries(projectMap).filter(([, v]) => v.tasks.length > 0);
+
+  // KPI
+  const totalTasks = tasks.length;
+  const doneTasks = tasks.filter(t => t.status === "completed").length;
+  const pendingTasks = tasks.filter(t => t.status === "pending").length;
+  const inProgressTasks = tasks.filter(t => t.status === "in-progress").length;
 
   return (
     <div className="space-y-6">
@@ -450,105 +498,82 @@ export default function TaskPanel() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-xl font-bold text-extra-darkblue">Task Panel</h2>
-          <p className="text-sm text-gray-400 mt-0.5">
-            Director-assigned tasks — Source: <code className="bg-gray-100 px-1 rounded text-xs">GET /pending/list</code>
-          </p>
+          <p className="text-sm text-gray-400 mt-0.5">Tasks grouped by project — workers see their assigned checklist</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={loadData} className="p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
+          <button onClick={loadData}
+            className="p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           </button>
-          <button onClick={() => setShowCreate(true)}
+          <button
+            onClick={() => { setDefaultProjectId(""); setShowCreate(true); }}
             className="flex items-center gap-1.5 bg-extra-darkblue hover:bg-extra-blue text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors">
             <Plus size={15} /> Assign Task
           </button>
         </div>
       </div>
 
-      {/* ── KPI Summary ── */}
+      {/* ── KPI Strip ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total Tasks", value: stats.total, color: "bg-gray-100 text-gray-600" },
-          { label: "Pending", value: stats.pending, color: "bg-amber-50 text-amber-600" },
-          { label: "In Progress", value: stats.inProgress, color: "bg-blue-50 text-blue-600" },
-          { label: "Completed", value: stats.completed, color: "bg-emerald-50 text-emerald-600" },
+          { label: "Total Tasks",  value: totalTasks,      color: "text-gray-600",       bg: "bg-gray-100"    },
+          { label: "Pending",      value: pendingTasks,    color: "text-amber-600",      bg: "bg-amber-50"    },
+          { label: "In Progress",  value: inProgressTasks, color: "text-blue-600",       bg: "bg-blue-50"     },
+          { label: "Completed",    value: doneTasks,       color: "text-emerald-600",    bg: "bg-emerald-50"  },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
-            <ListTodo size={18} className={s.color.split(" ")[1]} />
-            <div>
-              <p className="text-xl font-bold text-extra-darkblue">{s.value}</p>
-              <p className="text-xs text-gray-400">{s.label}</p>
-            </div>
+          <div key={s.label} className={`rounded-2xl border border-gray-100 shadow-sm p-4 ${s.bg}`}>
+            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>
 
-      {/* ── Filters ── */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-1.5 text-xs text-gray-500 font-semibold">
-          <Filter size={12} /> Filter:
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {["all", "pending", "in-progress", "completed", "cancelled"].map(s => (
-            <button key={s} onClick={() => setFilterStatus(s)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filterStatus === s ? "bg-extra-darkblue text-white" : "bg-white border border-gray-200 text-gray-500 hover:border-extra-blue hover:text-extra-blue"}`}>
-              {s === "all" ? "All Statuses" : STATUS_META[s]?.label || s}
-            </button>
-          ))}
-        </div>
-        <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-500 outline-none focus:border-extra-blue bg-white ml-auto">
-          <option value="all">All Priorities</option>
-          {Object.entries(PRIORITY_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
-      </div>
-
-      {/* ── Task Grid ── */}
+      {/* ── Project Checklists ── */}
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-2 text-gray-400">
           <Loader2 size={18} className="animate-spin" />
           <span className="text-sm">Loading tasks…</span>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : activeProjects.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-          <ListTodo size={36} className="text-gray-200 mx-auto mb-3" />
-          <p className="text-sm text-gray-400 font-medium">No tasks found</p>
-          <p className="text-xs text-gray-300 mt-1">
-            {tasks.length === 0 ? "Assign your first task using the button above." : "Try adjusting filters."}
-          </p>
+          <FolderKanban size={36} className="text-gray-200 mx-auto mb-3" />
+          <p className="text-sm text-gray-400 font-medium">No tasks assigned yet</p>
+          <p className="text-xs text-gray-300 mt-1">Use "Assign Task" to create the first task.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map(task => (
-            <TaskCard key={task._id} task={task}
+        <div className="space-y-4">
+          {activeProjects.map(([projectId, { name, tasks: projectTasks }]) => (
+            <ProjectChecklist
+              key={projectId}
+              projectName={name}
+              tasks={projectTasks}
+              onStatusChange={handleStatusChange}
               onEdit={setEditTask}
               onDelete={setDeleteTask}
-              onStatusChange={handleStatusChange}
               onView={setViewTask}
+              onAddTask={() => {
+                setDefaultProjectId(projectId === "__none__" ? "" : projectId);
+                setShowCreate(true);
+              }}
             />
           ))}
         </div>
       )}
 
-      {/* ── Data Source Note ── */}
-      <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-        <p className="text-xs text-gray-400">
-          <strong className="text-gray-600">Data sources:</strong> Tasks from{" "}
-          <code className="bg-white px-1 rounded">GET /pending/list</code> · Users from{" "}
-          <code className="bg-white px-1 rounded">GET /admin/users</code> · Projects from{" "}
-          <code className="bg-white px-1 rounded">GET /projects</code> ·
-          Created via <code className="bg-white px-1 rounded">POST /pending/create</code> ·
-          Updated via <code className="bg-white px-1 rounded">PATCH /pending/update/:id</code>
-        </p>
-      </div>
-
       {/* ── Modals ── */}
       {showCreate && (
-        <Modal title="Assign New Task" onClose={() => setShowCreate(false)}>
-          <TaskForm onSubmit={handleCreate} loading={actionLoading} submitLabel="Create Task"
-            users={users} projects={projects} />
+        <Modal title="Assign New Task" onClose={() => { setShowCreate(false); setDefaultProjectId(""); }}>
+          <TaskForm
+            initial={{ ...EMPTY_FORM, project: defaultProjectId }}
+            onSubmit={handleCreate}
+            loading={actionLoading}
+            submitLabel="Create Task"
+            users={users}
+            projects={projects}
+          />
         </Modal>
       )}
+
       {editTask && (
         <Modal title="Edit Task" onClose={() => setEditTask(null)}>
           <TaskForm
@@ -562,16 +587,20 @@ export default function TaskPanel() {
               project: editTask.project?._id || "",
               dueDate: editTask.dueDate ? editTask.dueDate.split("T")[0] : "",
             }}
-            onSubmit={handleUpdate} loading={actionLoading} submitLabel="Save Changes"
-            users={users} projects={projects} />
+            onSubmit={handleUpdate}
+            loading={actionLoading}
+            submitLabel="Save Changes"
+            users={users}
+            projects={projects}
+          />
         </Modal>
       )}
+
       {deleteTask && (
         <Modal title="Delete Task" onClose={() => setDeleteTask(null)}>
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Are you sure you want to delete <strong className="text-extra-darkblue">"{deleteTask.title}"</strong>?
-              This cannot be undone.
+              Are you sure you want to delete <strong className="text-extra-darkblue">"{deleteTask.title}"</strong>? This cannot be undone.
             </p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteTask(null)}
@@ -587,6 +616,7 @@ export default function TaskPanel() {
           </div>
         </Modal>
       )}
+
       {viewTask && (
         <TaskDetailModal task={viewTask} onClose={() => setViewTask(null)} />
       )}

@@ -83,6 +83,11 @@ const ROLE_NAVIGATION = {
     { href: "/support/detail", icon: FileText, label: "Complaint Detail" },
     { href: "/support/service", icon: Wrench, label: "Service Execution" },
     { href: "/support/analytics", icon: BarChart2, label: "Analytics" },
+    {
+      href: "/task-assigned",
+      icon: CalendarCheck,
+      label: "Task Assigned",
+    },
     // { href: "/support/profile", icon: User, label: "Profile" },
   ],
   attendance: [
@@ -130,6 +135,11 @@ const ROLE_NAVIGATION = {
       icon: CalendarCheck,
       label: "Attendance",
     },
+    {
+      href: "/task-assigned",
+      icon: CalendarCheck,
+      label: "Task Assigned",
+    },
   ],
   "qualityControl": [
     { label: "Dashboard", icon: LayoutDashboard, href: "/qualityControl" },
@@ -144,6 +154,11 @@ const ROLE_NAVIGATION = {
       href: "/qualityControl/trial-approval",
     },
     { label: "Punch In", icon: Hammer, href: "/qualityControl/punch-in" },
+    {
+      href: "/task-assigned",
+      icon: CalendarCheck,
+      label: "Task Assigned",
+    },
   ],
   "marketingExecutive": [
     {
@@ -171,6 +186,11 @@ const ROLE_NAVIGATION = {
       icon: CalendarCheck,
       label: "Attendance",
     },
+    {
+      href: "/task-assigned",
+      icon: CalendarCheck,
+      label: "Task Assigned",
+    },
   ],
   "marketingCoordinator": [
     {
@@ -194,6 +214,11 @@ const ROLE_NAVIGATION = {
       label: "Installation Request",
     },
     { href: "/marketingCoordinator/attendance", icon: UserCheck, label: "Attendance" },
+    {
+      href: "/task-assigned",
+      icon: CalendarCheck,
+      label: "Task Assigned",
+    },
   ],
 };
 

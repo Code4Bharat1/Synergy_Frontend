@@ -21,6 +21,7 @@ import {
 import { PageHeader, Card, SectionHead, StatusPill, FONTS } from "./shared";
 import axiosInstance from "../../lib/axios";
 
+// ── API Helpers ───────────────────────────────────────────────────────────────
 const apiFetch = async (path) => {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
@@ -28,6 +29,18 @@ const apiFetch = async (path) => {
     method: "GET",
     url: path,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  return res.data;
+};
+
+const apiPatch = async (path, body) => {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  const res = await axiosInstance({
+    method: "PATCH",
+    url: path,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    data: body,
   });
   return res.data;
 };
@@ -42,6 +55,16 @@ const getCurrentEngineerId = () => {
   }
 };
 
+const getCurrentEngineerName = () => {
+  if (typeof window === "undefined") return "Engineer";
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    return user.name || user.fullName || "Engineer";
+  } catch {
+    return "Engineer";
+  }
+};
+
 const isProjectDelayed = (project) => {
   if (project.status === "delayed") return true;
   if (project.delayed === true) return true;
@@ -52,29 +75,30 @@ const isProjectDelayed = (project) => {
   return false;
 };
 
-const TODAY_TASKS = [
-  { id: 1, task: "Install gel coat on Waterslide Alpha section B", project: "PRJ-2401", priority: "High", done: false },
-  { id: 2, task: "QC inspection — Wave Pool Panel B", project: "PRJ-2389", priority: "Medium", done: false },
-  { id: 3, task: "Submit daily report by 5:00 PM", project: "All", priority: "High", done: false },
-  { id: 4, task: "Photo documentation — Speed Slide Pro", project: "PRJ-2376", priority: "Low", done: true },
-];
-
 const CHECKS_META = [
-  { key: "material", label: "Material Delivered" },
+  { key: "material",   label: "Material Delivered"   },
   { key: "foundation", label: "Foundation Completed" },
-  { key: "customer", label: "Customer Readiness" },
-  { key: "acceptance", label: "Client Acceptance" },
+  { key: "customer",   label: "Customer Readiness"   },
+  { key: "acceptance", label: "Client Acceptance"    },
 ];
 
+// Priority colours — support both capitalised (API) and lowercase keys
 const priorityMap = {
-  High:   { color: "#FF3B30", bg: "rgba(255,59,48,0.08)" },
-  Medium: { color: "#FF9500", bg: "rgba(255,149,0,0.08)" },
-  Low:    { color: "#34C759", bg: "rgba(52,199,89,0.08)" },
+  High:     { color: "#FF3B30", bg: "rgba(255,59,48,0.08)"  },
+  Medium:   { color: "#FF9500", bg: "rgba(255,149,0,0.08)"  },
+  Low:      { color: "#34C759", bg: "rgba(52,199,89,0.08)"  },
+  Critical: { color: "#c0392b", bg: "rgba(192,57,43,0.08)"  },
+  high:     { color: "#FF3B30", bg: "rgba(255,59,48,0.08)"  },
+  medium:   { color: "#FF9500", bg: "rgba(255,149,0,0.08)"  },
+  low:      { color: "#34C759", bg: "rgba(52,199,89,0.08)"  },
+  critical: { color: "#c0392b", bg: "rgba(192,57,43,0.08)"  },
 };
+
 const statusColor = {
   active: "blue", completed: "green", "on-hold": "orange",
   initiated: "blue", installation: "blue", testing: "blue", delayed: "red",
 };
+
 const phaseColors = {
   "Site Preparation": "#4988C4",
   "Wiring & Plumbing": "#FF9500",
@@ -88,17 +112,16 @@ const CSS = `
   @keyframes delayedPulse { 0%,100%{opacity:1} 50%{opacity:.55} }
   @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
   @keyframes slideUp { from{transform:translateY(100px);opacity:0} to{transform:translateY(0);opacity:1} }
+  @keyframes checkPop { 0%{transform:scale(0.6);opacity:0} 60%{transform:scale(1.2)} 100%{transform:scale(1);opacity:1} }
 
   .db-root { font-family:'DM Sans',sans-serif;color:#0F2854; }
 
-  /* Header */
   .db-eyebrow { color:#4988C4;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
     margin-bottom:6px;display:flex;align-items:center;gap:8px; }
   .db-eyebrow::before { content:'';width:20px;height:2px;background:#4988C4;border-radius:99px; }
   .db-title { font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:#0F2854;margin:0 0 5px;line-height:1.15; }
   .db-subtitle { color:#94aac4;font-size:13px;font-weight:500;margin:0 0 28px; }
 
-  /* Alert */
   .db-alert { display:flex;align-items:center;gap:12px;padding:13px 20px;border-radius:14px;margin-bottom:24px;
     background:linear-gradient(135deg,rgba(255,59,48,0.07),rgba(255,59,48,0.03));
     border:1px solid rgba(255,59,48,0.18);animation:fadeUp .35s ease;flex-wrap:wrap; }
@@ -107,12 +130,10 @@ const CSS = `
     font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:opacity .15s; }
   .db-alert-btn:hover { opacity:.88; }
 
-  /* Summary grid */
   .db-summary { display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px; }
   @media(max-width:900px){ .db-summary{grid-template-columns:repeat(2,1fr)} }
   @media(max-width:480px){ .db-summary{grid-template-columns:repeat(2,1fr);gap:10px} }
 
-  /* Stat card */
   .db-stat { background:#fff;border-radius:18px;padding:20px 22px;border:1.5px solid #eef2f8;
     cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s;
     position:relative;overflow:hidden;
@@ -131,11 +152,9 @@ const CSS = `
   .db-stat:nth-child(3){animation-delay:.14s}
   .db-stat:nth-child(4){animation-delay:.19s}
 
-  /* Main grid */
   .db-main { display:grid;grid-template-columns:1.4fr 1fr;gap:20px;align-items:start; }
   @media(max-width:860px){ .db-main{grid-template-columns:1fr} }
 
-  /* Cards */
   .db-card { background:#fff;border-radius:18px;padding:24px;border:1.5px solid #eef2f8;
     box-shadow:0 2px 8px rgba(15,40,84,0.04);animation:fadeUp .45s ease both; }
   .db-card-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:8px;flex-wrap:wrap; }
@@ -144,23 +163,28 @@ const CSS = `
     display:flex;align-items:center;justify-content:center;flex-shrink:0; }
   .db-sec-title { font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:#0F2854; }
 
-  /* Progress */
   .db-prog-track { background:#f0f4fa;border-radius:99px;height:6px;overflow:hidden;margin-bottom:20px; }
   .db-prog-fill { height:6px;border-radius:99px;background:linear-gradient(90deg,#4988C4,#0F2854);
     transition:width .7s ease; }
 
-  /* Tasks */
-  .db-task { display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:12px;
-    cursor:pointer;transition:background .18s,transform .18s;border:1px solid transparent;margin-bottom:6px; }
+  /* Task rows */
+  .db-task { display:flex;align-items:flex-start;gap:12px;padding:12px 10px;border-radius:12px;
+    transition:background .18s,transform .18s;border:1px solid transparent;margin-bottom:4px; }
   .db-task:last-child { margin-bottom:0; }
   .db-task:hover { background:#f5f9ff;transform:translateX(2px); }
-  .db-task.done { opacity:.5; }
-  .db-task-check { width:20px;height:20px;border-radius:6px;flex-shrink:0;margin-top:1px;
-    display:flex;align-items:center;justify-content:center;transition:all .2s; }
+  .db-task.done { opacity:.55; }
   .db-task-label { font-size:13px;font-weight:600;color:#0F2854;line-height:1.4; }
   .db-task-label.done { text-decoration:line-through;color:#94aac4; }
-  .db-task-sub { font-size:11px;color:#94aac4;margin-top:2px; }
-  .db-priority { padding:3px 10px;border-radius:99px;font-size:10px;font-weight:700;flex-shrink:0;white-space:nowrap; }
+  .db-task-sub { font-size:11px;color:#94aac4;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap; }
+  .db-priority { padding:3px 10px;border-radius:99px;font-size:10px;font-weight:700;flex-shrink:0;white-space:nowrap;margin-top:1px; }
+
+  /* Checkbox */
+  .db-task-check { width:20px;height:20px;border-radius:6px;flex-shrink:0;margin-top:1px;
+    display:flex;align-items:center;justify-content:center;transition:all .2s;cursor:pointer;border:none;padding:0; }
+  .check-pop { animation:checkPop .22s ease both; }
+
+  /* Empty state */
+  .db-task-empty { text-align:center;padding:28px 0;color:#94aac4;font-size:13px; }
 
   /* Projects */
   .db-proj { padding:14px 16px;border-radius:14px;cursor:pointer;transition:all .18s;
@@ -174,12 +198,10 @@ const CSS = `
   .db-proj-bar-track { flex:1;border-radius:99px;height:4px; }
   .db-proj-bar-fill { height:4px;border-radius:99px;transition:width .6s ease; }
 
-  /* Delayed badge */
   .delayed-badge { animation:delayedPulse 2s ease-in-out infinite;background:rgba(255,59,48,0.1);
     color:#FF3B30;font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;
     border:1px solid rgba(255,59,48,0.22);white-space:nowrap;letter-spacing:.6px; }
 
-  /* Viewall / clear filter */
   .db-viewall { display:flex;align-items:center;gap:4px;color:#4988C4;font-size:11px;font-weight:700;
     text-decoration:none;padding:5px 13px;border-radius:99px;background:#f0f6ff;
     border:1px solid #d4e8ff;transition:all .15s;white-space:nowrap; }
@@ -188,15 +210,12 @@ const CSS = `
     font-weight:700;padding:4px 10px;border-radius:99px;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif; }
   .db-clear-filter:hover { background:#e2eaf8; }
 
-  /* Quick actions */
   .db-action { display:flex;justify-content:space-between;align-items:center;padding:11px 14px;
     border-radius:12px;cursor:pointer;transition:all .18s;border:1px solid transparent;margin-bottom:7px; }
   .db-action:last-child { margin-bottom:0; }
 
-  /* Right col */
   .db-right { display:flex;flex-direction:column;gap:20px; }
 
-  /* ── Project Detail ── */
   .pd-topbar { display:flex;align-items:center;gap:12px;margin-bottom:22px;flex-wrap:wrap; }
   .pd-topbar-right { margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
   @media(max-width:580px){ .pd-topbar-right{margin-left:0;width:100%} }
@@ -206,25 +225,25 @@ const CSS = `
   @media(max-width:480px){ .pd-info-grid{grid-template-columns:1fr} }
   .pd-checks-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px; }
 
-  /* ── Drawer ── */
   .drawer-overlay { position:fixed;inset:0;background:rgba(15,40,84,0.48);z-index:1000;
     display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px); }
   .drawer-panel { background:#fff;border-radius:24px 24px 0 0;padding:30px 26px;width:100%;
     max-width:640px;max-height:72vh;overflow-y:auto;
     box-shadow:0 -16px 52px rgba(15,40,84,0.14);animation:slideUp .3s ease; }
 
-  /* Done badge for tasks count */
   .db-done-badge { color:#94aac4;font-size:12px;font-weight:600;background:#f0f4fa;
     padding:4px 12px;border-radius:99px;border:1px solid #e4ecf8;white-space:nowrap; }
+  .db-tasks-loading { display:flex;align-items:center;gap:8px;padding:20px 0;
+    color:#94aac4;font-size:12px;justify-content:center; }
 `;
 
 // ── Project Detail ────────────────────────────────────────────────────────────
 function ProjectDetail({ project, onBack }) {
-  const checks = project.eligibilityChecks || {};
-  const phase = project.phase || "Site Preparation";
+  const checks   = project.eligibilityChecks || {};
+  const phase    = project.phase || "Site Preparation";
   const phaseList = ["Site Preparation","Wiring & Plumbing","Equipment Setup","Installation","Final Testing","Completed"];
   const phaseIdx = phaseList.indexOf(phase);
-  const delayed = isProjectDelayed(project);
+  const delayed  = isProjectDelayed(project);
 
   const fmtDate = (d) =>
     d ? new Date(d).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}) : "—";
@@ -284,7 +303,6 @@ function ProjectDetail({ project, onBack }) {
       )}
 
       <div className="pd-grid">
-        {/* LEFT */}
         <div style={{display:"flex",flexDirection:"column",gap:18}}>
           <div className="db-card">
             <div className="db-card-header">
@@ -302,9 +320,7 @@ function ProjectDetail({ project, onBack }) {
                 {label:"Description",value:project.description||"—",full:true},
               ].map(({label,value,full,delayed:d})=>(
                 <div key={label} style={full?{gridColumn:"1/-1"}:{}}>
-                  <p style={{color:"#94aac4",fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>
-                    {label}
-                  </p>
+                  <p style={{color:"#94aac4",fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>{label}</p>
                   <p style={{color:d?"#FF3B30":"#0F2854",fontSize:13,fontWeight:600,margin:0}}>
                     {value} {d&&<span style={{fontSize:10}}>⚠</span>}
                   </p>
@@ -333,9 +349,7 @@ function ProjectDetail({ project, onBack }) {
                 }}/>
               </div>
             </div>
-            <p style={{color:"#94aac4",fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:12}}>
-              Current Phase
-            </p>
+            <p style={{color:"#94aac4",fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:12}}>Current Phase</p>
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
               {phaseList.map((p,i)=>{
                 const done=i<phaseIdx, current=i===phaseIdx;
@@ -365,7 +379,6 @@ function ProjectDetail({ project, onBack }) {
           </div>
         </div>
 
-        {/* RIGHT */}
         <div style={{display:"flex",flexDirection:"column",gap:18}}>
           <div className="db-card">
             <div className="db-card-header">
@@ -401,11 +414,6 @@ function ProjectDetail({ project, onBack }) {
                     );
                   })}
                 </div>
-                {project.eligibilityProceededAt&&(
-                  <p style={{color:"#94aac4",fontSize:10,textAlign:"right",marginTop:12}}>
-                    Approved · {new Date(project.eligibilityProceededAt).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})}
-                  </p>
-                )}
               </>
             ):(
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"28px 16px",gap:10,textAlign:"center"}}>
@@ -438,34 +446,6 @@ function ProjectDetail({ project, onBack }) {
                   </div>
                 </div>
               ))}
-              {project.assignedMarketingExecutive&&(
-                <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 13px",
-                  background:"rgba(255,149,0,0.04)",borderRadius:12,border:"1.5px solid rgba(255,149,0,0.1)"}}>
-                  <div style={{width:34,height:34,borderRadius:"50%",flexShrink:0,
-                    background:"linear-gradient(135deg,#FF9500,#e67e22)",
-                    display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:700}}>
-                    {(project.assignedMarketingExecutive.name||"?").charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p style={{color:"#0F2854",fontSize:13,fontWeight:700,margin:0}}>{project.assignedMarketingExecutive.name}</p>
-                    <p style={{color:"#FF9500",fontSize:11,margin:0}}>Marketing Executive</p>
-                  </div>
-                </div>
-              )}
-              {project.assignedInstallationIncharge&&(
-                <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 13px",
-                  background:"rgba(52,199,89,0.04)",borderRadius:12,border:"1.5px solid rgba(52,199,89,0.1)"}}>
-                  <div style={{width:34,height:34,borderRadius:"50%",flexShrink:0,
-                    background:"linear-gradient(135deg,#34C759,#27ae60)",
-                    display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:700}}>
-                    {(project.assignedInstallationIncharge.name||"?").charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p style={{color:"#0F2854",fontSize:13,fontWeight:700,margin:0}}>{project.assignedInstallationIncharge.name}</p>
-                    <p style={{color:"#34C759",fontSize:11,margin:0}}>Installation Incharge</p>
-                  </div>
-                </div>
-              )}
               {(project.assignedEngineers||[]).length===0&&!project.assignedMarketingExecutive&&!project.assignedInstallationIncharge&&(
                 <p style={{color:"#94aac4",fontSize:12,textAlign:"center",padding:"20px 0"}}>No team members assigned yet.</p>
               )}
@@ -484,9 +464,7 @@ function DelayedProjectsPanel({ projects, onClose, onSelectProject }) {
       <div className="drawer-panel" onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
           <div>
-            <p style={{color:"#FF3B30",fontSize:11,fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",margin:0}}>
-              Attention Required
-            </p>
+            <p style={{color:"#FF3B30",fontSize:11,fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",margin:0}}>Attention Required</p>
             <h3 style={{color:"#0F2854",fontSize:18,fontWeight:800,fontFamily:"'Syne',sans-serif",margin:0}}>
               Delayed Projects ({projects.length})
             </h3>
@@ -496,7 +474,6 @@ function DelayedProjectsPanel({ projects, onClose, onSelectProject }) {
             Close
           </button>
         </div>
-
         {projects.length===0?(
           <div style={{textAlign:"center",padding:"40px 0",color:"#94aac4",fontSize:13}}>
             🎉 No delayed projects — you're on track!
@@ -504,8 +481,7 @@ function DelayedProjectsPanel({ projects, onClose, onSelectProject }) {
         ):(
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             {projects.map(p=>(
-              <div key={p._id}
-                onClick={()=>{onSelectProject(p);onClose();}}
+              <div key={p._id} onClick={()=>{onSelectProject(p);onClose();}}
                 style={{padding:"14px 16px",borderRadius:14,cursor:"pointer",
                   background:"rgba(255,59,48,0.03)",border:"1.5px solid rgba(255,59,48,0.12)",transition:"all .18s"}}
                 onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,59,48,0.08)";e.currentTarget.style.transform="translateX(2px)"}}
@@ -544,65 +520,101 @@ function DelayedProjectsPanel({ projects, onClose, onSelectProject }) {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function EngineerDashboard() {
-  const [tasks, setTasks] = useState(TODAY_TASKS);
-  const [projects, setProjects] = useState([]);
-  const [complaints, setComplaints] = useState([]);
-  const [issues, setIssues] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [projectFilter, setProjectFilter] = useState("all");
-  const [showDelayedPanel, setShowDelayedPanel] = useState(false);
+  const [tasks,             setTasks]             = useState([]);
+  const [tasksLoading,      setTasksLoading]      = useState(true);
+  const [togglingTaskId,    setTogglingTaskId]    = useState(null);
+  const [projects,          setProjects]          = useState([]);
+  const [complaints,        setComplaints]        = useState([]);
+  const [issues,            setIssues]            = useState([]);
+  const [loading,           setLoading]           = useState(true);
+  const [selectedProject,   setSelectedProject]   = useState(null);
+  const [projectFilter,     setProjectFilter]     = useState("all");
+  const [showDelayedPanel,  setShowDelayedPanel]  = useState(false);
+  const [engineerName,      setEngineerName]      = useState("Engineer");
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
+      setTasksLoading(true);
       const engineerId = getCurrentEngineerId();
-      const [pData, cData, iData] = await Promise.all([
+      setEngineerName(getCurrentEngineerName());
+
+      const [pData, cData, iData, tData] = await Promise.all([
         apiFetch("/projects"),
         apiFetch("/complaints"),
-        apiFetch("/issues").catch(()=>[]),
+        apiFetch("/issues").catch(() => []),
+        apiFetch("/pending/list"),
       ]);
-      const allProjects = Array.isArray(pData) ? pData : pData.projects||[];
-      const myProjects = engineerId
-        ? allProjects.filter(p=>(p.assignedEngineers||[]).some(e=>(e._id||e)===engineerId))
+
+      // ── Projects ──
+      const allProjects = Array.isArray(pData) ? pData : pData.projects || [];
+      const myProjects  = engineerId
+        ? allProjects.filter(p => (p.assignedEngineers || []).some(e => (e._id || e) === engineerId))
         : allProjects;
       setProjects(myProjects);
-      setComplaints(Array.isArray(cData)?cData:[]);
-      setIssues(Array.isArray(iData)?iData:[]);
-    } catch(err) { console.error(err); }
-    finally { setLoading(false); }
+
+      // ── Tasks: filter to this engineer ──
+      const allTasks = Array.isArray(tData) ? tData : tData?.data || [];
+      const myTasks  = engineerId
+        ? allTasks.filter(t => {
+            const assignedId = t.assignedTo?._id || t.assignedTo;
+            return assignedId === engineerId;
+          })
+        : allTasks;
+      setTasks(myTasks);
+
+      setComplaints(Array.isArray(cData) ? cData : []);
+      setIssues(Array.isArray(iData) ? iData : []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+      setTasksLoading(false);
+    }
   }, []);
 
-  useEffect(()=>{ loadData(); },[loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
-  const today = new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-  const completedCount = tasks.filter(t=>t.done).length;
-  const toggle = (id) => setTasks(ts=>ts.map(t=>t.id===id?{...t,done:!t.done}:t));
+  // Toggle task completion — calls API and reflects on TaskPanel instantly
+  const toggleTask = async (task) => {
+    const newStatus = task.status === "completed" ? "pending" : "completed";
+    setTogglingTaskId(task._id);
+    try {
+      await apiPatch(`/pending/update/${task._id}`, { status: newStatus });
+      setTasks(prev => prev.map(t => t._id === task._id ? { ...t, status: newStatus } : t));
+    } catch (err) {
+      console.error("Toggle task failed:", err);
+    } finally {
+      setTogglingTaskId(null);
+    }
+  };
 
-  const activeProjects    = projects.filter(p=>p.status!=="completed"&&!isProjectDelayed(p));
-  const completedProjects = projects.filter(p=>p.status==="completed");
-  const delayedProjects   = projects.filter(p=>isProjectDelayed(p));
-  const openIssuesCount   = issues.length||complaints.filter(c=>c.status==="open").length;
+  const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-  const filteredProjects = projectFilter==="active"?activeProjects
-    :projectFilter==="delayed"?delayedProjects
-    :projectFilter==="completed"?completedProjects
-    :projects;
+  const completedTaskCount = tasks.filter(t => t.status === "completed").length;
+  const totalTaskCount     = tasks.length;
+  const taskProgress       = totalTaskCount > 0 ? (completedTaskCount / totalTaskCount) * 100 : 0;
+
+  const activeProjects    = projects.filter(p => p.status !== "completed" && !isProjectDelayed(p));
+  const completedProjects = projects.filter(p => p.status === "completed");
+  const delayedProjects   = projects.filter(p => isProjectDelayed(p));
+  const openIssuesCount   = issues.length || complaints.filter(c => c.status === "open").length;
+
+  const filteredProjects = projectFilter === "active"    ? activeProjects
+    : projectFilter === "delayed"   ? delayedProjects
+    : projectFilter === "completed" ? completedProjects
+    : projects;
 
   const SUMMARY = [
-    { label:"My Projects",     value:projects.length,        icon:FolderOpen,    color:"#4988C4",
-      isFilter:true, filterKey:"all",     onClick:()=>setProjectFilter("all") },
-    { label:"Active Projects", value:activeProjects.length,  icon:ClipboardList, color:"#0F2854",
-      isFilter:true, filterKey:"active",  onClick:()=>setProjectFilter(p=>p==="active"?"all":"active") },
-    { label:"Delayed Projects",value:delayedProjects.length, icon:Clock,         color:"#FF3B30",
-      isFilter:true, filterKey:"delayed", onClick:()=>setShowDelayedPanel(true) },
-    { label:"Open Issues",     value:openIssuesCount,        icon:AlertTriangle, color:"#FF9500",
-      href:"/engineer/issue-log" },
+    { label: "My Projects",      value: projects.length,        icon: FolderOpen,    color: "#4988C4", isFilter: true, filterKey: "all",     onClick: () => setProjectFilter("all") },
+    { label: "Active Projects",  value: activeProjects.length,  icon: ClipboardList, color: "#0F2854", isFilter: true, filterKey: "active",  onClick: () => setProjectFilter(p => p === "active" ? "all" : "active") },
+    { label: "Delayed Projects", value: delayedProjects.length, icon: Clock,         color: "#FF3B30", isFilter: true, filterKey: "delayed", onClick: () => setShowDelayedPanel(true) },
+    { label: "Open Issues",      value: openIssuesCount,        icon: AlertTriangle, color: "#FF9500", href: "/engineer/issue-log" },
   ];
 
-  if(loading) return (
-    <div style={{display:"flex",alignItems:"center",gap:10,padding:"48px 24px",color:"#94aac4",fontSize:14,fontFamily:"'DM Sans',sans-serif"}}>
-      <Loader2 size={18} className="animate-spin"/> Loading Engineer Dashboard...
+  if (loading) return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "48px 24px", color: "#94aac4", fontSize: 14, fontFamily: "'DM Sans',sans-serif" }}>
+      <Loader2 size={18} className="animate-spin" /> Loading Engineer Dashboard...
     </div>
   );
 
@@ -611,100 +623,167 @@ export default function EngineerDashboard() {
       <style>{CSS}</style>
       <div className="db-root">
 
-        {showDelayedPanel&&(
+        {showDelayedPanel && (
           <DelayedProjectsPanel
             projects={delayedProjects}
-            onClose={()=>setShowDelayedPanel(false)}
-            onSelectProject={p=>{setSelectedProject(p);}}
+            onClose={() => setShowDelayedPanel(false)}
+            onSelectProject={p => { setSelectedProject(p); }}
           />
         )}
 
-        {selectedProject&&(
-          <ProjectDetail project={selectedProject} onBack={()=>setSelectedProject(null)}/>
+        {selectedProject && (
+          <ProjectDetail project={selectedProject} onBack={() => setSelectedProject(null)} />
         )}
 
-        {!selectedProject&&(
+        {!selectedProject && (
           <>
-            {/* Alert banner */}
-            {delayedProjects.length>0&&(
+            {delayedProjects.length > 0 && (
               <div className="db-alert">
-                <AlertTriangle size={15} color="#FF3B30" style={{flexShrink:0}}/>
+                <AlertTriangle size={15} color="#FF3B30" style={{ flexShrink: 0 }} />
                 <span className="db-alert-text">
-                  You have <strong>{delayedProjects.length}</strong> delayed project{delayedProjects.length>1?"s":""} that need attention.
+                  You have <strong>{delayedProjects.length}</strong> delayed project{delayedProjects.length > 1 ? "s" : ""} that need attention.
                 </span>
-                <button className="db-alert-btn" onClick={()=>setShowDelayedPanel(true)}>
+                <button className="db-alert-btn" onClick={() => setShowDelayedPanel(true)}>
                   View Delayed →
                 </button>
               </div>
             )}
 
-            {/* Page header */}
             <div className="db-eyebrow">Engineer Panel</div>
-            <h1 className="db-title">Good morning, Engineer</h1>
+            <h1 className="db-title">Good morning, {engineerName}</h1>
             <p className="db-subtitle">{today}</p>
 
             {/* Summary cards */}
             <div className="db-summary">
-              {SUMMARY.map((s,i)=>{
-                const isActive = s.isFilter && projectFilter===s.filterKey;
+              {SUMMARY.map((s, i) => {
+                const isActive = s.isFilter && projectFilter === s.filterKey;
                 const inner = (
                   <div key={i}
-                    className={`db-stat${isActive?" active":""}`}
-                    onClick={()=>{if(s.onClick)s.onClick();else if(s.isFilter)setProjectFilter(p=>p===s.filterKey?"all":s.filterKey);}}>
-                    <div className="db-stat-glow" style={{background:s.color}}/>
+                    className={`db-stat${isActive ? " active" : ""}`}
+                    onClick={() => { if (s.onClick) s.onClick(); else if (s.isFilter) setProjectFilter(p => p === s.filterKey ? "all" : s.filterKey); }}>
+                    <div className="db-stat-glow" style={{ background: s.color }} />
                     <div className="db-stat-label">
                       <span>{s.label.toUpperCase()}</span>
-                      <s.icon size={15} color={s.color} strokeWidth={2}/>
+                      <s.icon size={15} color={s.color} strokeWidth={2} />
                     </div>
-                    <div className="db-stat-num" style={{color:s.color}}>{s.value}</div>
-                    <div className="db-stat-underline" style={{background:s.color}}/>
+                    <div className="db-stat-num" style={{ color: s.color }}>{s.value}</div>
+                    <div className="db-stat-underline" style={{ background: s.color }} />
                   </div>
                 );
                 return s.href
-                  ? <Link key={i} href={s.href} style={{textDecoration:"none"}}>{inner}</Link>
+                  ? <Link key={i} href={s.href} style={{ textDecoration: "none" }}>{inner}</Link>
                   : <div key={i}>{inner}</div>;
               })}
             </div>
 
-            {/* Main content grid */}
+            {/* Main grid */}
             <div className="db-main">
 
-              {/* Today's Tasks */}
+              {/* ── Today's Tasks (real data) ── */}
               <div className="db-card">
                 <div className="db-card-header">
                   <div className="db-card-title-row">
-                    <div className="db-sec-icon"><ClipboardList size={16} color="#BDE8F5"/></div>
-                    <span className="db-sec-title">Today's Tasks</span>
+                    <div className="db-sec-icon"><ClipboardList size={16} color="#BDE8F5" /></div>
+                    <span className="db-sec-title">My Tasks</span>
                   </div>
-                  <span className="db-done-badge">{completedCount}/{tasks.length} done</span>
+                  <span className="db-done-badge">
+                    {tasksLoading ? "…" : `${completedTaskCount}/${totalTaskCount} done`}
+                  </span>
                 </div>
 
+                {/* Progress bar */}
                 <div className="db-prog-track">
-                  <div className="db-prog-fill" style={{width:`${(completedCount/tasks.length)*100}%`}}/>
+                  <div className="db-prog-fill" style={{ width: `${taskProgress}%` }} />
                 </div>
 
-                <div>
-                  {tasks.map(t=>{
-                    const p=priorityMap[t.priority];
-                    return (
-                      <div key={t.id} className={`db-task${t.done?" done":""}`} onClick={()=>toggle(t.id)}>
-                        <div className="db-task-check" style={{
-                          background:t.done?"#34C759":"transparent",
-                          border:`2px solid ${t.done?"#34C759":"#d4dff0"}`,
-                        }}>
-                          {t.done&&<span style={{color:"#fff",fontSize:11,fontWeight:800}}>✓</span>}
+                {/* Task rows */}
+                {tasksLoading ? (
+                  <div className="db-tasks-loading">
+                    <Loader2 size={14} className="animate-spin" /> Loading tasks…
+                  </div>
+                ) : tasks.length === 0 ? (
+                  <div className="db-task-empty">
+                    <ClipboardList size={28} strokeWidth={1.5} style={{ color: "#d4dff0", display: "block", margin: "0 auto 8px" }} />
+                    No tasks assigned to you yet.
+                  </div>
+                ) : (
+                  <div>
+                    {tasks.map(t => {
+                      const done      = t.status === "completed";
+                      const pm        = priorityMap[t.priority] || priorityMap.medium;
+                      const toggling  = togglingTaskId === t._id;
+                      const isOverdue = t.dueDate && new Date(t.dueDate) < new Date() && !done;
+                      const projName  = t.project?.name || t.project?.projectId || null;
+
+                      return (
+                        <div
+                          key={t._id}
+                          className={`db-task${done ? " done" : ""}`}
+                          onClick={() => !toggling && toggleTask(t)}
+                          style={{ cursor: toggling ? "wait" : "pointer", opacity: toggling ? 0.6 : done ? 0.55 : 1 }}
+                        >
+                          {/* Checkbox */}
+                          <div
+                            className="db-task-check"
+                            style={{
+                              background:  done ? "#34C759" : "transparent",
+                              border:      `2px solid ${done ? "#34C759" : "#d4dff0"}`,
+                              boxShadow:   done ? "0 2px 6px rgba(52,199,89,0.3)" : "none",
+                              borderRadius: 6,
+                            }}
+                          >
+                            {toggling
+                              ? <Loader2 size={10} color={done ? "#fff" : "#4988C4"} className="animate-spin" />
+                              : done
+                                ? <span className="check-pop" style={{ color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>✓</span>
+                                : null
+                            }
+                          </div>
+
+                          {/* Content */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className={`db-task-label${done ? " done" : ""}`}>{t.title}</div>
+                            <div className="db-task-sub">
+                              {projName && <span>{projName}</span>}
+                              {t.raisedBy?.name && (
+                                <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#4988C4", fontWeight: 600 }}>
+                                  <User size={9} />
+                                  {t.raisedBy.name}
+                                </span>
+                              )}
+                              {t.dueDate && (
+                                <span style={{ color: isOverdue ? "#FF3B30" : "#94aac4", fontWeight: isOverdue ? 700 : 400, display: "flex", alignItems: "center", gap: 3 }}>
+                                  <Calendar size={9} />
+                                  {new Date(t.dueDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                                  {isOverdue && " · Overdue"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Priority badge */}
+                          <span className="db-priority" style={{ background: pm.bg, color: pm.color }}>
+                            {t.priority
+                              ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1)
+                              : "Medium"}
+                          </span>
                         </div>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div className={`db-task-label${t.done?" done":""}`}>{t.task}</div>
-                          <div className="db-task-sub">{t.project}</div>
-                        </div>
-                        <span className="db-priority" style={{background:p.bg,color:p.color}}>
-                          {t.priority}
-                        </span>
+                      );
+                    })}
+
+                    {/* All done banner */}
+                    {totalTaskCount > 0 && completedTaskCount === totalTaskCount && (
+                      <div style={{
+                        marginTop: 14, display: "flex", alignItems: "center", gap: 8,
+                        background: "rgba(52,199,89,0.08)", border: "1px solid rgba(52,199,89,0.2)",
+                        borderRadius: 10, padding: "9px 12px",
+                      }}>
+                        <CheckCircle2 size={14} color="#34C759" />
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#1a6b3c" }}>All tasks completed — great work! 🎉</span>
                       </div>
-                    );
-                  })}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Right column */}
@@ -714,66 +793,64 @@ export default function EngineerDashboard() {
                 <div className="db-card">
                   <div className="db-card-header">
                     <div className="db-card-title-row">
-                      <div className="db-sec-icon"><FolderOpen size={16} color="#BDE8F5"/></div>
+                      <div className="db-sec-icon"><FolderOpen size={16} color="#BDE8F5" /></div>
                       <span className="db-sec-title">Projects Overview</span>
                     </div>
-                    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                      {projectFilter!=="all"&&(
-                        <button className="db-clear-filter" onClick={()=>setProjectFilter("all")}>
-                          {projectFilter.charAt(0).toUpperCase()+projectFilter.slice(1)} · Clear ✕
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      {projectFilter !== "all" && (
+                        <button className="db-clear-filter" onClick={() => setProjectFilter("all")}>
+                          {projectFilter.charAt(0).toUpperCase() + projectFilter.slice(1)} · Clear ✕
                         </button>
                       )}
                       <a href="/engineer/myProjects" className="db-viewall">
-                        view all <ChevronRight size={11}/>
+                        view all <ChevronRight size={11} />
                       </a>
                     </div>
                   </div>
 
                   <div>
-                    {filteredProjects.slice(0,4).map(p=>{
-                      const delayed=isProjectDelayed(p);
+                    {filteredProjects.slice(0, 4).map(p => {
+                      const delayed = isProjectDelayed(p);
                       return (
-                        <div key={p._id} className={`db-proj${delayed?" delayed":""}`}
-                          onClick={()=>setSelectedProject(p)}>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10,gap:8}}>
-                            <div style={{minWidth:0}}>
-                              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                        <div key={p._id} className={`db-proj${delayed ? " delayed" : ""}`}
+                          onClick={() => setSelectedProject(p)}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, gap: 8 }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                                 <div className="db-proj-name">{p.name}</div>
-                                {delayed&&<span className="delayed-badge">DELAYED</span>}
+                                {delayed && <span className="delayed-badge">DELAYED</span>}
                               </div>
-                              <div className="db-proj-loc"><MapPin size={10}/> {p.location||"Global"}</div>
+                              <div className="db-proj-loc"><MapPin size={10} /> {p.location || "Global"}</div>
                             </div>
-                            <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-                              <StatusPill label={p.status||"active"} color={statusColor[p.status||"active"]||"blue"}/>
-                              <ChevronRight size={13} color={delayed?"#FF3B30":"#c4d4e8"}/>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                              <StatusPill label={p.status || "active"} color={statusColor[p.status || "active"] || "blue"} />
+                              <ChevronRight size={13} color={delayed ? "#FF3B30" : "#c4d4e8"} />
                             </div>
                           </div>
-                          <div style={{display:"flex",alignItems:"center",gap:8}}>
-                            <div className="db-proj-bar-track" style={{background:delayed?"rgba(255,59,48,0.08)":"#eef2f8"}}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div className="db-proj-bar-track" style={{ background: delayed ? "rgba(255,59,48,0.08)" : "#eef2f8" }}>
                               <div className="db-proj-bar-fill" style={{
-                                width:`${p.progress||0}%`,
-                                background:delayed?"#FF3B30":(p.progress||0)>80?"#34C759":(p.progress||0)>50?"#4988C4":"#FF9500",
-                              }}/>
+                                width: `${p.progress || 0}%`,
+                                background: delayed ? "#FF3B30" : (p.progress || 0) > 80 ? "#34C759" : (p.progress || 0) > 50 ? "#4988C4" : "#FF9500",
+                              }} />
                             </div>
-                            <span style={{color:delayed?"#FF3B30":"#94aac4",fontSize:10,fontWeight:700,minWidth:28}}>
-                              {p.progress||0}%
+                            <span style={{ color: delayed ? "#FF3B30" : "#94aac4", fontSize: 10, fontWeight: 700, minWidth: 28 }}>
+                              {p.progress || 0}%
                             </span>
                           </div>
                         </div>
                       );
                     })}
-
-                    {filteredProjects.length===0&&(
-                      <p style={{color:"#94aac4",fontSize:12,textAlign:"center",padding:"22px 0"}}>
-                        {projectFilter==="delayed"?"🎉 No delayed projects — great work!"
-                          :projectFilter==="completed"?"No completed projects yet."
-                          :"No active projects assigned."}
+                    {filteredProjects.length === 0 && (
+                      <p style={{ color: "#94aac4", fontSize: 12, textAlign: "center", padding: "22px 0" }}>
+                        {projectFilter === "delayed" ? "🎉 No delayed projects — great work!"
+                          : projectFilter === "completed" ? "No completed projects yet."
+                          : "No active projects assigned."}
                       </p>
                     )}
-
-                    {filteredProjects.length>4&&(
-                      <p style={{color:"#94aac4",fontSize:11,textAlign:"center",marginTop:8}}>
-                        +{filteredProjects.length-4} more — use filter cards above to explore
+                    {filteredProjects.length > 4 && (
+                      <p style={{ color: "#94aac4", fontSize: 11, textAlign: "center", marginTop: 8 }}>
+                        +{filteredProjects.length - 4} more — use filter cards above to explore
                       </p>
                     )}
                   </div>
@@ -781,31 +858,23 @@ export default function EngineerDashboard() {
 
                 {/* Quick Actions */}
                 <div className="db-card">
-                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
-                    <div className="db-sec-icon"><CheckSquare size={16} color="#BDE8F5"/></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+                    <div className="db-sec-icon"><CheckSquare size={16} color="#BDE8F5" /></div>
                     <span className="db-sec-title">Quick Actions</span>
                   </div>
                   {[
-                    {label:"Log an Issue",      href:"/engineer/issue-log",      color:"#FF9500"},
-                    {label:"Upload QC Results", href:"/engineer/qc-upload",      color:"#34C759"},
-                    {label:"Log a Complaint",   href:"/engineer/complaint-log",  color:"#4988C4"},
-                    {label:"Upload Documents",  href:"/engineer/documents",      color:"#0F2854"},
-                  ].map((a,i)=>(
-                    <Link key={i} href={a.href} style={{textDecoration:"none",display:"block"}}>
+                    { label: "Log an Issue",      href: "/engineer/issue-log",     color: "#FF9500" },
+                    { label: "Upload QC Results", href: "/engineer/qc-upload",     color: "#34C759" },
+                    { label: "Log a Complaint",   href: "/engineer/complaint-log", color: "#4988C4" },
+                    { label: "Upload Documents",  href: "/engineer/documents",     color: "#0F2854" },
+                  ].map((a, i) => (
+                    <Link key={i} href={a.href} style={{ textDecoration: "none", display: "block" }}>
                       <div className="db-action"
-                        style={{background:`${a.color}07`,borderColor:`${a.color}18`}}
-                        onMouseEnter={e=>{
-                          e.currentTarget.style.background=`${a.color}12`;
-                          e.currentTarget.style.borderColor=`${a.color}35`;
-                          e.currentTarget.style.transform="translateX(3px)";
-                        }}
-                        onMouseLeave={e=>{
-                          e.currentTarget.style.background=`${a.color}07`;
-                          e.currentTarget.style.borderColor=`${a.color}18`;
-                          e.currentTarget.style.transform="translateX(0)";
-                        }}>
-                        <span style={{fontSize:13,fontWeight:600,color:a.color}}>{a.label}</span>
-                        <ChevronRight size={14} color={a.color} style={{flexShrink:0,opacity:.6}}/>
+                        style={{ background: `${a.color}07`, borderColor: `${a.color}18` }}
+                        onMouseEnter={e => { e.currentTarget.style.background = `${a.color}12`; e.currentTarget.style.borderColor = `${a.color}35`; e.currentTarget.style.transform = "translateX(3px)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = `${a.color}07`; e.currentTarget.style.borderColor = `${a.color}18`; e.currentTarget.style.transform = "translateX(0)"; }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: a.color }}>{a.label}</span>
+                        <ChevronRight size={14} color={a.color} style={{ flexShrink: 0, opacity: .6 }} />
                       </div>
                     </Link>
                   ))}
