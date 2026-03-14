@@ -2,7 +2,7 @@ import axios from "axios";
 
 const axiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
-  withCredentials: true, // IMPORTANT for refresh cookie
+  withCredentials: true,
 });
 
 /* ---------------- REQUEST INTERCEPTOR ---------------- */
@@ -19,22 +19,20 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-/* ---------------- RESPONSE INTERCEPTOR ---------------- */
+/* ---------------- REFRESH MANAGEMENT ---------------- */
 let isRefreshing = false;
 let failedQueue = [];
 
 const processQueue = (error, token = null) => {
   failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
+    if (error) prom.reject(error);
+    else prom.resolve(token);
   });
 
   failedQueue = [];
 };
 
+/* ---------------- RESPONSE INTERCEPTOR ---------------- */
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -46,7 +44,7 @@ axiosInstance.interceptors.response.use(
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
-            originalRequest.headers.Authorization = "Bearer " + token;
+            originalRequest.headers.Authorization = `Bearer ${token}`;
             return axiosInstance(originalRequest);
           })
           .catch((err) => Promise.reject(err));
@@ -56,19 +54,29 @@ axiosInstance.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axiosInstance.post("/auth/refresh");
+        /* IMPORTANT: use base axios here */
+        const { data } = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
+          {},
+          { withCredentials: true },
+        );
 
         localStorage.setItem("accessToken", data.accessToken);
 
-        axiosInstance.defaults.headers.common.Authorization = `Bearer ${data.accessToken}`;
+        axiosInstance.defaults.headers.common["Authorization"] =
+          `Bearer ${data.accessToken}`;
 
         processQueue(null, data.accessToken);
+
+        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
 
         return axiosInstance(originalRequest);
       } catch (err) {
         processQueue(err, null);
+
         localStorage.removeItem("accessToken");
-        localStorage.removeItem("role");
+        localStorage.removeItem("user");
+
         return Promise.reject(err);
       } finally {
         isRefreshing = false;
