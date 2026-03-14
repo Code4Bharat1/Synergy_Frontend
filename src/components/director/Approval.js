@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { DollarSign, Calendar, MessageSquareWarning, Wrench, X, CheckCircle2, XCircle, Clock, Loader2, FileText } from "lucide-react";
+import { DollarSign, Calendar, MessageSquareWarning, Wrench, X, CheckCircle2, XCircle, Clock, Loader2, FileText, Eye, Info } from "lucide-react";
 
 import axiosInstance from "../../lib/axios";
 import Link from "next/link";
@@ -16,6 +16,11 @@ const apiFetch = async (path, { method = "GET", body } = {}) => {
   const res = await axiosInstance(config);
   return res.data;
 };
+
+const FILE_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1")
+  .replace("/api/v1", "")
+  .replace("/api", "");
+
 
 const TYPE_CONFIG = {
   "Budget Deviation": { icon: DollarSign, color: "bg-amber-50 text-amber-600" },
@@ -100,6 +105,127 @@ function RejectModal({ item, onConfirm, onCancel }) {
   );
 }
 
+// ── Detail Modal ──────────────────────────────────────────────────────────────
+function DetailModal({ item, onClose }) {
+  if (!item) return null;
+  const t = TYPE_CONFIG[item.type] || TYPE_CONFIG["Document Review"];
+  const s = STATUS_CONFIG[item.status] || STATUS_CONFIG.Pending;
+  const TypeIcon = t.icon;
+  const StatusIcon = s.icon;
+
+  const renderDetailContent = () => {
+    if (item.detail.startsWith("Details: {")) {
+      try {
+        const obj = JSON.parse(item.detail.replace("Details: ", ""));
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {Object.entries(obj).map(([k, v]) => (
+              <div key={k} className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">
+                  {k.replace(/([A-Z])/g, ' $1').trim()}
+                </p>
+                <p className="text-sm font-semibold text-extra-darkblue break-words">
+                  {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                </p>
+              </div>
+            ))}
+          </div>
+        );
+      } catch (e) {
+        return <DetailWithLinks text={item.detail} />;
+      }
+    }
+    return <DetailWithLinks text={item.detail} />;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col z-10 anim-scale-in">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-xl ${t.color}`}>
+              <TypeIcon size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-extra-darkblue leading-none">{item.type}</h3>
+              <p className="text-xs text-gray-400 mt-1">{item.project} {item.projectId && `· ${item.projectId}`}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-400">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</p>
+              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${s.cls}`}>
+                <StatusIcon size={12} /> {item.status}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Priority</p>
+              <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${PRIORITY_STYLE[item.priority] || PRIORITY_STYLE.default}`}>
+                {item.priority}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Requested By</p>
+              <p className="text-sm font-bold text-extra-darkblue">{item.requestedBy}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Date</p>
+              <p className="text-sm font-bold text-extra-darkblue">{item.date}</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-1">Request Information</p>
+            {renderDetailContent()}
+            {item.amount && (
+              <div className="mt-4 p-4 bg-blue-50/50 rounded-2xl border border-blue-100 flex items-center justify-between">
+                <span className="text-sm font-bold text-blue-900">Requested Amount</span>
+                <span className="text-xl font-bold text-blue-600">{item.amount}</span>
+              </div>
+            )}
+            {item.reviewNotes || item.rejectReason ? (
+              <div className="mt-4 p-4 bg-red-50/50 rounded-2xl border border-red-100 space-y-1">
+                <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Review Notes</p>
+                <p className="text-sm text-red-600 font-medium">{item.reviewNotes || item.rejectReason}</p>
+              </div>
+            ) : null}
+
+            {item.url && (
+              <div className="mt-4 p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-0.5">Attachment</p>
+                  <p className="text-sm font-bold text-emerald-900">Receipt / Document File</p>
+                </div>
+                <Link
+                  href={item.url}
+                  target="_blank"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 transition-all flex items-center gap-1.5 shadow-lg shadow-emerald-500/20"
+                >
+                  <Eye size={14} /> View File
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+          <button onClick={onClose}
+            className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-extra-darkblue hover:opacity-90 transition-all shadow-lg shadow-blue-900/10">
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Approval Card ─────────────────────────────────────────────────────────────
 function ApprovalCard({ item, onApprove, onReject, loadingActionId }) {
   const t = TYPE_CONFIG[item.type] || TYPE_CONFIG["Document Review"];
@@ -144,10 +270,23 @@ function ApprovalCard({ item, onApprove, onReject, loadingActionId }) {
         {/* ── URL rendered as clickable link ── */}
         <DetailWithLinks text={item.detail} />
 
-        <div className="pt-2 border-t border-gray-100 space-y-2">
-          {item.amount && <span className="text-sm font-bold text-extra-darkblue block">{item.amount}</span>}
+        <div className="pt-2 border-t border-gray-100 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            {item.amount ? (
+              <span className="text-sm font-bold text-extra-darkblue">{item.amount}</span>
+            ) : (
+              <div />
+            )}
+            <button
+              onClick={() => onApprove(item, true)} // Second param true means request detail
+              className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-wider"
+            >
+              <Eye size={13} /> View Details
+            </button>
+          </div>
+
           {isPending && (
-            <div className="flex gap-2 w-full">
+            <div className="flex gap-2 w-full pt-1">
               <button
                 onClick={() => onReject(item)}
                 disabled={isActionLoading}
@@ -177,6 +316,7 @@ export default function Approvals() {
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingActionId, setLoadingActionId] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null); // For DetailModal
 
   const showToast = (msg, isError = false) => { setToast({ msg, isError }); setTimeout(() => setToast(null), 2500); };
 
@@ -204,6 +344,9 @@ export default function Approvals() {
         date: new Date(d.createdAt).toLocaleDateString(),
         priority: "Medium",
         status: d.status ? d.status.charAt(0).toUpperCase() + d.status.slice(1) : "Pending",
+        projectId: d.project?.projectId || "",
+        reviewNotes: d.reviewNotes || d.rejectReason || "",
+        url: d.url ? (d.url.startsWith("http") ? d.url : `${FILE_BASE}${d.url}`) : "",
       }));
 
       const mappedApps = approvals.map(a => {
@@ -221,6 +364,8 @@ export default function Approvals() {
           date: new Date(a.createdAt).toLocaleDateString(),
           priority: "High",
           status: a.status ? a.status.charAt(0).toUpperCase() + a.status.slice(1) : "Pending",
+          projectId: a.project?.projectId || "",
+          reviewNotes: a.reviewNotes || "",
         };
       });
 
@@ -235,6 +380,9 @@ export default function Approvals() {
         date: new Date(e.createdAt).toLocaleDateString(),
         priority: "Medium",
         status: e.status ? e.status.charAt(0).toUpperCase() + e.status.slice(1) : "Pending",
+        projectId: e.project?.projectId || "",
+        reviewNotes: e.reviewNotes || "",
+        url: e.receiptUrl ? (e.receiptUrl.startsWith("http") ? e.receiptUrl : `${FILE_BASE}${e.receiptUrl}`) : "",
       }));
 
       setItems([...mappedDocs, ...mappedApps, ...mappedExps].sort((a,b) => new Date(b.date) - new Date(a.date)));
@@ -250,7 +398,11 @@ export default function Approvals() {
     fetchItems();
   }, [fetchItems]);
 
-  const approve = async (item) => {
+  const approve = async (item, justView = false) => {
+    if (justView) {
+      setSelectedItem(item);
+      return;
+    }
     try {
       setLoadingActionId(item.id);
 
@@ -330,6 +482,10 @@ export default function Approvals() {
         <RejectModal item={rejecting} onConfirm={reject} onCancel={() => setRejecting(null)} />
       )}
 
+      {selectedItem && (
+        <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
@@ -344,16 +500,32 @@ export default function Approvals() {
       </div>
 
       {/* Type filter */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
-        {ALL_TYPES.map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={`px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0
-              ${filter === f
-                ? "bg-extra-darkblue text-white"
-                : "bg-white border border-gray-200 text-gray-500 hover:border-extra-blue hover:text-extra-blue"}`}>
-            {f}
-          </button>
-        ))}
+      <div className="w-full">
+        {/* Mobile dropdown filter */}
+        <div className="block sm:hidden">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="w-full text-sm border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-extra-darkblue transition-all text-extra-darkblue font-bold bg-white shadow-sm"
+          >
+            {ALL_TYPES.map(f => (
+              <option key={f} value={f}>{f === "All" ? "Filter by Category" : f}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Desktop scrollable filter */}
+        <div className="hidden sm:flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+          {ALL_TYPES.map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0
+                ${filter === f
+                  ? "bg-extra-darkblue text-white"
+                  : "bg-white border border-gray-200 text-gray-500 hover:border-extra-blue hover:text-extra-blue"}`}>
+              {f}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Cards */}

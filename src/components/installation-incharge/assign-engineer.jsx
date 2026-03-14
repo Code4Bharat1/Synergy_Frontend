@@ -275,7 +275,7 @@ export default function AssignEngineer() {
                 <div className="p-4 sm:p-5">
                   {/* Row 1: ID + priority + saved */}
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-xs font-bold text-blue-700">{project._id?.slice(-6).toUpperCase()}</span>
+                    <span className="text-xs font-bold text-blue-700">{project.projectId || project._id?.slice(-6).toUpperCase()}</span>
                     <span className={`${pm.badge} text-[10px] font-semibold px-2 py-0.5 rounded-full`}>{priority}</span>
                     <span className="text-[10px] font-medium text-gray-400 capitalize">{project.status}</span>
                     {isSaved && (

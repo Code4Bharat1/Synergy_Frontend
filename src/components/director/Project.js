@@ -482,7 +482,10 @@ function DetailModal({ project: p, onClose }) {
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0"
           style={{ background: "linear-gradient(135deg, #0F2854, #1C4D8D)" }}>
           <div>
-            <h3 className="text-white font-bold text-base">{p.name}</h3>
+            <h3 className="text-white font-bold text-base">
+              {p.projectId && <span className="text-blue-200 text-sm mr-2">{p.projectId}</span>}
+              {p.name}
+            </h3>
             <p className="text-blue-300 text-xs mt-0.5">
               {p.location || "No location"} · Client: {p.clientName}
             </p>
@@ -867,7 +870,10 @@ export default function ProjectOverview() {
                 <div onClick={() => router.push(`/director/project/${p._id}`)}>
                   <div className="flex items-start justify-between gap-3 mb-4 pr-16">
                     <div>
-                      <h3 className="text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{p.name}</h3>
+                      <h3 className="text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors">
+                        {p.projectId && <span className="text-blue-600 mr-1.5">{p.projectId}</span>}
+                        {p.name}
+                      </h3>
                       <p className="text-xs text-gray-400 mt-0.5">{p.location || "No location"} · {p.clientName}</p>
                     </div>
                     <Badge text={statusLabel} colorClass={statusStyle} />

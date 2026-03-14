@@ -260,7 +260,10 @@ function MobileProjectCard({ p }) {
     <div className="px-4 py-3 flex flex-col gap-2" style={{ borderBottom: `1px solid ${C.divider}` }}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold mt-0.5" style={{ color: C.darkBlue }}>{p.name}</p>
+          <p className="text-sm font-semibold mt-0.5" style={{ color: C.darkBlue }}>
+            {p.projectId && <span style={{ color: C.medBlue, marginRight: "6px" }}>{p.projectId}</span>}
+            {p.name}
+          </p>
           <p className="text-xs" style={{ color: C.mutedText }}>{p.clientName}</p>
         </div>
         <Badge label="Medium" bg={rb.bg} color={rb.color} />
@@ -282,7 +285,10 @@ function MobileInstallCard({ p }) {
     <div className="px-4 py-3 flex flex-col gap-2" style={{ borderBottom: `1px solid ${C.divider}` }}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold mt-0.5" style={{ color: C.darkBlue }}>{p.name}</p>
+          <p className="text-sm font-semibold mt-0.5" style={{ color: C.darkBlue }}>
+            {p.projectId && <span style={{ color: C.medBlue, marginRight: "6px" }}>{p.projectId}</span>}
+            {p.name}
+          </p>
           <p className="text-xs" style={{ color: engineerName === "Unassigned" ? C.darkBlue : C.mutedText }}>
             {engineerName === "Unassigned" ? "— Unassigned" : engineerName}
           </p>
@@ -444,7 +450,10 @@ export default function Dashboard() {
                         const rb = levelBadge("Medium");
                         return (
                           <HoverTr key={p._id}>
-                            <td className="px-4 py-3 font-medium whitespace-nowrap text-sm" style={{ color: C.darkBlue }}>{p.name}</td>
+                            <td className="px-4 py-3 font-medium whitespace-nowrap text-sm" style={{ color: C.darkBlue }}>
+                              {p.projectId && <span style={{ color: C.medBlue, marginRight: "6px" }}>{p.projectId}</span>}
+                              {p.name}
+                            </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm" style={{ color: C.mutedText }}>{p.clientName}</td>
                             <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: C.dimText }}>{formatDate(p.createdAt)}</td>
                             <td className="px-4 py-3 whitespace-nowrap"><Badge label={p.status} bg={sb.bg} color={sb.color} /></td>
@@ -511,7 +520,10 @@ export default function Dashboard() {
                           || "Unassigned";
                         return (
                           <HoverTr key={p._id}>
-                            <td className="px-4 py-3 font-medium whitespace-nowrap text-sm" style={{ color: C.darkBlue }}>{p.name}</td>
+                            <td className="px-4 py-3 font-medium whitespace-nowrap text-sm" style={{ color: C.darkBlue }}>
+                              {p.projectId && <span style={{ color: C.medBlue, marginRight: "6px" }}>{p.projectId}</span>}
+                              {p.name}
+                            </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm">
                               {incharge === "Unassigned"
                                 ? <span className="text-xs font-bold" style={{ color: C.darkBlue }}>— Unassigned</span>

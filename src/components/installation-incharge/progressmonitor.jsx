@@ -138,7 +138,7 @@ function ProjectCard({ p }) {
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
       <div className="flex items-start justify-between mb-2">
         <div>
-          <p className="text-[11px] font-bold text-blue-500 mb-0.5">{p._id?.slice(-6).toUpperCase()}</p>
+          <p className="text-[11px] font-bold text-blue-500 mb-0.5">{p.projectId || p._id?.slice(-6).toUpperCase()}</p>
           <p className="text-sm font-bold text-blue-950">{p.name}</p>
           <p className="text-xs text-gray-400">{p.clientName}</p>
         </div>
@@ -272,7 +272,7 @@ export default function ProgressMonitoring() {
                     return (
                       <tr key={p._id} className={`border-t border-gray-50 hover:bg-blue-50/30 transition-colors cursor-pointer ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
                         <td className="px-4 py-3">
-                          <p className="text-[11px] font-bold text-blue-500 mb-0.5">{p._id?.slice(-6).toUpperCase()}</p>
+                          <p className="text-[11px] font-bold text-blue-500 mb-0.5">{p.projectId || p._id?.slice(-6).toUpperCase()}</p>
                           <p className="text-sm font-bold text-blue-950">{p.name}</p>
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{p.clientName}</td>

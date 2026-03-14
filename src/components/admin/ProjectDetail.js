@@ -285,7 +285,10 @@ export default function ProjectDetail({ params }) {
                     <ArrowLeft size={16} />
                 </button>
                 <div>
-                    <h1 className="text-xl font-bold text-[#0F2854]">{project.name}</h1>
+                    <h1 className="text-xl font-bold text-[#0F2854]">
+                        {project.projectId && <span className="text-blue-600 mr-2 border-r border-[#0F2854]/20 pr-2">{project.projectId}</span>}
+                        {project.name}
+                    </h1>
                     <p className="text-xs text-gray-400 mt-0.5">Project Details & Files</p>
                 </div>
             </div>

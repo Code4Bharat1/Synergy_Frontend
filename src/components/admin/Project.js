@@ -557,7 +557,10 @@ export default function ProjectManagement() {
                   {/* Title + status */}
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
-                      <h3 className="text-sm font-bold text-extra-darkblue">{p.name}</h3>
+                      <h3 className="text-sm font-bold text-extra-darkblue">
+                        {p.projectId && <span className="text-blue-600 mr-1.5">{p.projectId}</span>}
+                        {p.name}
+                      </h3>
                       <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
                         <MapPin size={11} /> {p.location || p.clientName}
                       </div>

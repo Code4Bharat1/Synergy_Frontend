@@ -350,6 +350,7 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
         <div>
           <p className="text-xs font-semibold tracking-widest m-0" style={{ color: "#4988C4", letterSpacing: "0.05em" }}>PROJECT DETAIL</p>
           <h2 className="text-xl font-extrabold m-0" style={{ color: "#0F2854", fontFamily: "'Syne',sans-serif" }}>
+            {localProject.projectId && <span style={{ color: "#4988C4", marginRight: "8px", borderRight: "1px solid rgba(73,136,196,0.3)", paddingRight: "8px" }}>{localProject.projectId}</span>}
             {localProject.name}
           </h2>
         </div>
@@ -604,7 +605,10 @@ function ProjectCard({ project, onClick, onEdit, index }) {
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <h3 className="text-sm font-bold m-0 break-words" style={{ color: "#0F2854" }}>{project.name}</h3>
+              <h3 className="text-sm font-bold m-0 break-words" style={{ color: "#0F2854" }}>
+                {project.projectId && <span style={{ color: "#4988C4", marginRight: "6px" }}>{project.projectId}</span>}
+                {project.name}
+              </h3>
               {delayed && (
                 <span className="delayed-pulse shrink-0 text-xs font-bold px-2 py-0.5 rounded-full border" style={{ background: "rgba(255,59,48,0.1)", color: "#FF3B30", border: "1px solid rgba(255,59,48,0.2)" }}>
                   DELAYED
