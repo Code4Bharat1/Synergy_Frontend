@@ -23,6 +23,7 @@ const TYPE_CONFIG = {
   "High-Value Complaint": { icon: MessageSquareWarning, color: "bg-red-50 text-red-500" },
   "Corrective Action": { icon: Wrench, color: "bg-purple-50 text-purple-600" },
   "Document Review": { icon: FileText, color: "bg-blue-50 text-blue-600" },
+  "Expense Approval": { icon: DollarSign, color: "bg-green-50 text-green-600" },
 };
 
 const PRIORITY_STYLE = {
@@ -38,7 +39,7 @@ const STATUS_CONFIG = {
   Rejected: { cls: "bg-red-50 text-red-500", icon: XCircle },
 };
 
-const ALL_TYPES = ["All", "Budget Deviation", "Timeline Extension", "High-Value Complaint", "Corrective Action", "Document Review"];
+const ALL_TYPES = ["All", "Budget Deviation", "Timeline Extension", "High-Value Complaint", "Corrective Action", "Document Review", "Expense Approval"];
 
 // ── Renders detail text with URLs as clickable blue links ─────────────────────
 function DetailWithLinks({ text }) {
@@ -50,7 +51,7 @@ function DetailWithLinks({ text }) {
         urlRegex.test(part) ? (
           <Link key={i} href={part} target="_blank" rel="noopener noreferrer"
             className="text-blue-500 underline hover:text-blue-700 transition-colors break-all">
-            Click Here 
+            Click Here
           </Link>
         ) : (
           <span key={i}>{part}</span>
@@ -154,7 +155,7 @@ function ApprovalCard({ item, onApprove, onReject, loadingActionId }) {
                 <XCircle size={13} /> Reject
               </button>
               <button
-                onClick={() => onApprove(item.id)}
+                onClick={() => onApprove(item)}
                 disabled={isActionLoading}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-green-600 bg-green-50 hover:bg-green-100 transition-colors disabled:opacity-50">
                 {isActionLoading ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
@@ -179,14 +180,22 @@ export default function Approvals() {
 
   const showToast = (msg, isError = false) => { setToast({ msg, isError }); setTimeout(() => setToast(null), 2500); };
 
-  const fetchDocumentsAsApprovals = useCallback(async () => {
+  const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await apiFetch("/documents");
-      const docs = Array.isArray(data) ? data : data.documents || [];
+      const [docRes, appRes, expRes] = await Promise.all([
+        apiFetch("/documents").catch(() => []),
+        apiFetch("/approvals/all").catch(() => ({ approvals: [] })),
+        apiFetch("/expenses/all").catch(() => ({ expenses: [] }))
+      ]);
+
+      const docs = Array.isArray(docRes) ? docRes : docRes.documents || [];
+      const approvals = Array.isArray(appRes) ? appRes : appRes.approvals || [];
+      const expenses = Array.isArray(expRes) ? expRes : expRes.expenses || [];
 
       const mappedDocs = docs.map(d => ({
         id: d._id,
+        source: "documents",
         type: "Document Review",
         project: d.project?.name || "Global",
         detail: `Title: ${d.title}. Type: ${d.documentType}. \nURL: ${d.url}`,
@@ -196,7 +205,39 @@ export default function Approvals() {
         priority: "Medium",
         status: d.status ? d.status.charAt(0).toUpperCase() + d.status.slice(1) : "Pending",
       }));
-      setItems(mappedDocs);
+
+      const mappedApps = approvals.map(a => {
+        let detailString = "";
+        try { detailString = `Details: ${JSON.stringify(a.details)}`; } catch(e) {}
+
+        return {
+          id: a._id,
+          source: "approvals",
+          type: a.type || "Other",
+          project: a.project?.name || "Global",
+          detail: detailString,
+          amount: a.details?.requestedBudget ? `₹${a.details.requestedBudget}` : "",
+          requestedBy: a.requestedBy?.name || "Unknown",
+          date: new Date(a.createdAt).toLocaleDateString(),
+          priority: "High",
+          status: a.status ? a.status.charAt(0).toUpperCase() + a.status.slice(1) : "Pending",
+        };
+      });
+
+      const mappedExps = expenses.map(e => ({
+        id: e._id,
+        source: "expenses",
+        type: "Expense Approval",
+        project: e.project?.name || "Global",
+        detail: `Category: ${e.category}. Description: ${e.description || "N/A"}`,
+        amount: `₹${e.amount}`,
+        requestedBy: e.submittedBy?.name || "Unknown",
+        date: new Date(e.createdAt).toLocaleDateString(),
+        priority: "Medium",
+        status: e.status ? e.status.charAt(0).toUpperCase() + e.status.slice(1) : "Pending",
+      }));
+
+      setItems([...mappedDocs, ...mappedApps, ...mappedExps].sort((a,b) => new Date(b.date) - new Date(a.date)));
     } catch (err) {
       console.error(err);
       showToast("Error loading approvals", true);
@@ -206,14 +247,31 @@ export default function Approvals() {
   }, []);
 
   useEffect(() => {
-    fetchDocumentsAsApprovals();
-  }, [fetchDocumentsAsApprovals]);
+    fetchItems();
+  }, [fetchItems]);
 
-  const approve = async (id) => {
+  const approve = async (item) => {
     try {
-      setLoadingActionId(id);
-      await apiFetch(`/documents/${id}`, { method: "PUT", body: JSON.stringify({ status: "approved" }) });
-      setItems(p => p.map(i => i.id === id ? { ...i, status: "Approved" } : i));
+      setLoadingActionId(item.id);
+
+      let method = "PATCH";
+      let endpoint = "";
+      let payload = {};
+
+      if (item.source === "approvals") {
+        endpoint = `/approvals/${item.id}/status`;
+        payload = { status: "Approved" };
+      } else if (item.source === "expenses") {
+        endpoint = `/expenses/${item.id}/status`;
+        payload = { status: "Approved" };
+      } else {
+        endpoint = `/documents/${item.id}`;
+        method = "PUT";
+        payload = { status: "approved" };
+      }
+
+      await apiFetch(endpoint, { method, body: JSON.stringify(payload) });
+      setItems(p => p.map(i => i.id === item.id ? { ...i, status: "Approved" } : i));
       showToast("Request approved successfully");
     } catch (err) {
       console.error("Error approving:", err);
@@ -226,7 +284,24 @@ export default function Approvals() {
   const reject = async (reason) => {
     try {
       setLoadingActionId(rejecting.id);
-      await apiFetch(`/documents/${rejecting.id}`, { method: "PUT", body: JSON.stringify({ status: "rejected" }) });
+
+      let method = "PATCH";
+      let endpoint = "";
+      let payload = {};
+
+      if (rejecting.source === "approvals") {
+        endpoint = `/approvals/${rejecting.id}/status`;
+        payload = { status: "Rejected", reviewNotes: reason };
+      } else if (rejecting.source === "expenses") {
+        endpoint = `/expenses/${rejecting.id}/status`;
+        payload = { status: "Rejected", reviewNotes: reason };
+      } else {
+        endpoint = `/documents/${rejecting.id}`;
+        method = "PUT";
+        payload = { status: "rejected", rejectReason: reason };
+      }
+
+      await apiFetch(endpoint, { method, body: JSON.stringify(payload) });
       setItems(p => p.map(i => i.id === rejecting.id ? { ...i, status: "Rejected" } : i));
       setRejecting(null);
       showToast("Request rejected successfully");

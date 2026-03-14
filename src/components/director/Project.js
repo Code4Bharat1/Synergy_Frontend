@@ -4,19 +4,30 @@ import { useRouter } from "next/navigation";
 import {
   X, AlertCircle, ChevronRight,
   Plus, RefreshCw, Pencil,
-  Trash2, Loader2, Clock,
+  Trash2, Loader2, Clock, Receipt, Banknote, FileText, IndianRupee
 } from "lucide-react";
 import axiosInstance from "../../lib/axios";
 
 // ── API Helpers ───────────────────────────────────────────────────────────────
-const apiFetch = async (path, { method = "GET", body } = {}) => {
+const apiFetch = async (path, { method = "GET", body, isMultipart = false } = {}) => {
   const token = localStorage.getItem("accessToken");
+
+  let data = body;
+  if (body && !isMultipart && typeof body === "string") {
+    try { data = JSON.parse(body); } catch(e) {}
+  }
+
   const config = {
     method,
     url: path,
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    ...(body ? { data: JSON.parse(body) } : {}),
+    ...(data ? { data } : {}),
   };
+
+  if (isMultipart && config.headers) {
+    config.headers["Content-Type"] = "multipart/form-data";
+  }
+
   const res = await axiosInstance(config);
   return res.data;
 };
@@ -261,6 +272,195 @@ function ProjectForm({ initial = EMPTY_FORM, onSubmit, loading, submitLabel = "S
   );
 }
 
+// ── Project Expenses Tab ──────────────────────────────────────────────────────
+function ProjectExpensesTab({ projectId }) {
+  const [expenses, setExpenses] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const [showAddExpense, setShowAddExpense] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [expenseForm, setExpenseForm] = useState({
+    amount: "", category: "Material", description: "", receipt: null
+  });
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [expRes, sumRes] = await Promise.all([
+        apiFetch(`/expenses/project/${projectId}`),
+        apiFetch(`/expenses/project/${projectId}/summary`)
+      ]);
+      setExpenses(expRes.expenses || []);
+      setSummary(sumRes.summary || null);
+    } catch (err) {
+      console.error("Failed to fetch expenses:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleAddExpense = async (e) => {
+    e.preventDefault();
+    try {
+      setActionLoading(true);
+      const formData = new FormData();
+      formData.append("projectId", projectId);
+      formData.append("amount", expenseForm.amount);
+      formData.append("category", expenseForm.category);
+      formData.append("description", expenseForm.description);
+      if (expenseForm.receipt) {
+        formData.append("receipt", expenseForm.receipt);
+      }
+
+      await apiFetch("/expenses", {
+        method: "POST",
+        body: formData,
+        isMultipart: true
+      });
+      setShowAddExpense(false);
+      setExpenseForm({ amount: "", category: "Material", description: "", receipt: null });
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || "Failed to add expense");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-10 text-gray-400 gap-2">
+        <Loader2 size={16} className="animate-spin" />
+        <span className="text-sm">Loading expenses...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+            <p className="text-xs text-gray-400 mb-1">Total Budget</p>
+            <p className="text-sm font-bold text-gray-800">₹{summary.budget?.toLocaleString() || 0}</p>
+          </div>
+          <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100">
+            <p className="text-xs text-emerald-500 mb-1">Actual Cost</p>
+            <p className="text-sm font-bold text-emerald-700">₹{summary.actualCost?.toLocaleString() || 0}</p>
+          </div>
+          <div className="bg-amber-50 rounded-xl p-3 text-center border border-amber-100">
+            <p className="text-xs text-amber-500 mb-1">Pending Cost</p>
+            <p className="text-sm font-bold text-amber-700">₹{summary.pendingCost?.toLocaleString() || 0}</p>
+          </div>
+          <div className={`rounded-xl p-3 text-center border ${summary.isBudgetExceeded ? 'bg-red-50 border-red-100' : 'bg-blue-50 border-blue-100'}`}>
+            <p className={`text-xs mb-1 ${summary.isBudgetExceeded ? 'text-red-500' : 'text-blue-500'}`}>Remaining</p>
+            <p className={`text-sm font-bold ${summary.isBudgetExceeded ? 'text-red-700' : 'text-blue-700'}`}>
+              ₹{summary.remainingBudget?.toLocaleString() || 0}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Expense Logs</p>
+        <button onClick={() => setShowAddExpense(true)}
+          className="flex items-center gap-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+          <Plus size={13} /> Add Expense
+        </button>
+      </div>
+
+      {expenses.length === 0 ? (
+        <div className="text-center py-8 text-sm text-gray-400 border border-dashed border-gray-200 rounded-xl">
+          No expenses recorded for this project yet.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {expenses.map(exp => (
+            <div key={exp._id} className="bg-white border border-gray-100 rounded-xl p-3 flex items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 shrink-0">
+                  <Receipt size={16} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-gray-800">{exp.category}</h4>
+                  <p className="text-xs text-gray-400">{exp.description || "No description provided"}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                      By: {exp.submittedBy?.name || "Unknown"}
+                    </span>
+                    <span className="text-[10px] text-gray-400">
+                      {new Date(exp.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-bold text-gray-800">₹{exp.amount?.toLocaleString()}</p>
+                <div className="mt-1">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    exp.status === "Approved" ? "bg-emerald-50 text-emerald-600" :
+                    exp.status === "Rejected" ? "bg-red-50 text-red-600" :
+                    "bg-amber-50 text-amber-600"
+                  }`}>
+                    {exp.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showAddExpense && (
+        <Modal title="Submit New Expense" onClose={() => setShowAddExpense(false)}>
+          <form onSubmit={handleAddExpense} className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 mb-1 block">Amount *</label>
+              <input required type="number" min="0" value={expenseForm.amount} onChange={e => setExpenseForm({...expenseForm, amount: e.target.value})}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                placeholder="e.g. 5000" />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-gray-600 mb-1 block">Category *</label>
+              <select value={expenseForm.category} onChange={e => setExpenseForm({...expenseForm, category: e.target.value})}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                {["Travel", "Material", "Food", "Logistics", "Accommodation", "Other"].map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-gray-600 mb-1 block">Description</label>
+              <textarea rows={2} value={expenseForm.description} onChange={e => setExpenseForm({...expenseForm, description: e.target.value})}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+                placeholder="Details about this expense..." />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-gray-600 mb-1 block">Receipt (Optional)</label>
+              <input type="file" onChange={e => setExpenseForm({...expenseForm, receipt: e.target.files[0]})}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+            </div>
+
+            <button type="submit" disabled={actionLoading}
+              className="w-full bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+              {actionLoading && <Loader2 size={14} className="animate-spin" />}
+              Submit Expense
+            </button>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 // ── Detail Modal ──────────────────────────────────────────────────────────────
 function DetailModal({ project: p, onClose }) {
   const [tab, setTab] = useState("overview");
@@ -268,6 +468,7 @@ function DetailModal({ project: p, onClose }) {
     { key: "overview", label: "Overview" },
     { key: "team", label: "Team" },
     { key: "timeline", label: "Timeline" },
+    { key: "expenses", label: "Expenses" },
   ];
 
   const statusStyle = STATUS_STYLE[p.status] || "bg-gray-100 text-gray-500";
@@ -413,6 +614,10 @@ function DetailModal({ project: p, onClose }) {
                 </div>
               </div>
             </div>
+          )}
+
+          {tab === "expenses" && (
+            <ProjectExpensesTab projectId={p._id} />
           )}
         </div>
       </div>

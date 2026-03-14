@@ -30,6 +30,7 @@ import {
   FlaskConical,
   UserCheck,
   ListTodo,
+  Banknote,
 } from "lucide-react";
 
 import Navbar from "@/components/common/Navbar";
@@ -154,6 +155,11 @@ const ROLE_NAVIGATION = {
       href: "/marketingExecutive/project-status",
       icon: FileText,
       label: "Project Status",
+    },
+    {
+      href: "/marketingExecutive/my-expenses",
+      icon: Banknote,
+      label: "My Expenses",
     },
     {
       href: "/marketingExecutive/Attendance",
