@@ -60,7 +60,10 @@ function DesktopSidebar({
             <Link
               href={item.href}
               key={item.label}
-              onClick={() => setActive(item.label)}
+              onClick={() => {
+                setActive(item.label);
+                localStorage.setItem("label", item.label);
+              }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
                 ${collapsed ? "justify-center" : ""}
                 ${

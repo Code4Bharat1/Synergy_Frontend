@@ -47,7 +47,11 @@ const ROLE_NAVIGATION = {
     { label: "Role Assignment", icon: ShieldCheck, href: "/admin/role" },
     { label: "Document Control", icon: FileText, href: "/admin/document" },
     { label: "Attendance", icon: CalendarCheck, href: "/admin/attendance" },
-    { label: "Worker attendance", icon: CalendarCheck, href: "/attendance/records" },
+    {
+      label: "Worker attendance",
+      icon: CalendarCheck,
+      href: "/attendance/records",
+    },
   ],
   director: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/director" },
@@ -61,17 +65,29 @@ const ROLE_NAVIGATION = {
     { label: "Performance", icon: BarChart3, href: "/director/performance" },
     { label: "Task Panel", icon: ListTodo, href: "/director/tasks" },
     { label: "Attendance", icon: CalendarCheck, href: "/admin/attendance" },
-    { label: "Worker attendance", icon: CalendarCheck, href: "/attendance/records" },
+    {
+      label: "Worker attendance",
+      icon: CalendarCheck,
+      href: "/attendance/records",
+    },
   ],
   engineer: [
     { href: "/engineer/", icon: LayoutDashboard, label: "Dashboard" },
-     {
+    {
       href: "/engineer/myProjects",
       icon: ClipboardList,
       label: "My Projects",
     },
-    { href: "/engineer/issue-log", icon: AlertTriangle, label: "Installation Issues" },
-    { href: "/engineer/qc-upload", icon: CheckSquare, label: "Project Test Upload" },
+    {
+      href: "/engineer/issue-log",
+      icon: AlertTriangle,
+      label: "Installation Issues",
+    },
+    {
+      href: "/engineer/qc-upload",
+      icon: CheckSquare,
+      label: "Project Test Upload",
+    },
     {
       href: "/engineer/complaint-log",
       icon: MessageSquare,
@@ -94,10 +110,10 @@ const ROLE_NAVIGATION = {
     // { href: "/support/profile", icon: User, label: "Profile" },
   ],
   attendance: [
-  { label: "Mark Attendance", icon: HardHat,        href: "/attendance" },
-  { label: "Records",         icon: ClipboardList,   href: "/attendance/records" },
-],
-  "installationIncharge": [
+    { label: "Mark Attendance", icon: HardHat, href: "/attendance" },
+    { label: "Records", icon: ClipboardList, href: "/attendance/records" },
+  ],
+  installationIncharge: [
     {
       href: "/installationIncharge",
       icon: LayoutDashboard,
@@ -144,7 +160,7 @@ const ROLE_NAVIGATION = {
       label: "Task Assigned",
     },
   ],
-  "qualityControl": [
+  qualityControl: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/qualityControl" },
     {
       label: "Inspection",
@@ -163,7 +179,7 @@ const ROLE_NAVIGATION = {
       label: "Task Assigned",
     },
   ],
-  "marketingExecutive": [
+  marketingExecutive: [
     {
       href: "/marketingExecutive/",
       icon: LayoutDashboard,
@@ -195,7 +211,7 @@ const ROLE_NAVIGATION = {
       label: "Task Assigned",
     },
   ],
-  "marketingCoordinator": [
+  marketingCoordinator: [
     {
       href: "/marketingCoordinator/",
       icon: LayoutDashboard,
@@ -216,7 +232,11 @@ const ROLE_NAVIGATION = {
       icon: Send,
       label: "Installation Request",
     },
-    { href: "/marketingCoordinator/attendance", icon: UserCheck, label: "Attendance" },
+    {
+      href: "/marketingCoordinator/attendance",
+      icon: UserCheck,
+      label: "Attendance",
+    },
     {
       href: "/task-assigned",
       icon: CalendarCheck,
@@ -230,7 +250,9 @@ export default function SynergyDashboardLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [active, setActive] = useState("Dashboard");
+  const [active, setActive] = useState(
+    localStorage.getItem("label") ? localStorage.getItem("label") : "Dashboard",
+  );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
