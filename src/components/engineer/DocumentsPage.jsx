@@ -22,16 +22,16 @@ const apiFetch = async (path, { method = "GET", body } = {}) => {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DOC_TYPES = {
-  "qc": { label: "QC", color: "bg-blue-50 text-blue-600", dot: "#3b82f6" },
+  "qc":           { label: "QC",           color: "bg-blue-50 text-blue-600",   dot: "#3b82f6" },
   "installation": { label: "Installation", color: "bg-purple-50 text-purple-600", dot: "#9333ea" },
-  "reference": { label: "Reference", color: "bg-gray-100 text-gray-600", dot: "#6b7280" },
+  "reference":    { label: "Reference",    color: "bg-gray-100 text-gray-600",  dot: "#6b7280" },
   "daily-report": { label: "Daily Report", color: "bg-green-50 text-green-600", dot: "#16a34a" },
-  "trail-qc": { label: "Trial QC", color: "bg-amber-50 text-amber-600", dot: "#d97706" },
-  "other": { label: "Other", color: "bg-gray-100 text-gray-500", dot: "#9ca3af" },
+  "trail-qc":     { label: "Trial QC",     color: "bg-amber-50 text-amber-600", dot: "#d97706" },
+  "other":        { label: "Other",        color: "bg-gray-100 text-gray-500",  dot: "#9ca3af" },
 };
 
 const STATUS_META = {
-  pending: { label: "Pending", color: "bg-amber-50 text-amber-600" },
+  pending:  { label: "Pending",  color: "bg-amber-50 text-amber-600" },
   approved: { label: "Approved", color: "bg-green-50 text-green-600" },
   rejected: { label: "Rejected", color: "bg-red-50 text-red-500" },
 };
@@ -39,24 +39,24 @@ const STATUS_META = {
 const MAX_FILES = 5;
 
 const FILE_ICONS = {
-  "pdf": { icon: "📄", color: "text-red-500", bg: "bg-red-50" },
-  "doc": { icon: "📝", color: "text-blue-500", bg: "bg-blue-50" },
-  "docx": { icon: "📝", color: "text-blue-500", bg: "bg-blue-50" },
-  "xlsx": { icon: "📊", color: "text-green-500", bg: "bg-green-50" },
-  "xls": { icon: "📊", color: "text-green-500", bg: "bg-green-50" },
-  "png": { icon: "🖼️", color: "text-purple-500", bg: "bg-purple-50" },
-  "jpg": { icon: "🖼️", color: "text-purple-500", bg: "bg-purple-50" },
+  "pdf":  { icon: "📄", color: "text-red-500",    bg: "bg-red-50" },
+  "doc":  { icon: "📝", color: "text-blue-500",   bg: "bg-blue-50" },
+  "docx": { icon: "📝", color: "text-blue-500",   bg: "bg-blue-50" },
+  "xlsx": { icon: "📊", color: "text-green-500",  bg: "bg-green-50" },
+  "xls":  { icon: "📊", color: "text-green-500",  bg: "bg-green-50" },
+  "png":  { icon: "🖼️", color: "text-purple-500", bg: "bg-purple-50" },
+  "jpg":  { icon: "🖼️", color: "text-purple-500", bg: "bg-purple-50" },
   "jpeg": { icon: "🖼️", color: "text-purple-500", bg: "bg-purple-50" },
 };
 
-const getFileExt = (name) => name.split(".").pop().toLowerCase();
-const formatSize = (bytes) => {
-  if (bytes < 1024) return `${bytes} B`;
+const getFileExt  = (name)  => name.split(".").pop().toLowerCase();
+const formatSize  = (bytes) => {
+  if (bytes < 1024)        return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
-
-const isRealUrl = (url) => typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"));
+const isRealUrl = (url) =>
+  typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"));
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 function Badge({ text, colorClass }) {
@@ -78,16 +78,20 @@ function Modal({ title, onClose, children }) {
 }
 
 // ── Upload Document Form ──────────────────────────────────────────────────────
-function UploadDocumentForm({ onSubmit, loading }) {
-  const [title, setTitle] = useState("");
-  const [documentType, setDocType] = useState("other");
-  const [files, setFiles] = useState([]);
-  const [dragOver, setDragOver] = useState(false);
+function UploadDocumentForm({ onSubmit, loading, projects = [] }) {
+  const [title,        setTitle]    = useState("");
+  const [documentType, setDocType]  = useState("other");
+  const [projectId,    setProjectId]= useState("");
+  const [files,        setFiles]    = useState([]);
+  const [dragOver,     setDragOver] = useState(false);
 
   const addFiles = (incoming) => {
     const arr = Array.from(incoming);
     setFiles(prev => {
-      const combined = [...prev, ...arr.map(f => ({ file: f, name: f.name, size: f.size, ext: getFileExt(f.name) }))];
+      const combined = [
+        ...prev,
+        ...arr.map(f => ({ file: f, name: f.name, size: f.size, ext: getFileExt(f.name) })),
+      ];
       return combined.slice(0, MAX_FILES);
     });
   };
@@ -103,12 +107,14 @@ function UploadDocumentForm({ onSubmit, loading }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (files.length === 0) return alert("Please add at least one file.");
-    if (!title.trim()) return alert("Please enter a document title.");
-    onSubmit({ title: title.trim(), documentType, filesCount: files.length, files });
+    if (!title.trim())       return alert("Please enter a document title.");
+    onSubmit({ title: title.trim(), documentType, projectId, files });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+
+      {/* Title */}
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">Document Title *</label>
         <input
@@ -120,6 +126,29 @@ function UploadDocumentForm({ onSubmit, loading }) {
         />
       </div>
 
+      {/* Project selector ← NEW */}
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1 block">
+          Project <span className="text-gray-400 font-normal">(optional)</span>
+        </label>
+        <select
+          value={projectId}
+          onChange={e => setProjectId(e.target.value)}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+        >
+          <option value="">— No project —</option>
+          {projects.map(p => (
+            <option key={p._id} value={p._id}>
+              {p.projectId ? `${p.projectId} – ${p.name}` : p.name}
+            </option>
+          ))}
+        </select>
+        {projects.length === 0 && (
+          <p className="text-xs text-amber-500 mt-1">⚠ No projects found</p>
+        )}
+      </div>
+
+      {/* Type */}
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">Document Type</label>
         <select
@@ -133,6 +162,7 @@ function UploadDocumentForm({ onSubmit, loading }) {
         </select>
       </div>
 
+      {/* File drop zone */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <label className="text-xs font-semibold text-gray-600">
@@ -171,6 +201,7 @@ function UploadDocumentForm({ onSubmit, loading }) {
         </label>
       </div>
 
+      {/* File list */}
       {files.length > 0 && (
         <div className="space-y-2">
           {files.map((f, idx) => {
@@ -204,10 +235,6 @@ function UploadDocumentForm({ onSubmit, loading }) {
         {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
         {loading ? "Uploading…" : `Upload ${files.length > 0 ? files.length : ""} Document${files.length !== 1 ? "s" : ""}`}
       </button>
-
-      <p className="text-xs text-center text-gray-400">
-        📌 File hosting (Cloudinary) will be connected soon — document metadata is saved now.
-      </p>
     </form>
   );
 }
@@ -217,13 +244,8 @@ function EditDocumentForm({ initial, onSubmit, loading }) {
   const [form, setForm] = useState(initial);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(form);
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={e => { e.preventDefault(); onSubmit(form); }} className="space-y-4">
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">Document Title *</label>
         <input required value={form.title} onChange={e => set("title", e.target.value)}
@@ -257,7 +279,7 @@ function EditDocumentForm({ initial, onSubmit, loading }) {
 // ── Detail View ───────────────────────────────────────────────────────────────
 function DocumentDetail({ doc }) {
   const DT = DOC_TYPES[doc.documentType] || DOC_TYPES.other;
-  const SM = STATUS_META[doc.status] || STATUS_META.pending;
+  const SM = STATUS_META[doc.status]     || STATUS_META.pending;
 
   return (
     <div className="space-y-4 text-sm">
@@ -269,8 +291,12 @@ function DocumentDetail({ doc }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="text-xs font-semibold text-gray-400 mb-1">Project</p>
-          <p className="text-gray-700">{doc.project?.name || "—"}</p>
-          {doc.project?.clientName && <p className="text-xs text-gray-400">{doc.project.clientName}</p>}
+          <p className="text-gray-700">
+            {typeof doc.project === "object" ? doc.project?.name : "—"}
+          </p>
+          {typeof doc.project === "object" && doc.project?.clientName && (
+            <p className="text-xs text-gray-400">{doc.project.clientName}</p>
+          )}
         </div>
         <div>
           <p className="text-xs font-semibold text-gray-400 mb-1">Uploaded By</p>
@@ -290,19 +316,13 @@ function DocumentDetail({ doc }) {
       <div>
         <p className="text-xs font-semibold text-gray-400 mb-2">Document Link</p>
         {isRealUrl(doc.url) ? (
-          <a
-            href={doc.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-semibold bg-blue-50 px-4 py-2.5 rounded-lg w-fit transition-colors"
-          >
-            <ExternalLink size={13} />
-            Open Document
+          <a href={doc.url} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-semibold bg-blue-50 px-4 py-2.5 rounded-lg w-fit transition-colors">
+            <ExternalLink size={13} /> Open Document
           </a>
         ) : (
           <div className="flex items-center gap-2 text-amber-600 text-sm font-semibold bg-amber-50 px-4 py-2.5 rounded-lg w-fit border border-amber-100">
-            <Clock size={13} />
-            Upload Pending — file not yet hosted
+            <Clock size={13} /> Upload Pending — file not yet hosted
           </div>
         )}
       </div>
@@ -312,11 +332,10 @@ function DocumentDetail({ doc }) {
 
 // ── Checklist sidebar ─────────────────────────────────────────────────────────
 function UploadChecklist({ documents }) {
-  const types = Object.entries(DOC_TYPES);
+  const types        = Object.entries(DOC_TYPES);
   const uploadedTypes = new Set(documents.map(d => d.documentType));
-
-  const required = ["qc", "installation", "daily-report", "trail-qc"];
-  const doneCount = required.filter(t => uploadedTypes.has(t)).length;
+  const required     = ["qc", "installation", "daily-report", "trail-qc"];
+  const doneCount    = required.filter(t => uploadedTypes.has(t)).length;
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
@@ -324,10 +343,9 @@ function UploadChecklist({ documents }) {
         <CheckCircle size={15} className="text-green-500" />
         <h3 className="text-sm font-bold text-gray-800">Upload Checklist</h3>
       </div>
-
       <div className="space-y-2">
         {types.map(([k, v]) => {
-          const done = uploadedTypes.has(k);
+          const done       = uploadedTypes.has(k);
           const isRequired = required.includes(k);
           return (
             <div key={k} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all
@@ -338,26 +356,24 @@ function UploadChecklist({ documents }) {
               </div>
               <div className="flex-1">
                 <p className={`text-xs font-semibold ${done ? "text-green-700" : "text-gray-700"}`}>{v.label}</p>
-                <p className="text-xs text-gray-400">{done ? `${documents.filter(d => d.documentType === k).length} uploaded` : isRequired ? "Required" : "Optional"}</p>
+                <p className="text-xs text-gray-400">
+                  {done
+                    ? `${documents.filter(d => d.documentType === k).length} uploaded`
+                    : isRequired ? "Required" : "Optional"}
+                </p>
               </div>
             </div>
           );
         })}
       </div>
-
       <div>
         <div className="flex justify-between text-xs mb-1.5">
           <span className="text-gray-400 font-semibold">REQUIRED</span>
           <span className="font-bold text-gray-700">{doneCount}/{required.length}</span>
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{
-              width: `${(doneCount / required.length) * 100}%`,
-              background: "linear-gradient(90deg, #16a34a, #4ade80)"
-            }}
-          />
+          <div className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${(doneCount / required.length) * 100}%`, background: "linear-gradient(90deg,#16a34a,#4ade80)" }} />
         </div>
       </div>
     </div>
@@ -379,10 +395,10 @@ function RecentDocuments({ documents, onView }) {
         <div className="space-y-2">
           {recent.map(d => {
             const DT = DOC_TYPES[d.documentType] || DOC_TYPES.other;
-            const SM = STATUS_META[d.status] || STATUS_META.pending;
+            const SM = STATUS_META[d.status]     || STATUS_META.pending;
+            const projectName = typeof d.project === "object" ? d.project?.name : null;
             return (
-              <div key={d._id}
-                onClick={() => onView(d)}
+              <div key={d._id} onClick={() => onView(d)}
                 className="p-3 rounded-xl bg-gray-50 border border-gray-100 cursor-pointer hover:border-blue-200 hover:bg-blue-50/30 transition-all">
                 <div className="flex items-center justify-between mb-1">
                   <Badge text={DT.label} colorClass={DT.color} />
@@ -390,7 +406,7 @@ function RecentDocuments({ documents, onView }) {
                 </div>
                 <p className="text-xs font-semibold text-gray-800 truncate">{d.title}</p>
                 <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-gray-400">{d.project?.name || "No project"}</p>
+                  <p className="text-xs text-gray-400">{projectName || "No project"}</p>
                   <Badge text={SM.label} colorClass={SM.color} />
                 </div>
               </div>
@@ -404,29 +420,28 @@ function RecentDocuments({ documents, onView }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function DocumentsPage() {
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [documents,     setDocuments]     = useState([]);
+  const [projects,      setProjects]      = useState([]);   // ← NEW
+  const [loading,       setLoading]       = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error,         setError]         = useState(null);
 
-  // Filters
-  const [filterType, setFilterType] = useState("all");
+  const [filterType,   setFilterType]   = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [search, setSearch] = useState("");
+  const [search,       setSearch]       = useState("");
 
-  // Modals
-  const [showCreate, setShowCreate] = useState(false);
-  const [viewDoc, setViewDoc] = useState(null);
-  const [editDoc, setEditDoc] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showCreate,    setShowCreate]    = useState(false);
+  const [viewDoc,       setViewDoc]       = useState(null);
+  const [editDoc,       setEditDoc]       = useState(null);
+  const [deleteTarget,  setDeleteTarget]  = useState(null);
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
+  // ── Fetch documents ────────────────────────────────────────────────────────
   const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await apiFetch("/documents");
-      setDocuments(Array.isArray(data) ? data : []);
+      setDocuments(Array.isArray(data) ? data : data.documents ?? []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -434,26 +449,35 @@ export default function DocumentsPage() {
     }
   }, []);
 
-  useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
+  // ── Fetch projects for the dropdown ───────────────────────────────────────
+  const fetchProjects = useCallback(async () => {
+    try {
+      const data = await apiFetch("/projects");
+      setProjects(Array.isArray(data) ? data : data.projects ?? []);
+    } catch {
+      setProjects([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDocuments();
+    fetchProjects();
+  }, [fetchDocuments, fetchProjects]);
 
   // ── CRUD ───────────────────────────────────────────────────────────────────
-  const handleCreate = async ({ title, documentType, files }) => {
+  const handleCreate = async ({ title, documentType, projectId, files }) => {
     try {
       setActionLoading(true);
-
       const token = localStorage.getItem("accessToken");
 
       const promises = files.map((f) => {
         const formData = new FormData();
-        formData.append("file", f.file);
-        formData.append("title", title);
-        formData.append("documentType", documentType);
-
+        formData.append("file",          f.file);
+        formData.append("title",         title);
+        formData.append("documentType",  documentType);
+        if (projectId) formData.append("project", projectId); // ← send project ID
         return axiosInstance.post("/documents", formData, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data"
-          }
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
         });
       });
 
@@ -493,15 +517,25 @@ export default function DocumentsPage() {
     }
   };
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const getProjectName = (project) => {
+    if (!project) return "—";
+    if (typeof project === "object") return project.name || "—";
+    // It's still a raw ID — find it in our projects list
+    const found = projects.find(p => p._id === project);
+    return found ? found.name : "—";
+  };
+
   // ── Filtered list ──────────────────────────────────────────────────────────
   const filtered = documents.filter(d => {
-    if (filterType !== "all" && d.documentType !== filterType) return false;
-    if (filterStatus !== "all" && d.status !== filterStatus) return false;
+    if (filterType   !== "all" && d.documentType !== filterType)   return false;
+    if (filterStatus !== "all" && d.status       !== filterStatus) return false;
     if (search) {
       const q = search.toLowerCase();
+      const projectName = getProjectName(d.project).toLowerCase();
       if (
         !d.title?.toLowerCase().includes(q) &&
-        !d.project?.name?.toLowerCase().includes(q) &&
+        !projectName.includes(q) &&
         !d.uploadedBy?.name?.toLowerCase().includes(q)
       ) return false;
     }
@@ -510,21 +544,14 @@ export default function DocumentsPage() {
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = {
-    total: documents.length,
-    pending: documents.filter(d => d.status === "pending").length,
+    total:    documents.length,
+    pending:  documents.filter(d => d.status === "pending").length,
     approved: documents.filter(d => d.status === "approved").length,
     rejected: documents.filter(d => d.status === "rejected").length,
   };
 
-  // ── Stat card click handler ────────────────────────────────────────────────
   const handleStatClick = (key) => {
-    if (key === "total") {
-      // Reset status filter to show all
-      setFilterStatus("all");
-    } else {
-      // If already filtered by this status, toggle off (show all)
-      setFilterStatus(prev => prev === key ? "all" : key);
-    }
+    setFilterStatus(key === "total" ? "all" : prev => prev === key ? "all" : key);
   };
 
   return (
@@ -533,7 +560,7 @@ export default function DocumentsPage() {
       {/* ── Modals ── */}
       {showCreate && (
         <Modal title="Upload Documents" onClose={() => setShowCreate(false)}>
-          <UploadDocumentForm onSubmit={handleCreate} loading={actionLoading} />
+          <UploadDocumentForm onSubmit={handleCreate} loading={actionLoading} projects={projects} />
         </Modal>
       )}
 
@@ -547,9 +574,9 @@ export default function DocumentsPage() {
         <Modal title="Edit Document" onClose={() => setEditDoc(null)}>
           <EditDocumentForm
             initial={{
-              title: editDoc.title || "",
+              title:        editDoc.title        || "",
               documentType: editDoc.documentType || "other",
-              status: editDoc.status || "pending",
+              status:       editDoc.status       || "pending",
             }}
             onSubmit={handleUpdate}
             loading={actionLoading}
@@ -605,66 +632,46 @@ export default function DocumentsPage() {
         </div>
       )}
 
-      {/* ── Stat Cards (clickable filters) ── */}
+      {/* Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { key: "total",    label: "Total",    value: stats.total,    color: "text-blue-600",  activeBg: "ring-2 ring-blue-400",   hoverBg: "hover:border-blue-300" },
-          { key: "pending",  label: "Pending",  value: stats.pending,  color: "text-amber-600", activeBg: "ring-2 ring-amber-400",  hoverBg: "hover:border-amber-300" },
-          { key: "approved", label: "Approved", value: stats.approved, color: "text-green-600", activeBg: "ring-2 ring-green-400",  hoverBg: "hover:border-green-300" },
-          { key: "rejected", label: "Rejected", value: stats.rejected, color: "text-red-500",   activeBg: "ring-2 ring-red-400",    hoverBg: "hover:border-red-300" },
+          { key: "total",    label: "Total",    value: stats.total,    color: "text-blue-600",  activeBg: "ring-2 ring-blue-400",  hoverBg: "hover:border-blue-300" },
+          { key: "pending",  label: "Pending",  value: stats.pending,  color: "text-amber-600", activeBg: "ring-2 ring-amber-400", hoverBg: "hover:border-amber-300" },
+          { key: "approved", label: "Approved", value: stats.approved, color: "text-green-600", activeBg: "ring-2 ring-green-400", hoverBg: "hover:border-green-300" },
+          { key: "rejected", label: "Rejected", value: stats.rejected, color: "text-red-500",   activeBg: "ring-2 ring-red-400",   hoverBg: "hover:border-red-300" },
         ].map(s => {
           const isActive = s.key === "total" ? filterStatus === "all" : filterStatus === s.key;
           return (
-            <button
-              key={s.key}
-              onClick={() => handleStatClick(s.key)}
+            <button key={s.key} onClick={() => handleStatClick(s.key)}
               className={`bg-white rounded-xl border shadow-sm p-4 text-center transition-all cursor-pointer
-                ${isActive ? `border-transparent ${s.activeBg} shadow-md` : `border-gray-100 ${s.hoverBg} hover:shadow-md`}`}
-            >
+                ${isActive ? `border-transparent ${s.activeBg} shadow-md` : `border-gray-100 ${s.hoverBg} hover:shadow-md`}`}>
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
               <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
-              {isActive && (
-                <p className={`text-xs font-semibold mt-1 ${s.color}`}>● Active</p>
-              )}
+              {isActive && <p className={`text-xs font-semibold mt-1 ${s.color}`}>● Active</p>}
             </button>
           );
         })}
       </div>
 
-      {/* Main layout: table + sidebar */}
+      {/* Main layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {/* Document Table */}
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-3 px-5 py-4 border-b border-gray-100">
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+            <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search documents…"
-              className="flex-1 min-w-40 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-            />
-            <select
-              value={filterType}
-              onChange={e => setFilterType(e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-            >
+              className="flex-1 min-w-40 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+            <select value={filterType} onChange={e => setFilterType(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
               <option value="all">All Types</option>
-              {Object.entries(DOC_TYPES).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
+              {Object.entries(DOC_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
-            {/* Status filter synced with stat cards */}
-            <select
-              value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-            >
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
               <option value="all">All Statuses</option>
-              {Object.entries(STATUS_META).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
+              {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
           </div>
 
@@ -694,18 +701,14 @@ export default function DocumentsPage() {
                 <tbody className="divide-y divide-gray-50">
                   {filtered.map(d => {
                     const DT = DOC_TYPES[d.documentType] || DOC_TYPES.other;
-                    const SM = STATUS_META[d.status] || STATUS_META.pending;
+                    const SM = STATUS_META[d.status]     || STATUS_META.pending;
                     return (
                       <tr key={d._id} className="hover:bg-gray-50/60 transition-colors group">
                         <td className="px-5 py-3.5 font-semibold text-gray-800 max-w-[160px] truncate">{d.title}</td>
-                        <td className="px-5 py-3.5">
-                          <Badge text={DT.label} colorClass={DT.color} />
-                        </td>
-                        <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap">{d.project?.name || "—"}</td>
+                        <td className="px-5 py-3.5"><Badge text={DT.label} colorClass={DT.color} /></td>
+                        <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap">{getProjectName(d.project)}</td>
                         <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap">{d.uploadedBy?.name || "—"}</td>
-                        <td className="px-5 py-3.5">
-                          <Badge text={SM.label} colorClass={SM.color} />
-                        </td>
+                        <td className="px-5 py-3.5"><Badge text={SM.label} colorClass={SM.color} /></td>
                         <td className="px-5 py-3.5 text-gray-400 whitespace-nowrap">
                           {new Date(d.createdAt).toLocaleDateString()}
                         </td>

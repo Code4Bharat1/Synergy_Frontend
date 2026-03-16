@@ -469,7 +469,7 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
               onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,149,0,0.15)"}}
               onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,149,0,0.08)"}}
             >
-              <AlertTriangle size={13}/> Log Issue
+              <AlertTriangle size={13}/> Log Installation Issue
             </button>
           </Link>
           <StatusPill label={localProject.status||"active"} color={statusColor[localProject.status]||"blue"}/>

@@ -80,7 +80,7 @@ export default function QCDashboard() {
   const [loading,   setLoading]   = useState(true);
 
   useEffect(() => {
-    axiosInstance.get("/report/view-qc")
+    axiosInstance.get("/reports/view-qc")
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : (res.data.data ?? []);
         setQcReports(data);
