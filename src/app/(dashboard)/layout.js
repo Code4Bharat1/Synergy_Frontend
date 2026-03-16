@@ -246,15 +246,25 @@ const ROLE_NAVIGATION = {
 };
 
 export default function SynergyDashboardLayout({ children }) {
+
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
-  const [active, setActive] = useState(
-    localStorage.getItem("label") ? localStorage.getItem("label") : "Dashboard",
-  );
+  const [active, setActive] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const label = localStorage.getItem("label");
+    if (label) setActive(label);
+  }, []);
+
+  useEffect(() => {
+    if (active) {
+      localStorage.setItem("label", active);
+    }
+  }, [active]);
 
   /* ---------------- AUTH GUARD ---------------- */
   useEffect(() => {
