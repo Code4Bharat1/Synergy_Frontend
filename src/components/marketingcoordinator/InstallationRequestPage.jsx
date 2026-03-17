@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { Send, User, Calendar, MessageSquare, CheckCircle, AlertTriangle, Clock, MapPin, Flag } from "lucide-react";
 
-const API = "http://localhost:5000";
+const API = process.env.NEXT_PUBLIC_API_URL;
 const getToken = () => localStorage.getItem("accessToken");
 
 // Axios instance with auth header
@@ -58,7 +58,7 @@ export default function InstallationRequestPage() {
 
   // ── Fetch projects ────────────────────────────────────────────────────
   useEffect(() => {
-  api.get("/api/v1/projects")
+  api.get("/projects")
     .then(res => {
       console.log("projects raw:", res.data); // check shape
       const data = res.data?.data || res.data?.projects || res.data;
@@ -69,14 +69,14 @@ export default function InstallationRequestPage() {
 
   // ── Fetch engineers ───────────────────────────────────────────────────
  useEffect(() => {
-  api.get("/api/v1/admin/incharges")
+  api.get("/admin/incharges")
     .then(res => { if (res.data) setEngineers(res.data); })  // ← was res.data?.data
     .catch(console.error);
 }, []);
 
   // ── Fetch recent requests ─────────────────────────────────────────────
   const fetchRequests = () => {
-    api.get("/api/v1/installation-requests/list")
+    api.get("/installation-requests/list")
       .then(res => {
         if (res.data?.data) {
           const all = res.data.data;
@@ -108,7 +108,7 @@ export default function InstallationRequestPage() {
         ...(form.message       && { message:  form.message }),
       };
 
-      await api.post("/api/v1/installation-requests/create", body);
+      await api.post("/installation-requests/create", body);
 
       fetchRequests();
       setSubmitted(true);

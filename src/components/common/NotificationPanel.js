@@ -114,34 +114,36 @@ export default function NotificationPanel({ userRole }) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-lg border border-gray-100 z-50 overflow-hidden flex flex-col max-h-[80vh]">
-          {/* Header */}
-          <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-            <h3 className="font-semibold text-gray-800">Notifications</h3>
-            <div className="flex items-center gap-2">
-              {/* <button 
-                onClick={async () => {
-                  const token = localStorage.getItem("accessToken");
-                  await axios.post(`${API_BASE}/notifications/seed`, {}, { headers: { Authorization: `Bearer ${token}` }});
-                  fetchNotifications();
-                }}
-                className="text-xs text-green-600 hover:text-green-800 font-medium flex items-center gap-1 border px-1 rounded"
-              >
-                Seed Mock
-              </button> */}
-              <button 
-                onClick={handleMarkAllAsRead}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-                title="Mark all as read"
-              >
-                <CheckSquare size={14} />
-                Mark all read
-              </button>
-              <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={16} />
-              </button>
+        <>
+          {/* Backdrop for mobile */}
+          <div 
+            className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[90] sm:hidden" 
+            onClick={() => setIsOpen(false)}
+          />
+          
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:translate-x-0 sm:translate-y-0 sm:mt-2 w-[90%] max-w-sm sm:w-96 max-h-[80vh] bg-white rounded-2xl sm:rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] sm:shadow-lg border border-gray-100 z-[100] overflow-hidden flex flex-col transition-all">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+              <h3 className="font-semibold text-gray-800 text-lg sm:text-base">Notifications</h3>
+              <div className="flex items-center gap-3 sm:gap-2">
+                <button 
+                  onClick={handleMarkAllAsRead}
+                  className="text-[10px] sm:text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 bg-blue-50 sm:bg-transparent px-2 py-1 sm:p-0 rounded-full sm:rounded-none"
+                  title="Mark all as read"
+                >
+                  <CheckSquare size={14} />
+                  <span className="hidden sm:inline">Mark all read</span>
+                  <span className="sm:hidden">Mark Read</span>
+                </button>
+                <button 
+                  onClick={() => setIsOpen(false)} 
+                  className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={20} className="sm:hidden" />
+                  <X size={16} className="hidden sm:block" />
+                </button>
+              </div>
             </div>
-          </div>
 
           {/* Tabs */}
           <div className="flex border-b border-gray-100">
@@ -160,7 +162,7 @@ export default function NotificationPanel({ userRole }) {
           </div>
 
           {/* Content */}
-          <div className="overflow-y-auto flex-1 p-0">
+          <div className="overflow-y-auto flex-1 p-0 overscroll-contain">
             {loading ? (
               <div className="flex justify-center items-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
@@ -245,7 +247,8 @@ export default function NotificationPanel({ userRole }) {
             )}
           </div>
           
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

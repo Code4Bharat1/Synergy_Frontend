@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { FileText, Upload, Trash2, Eye, CheckCircle, Send, ClipboardCheck, FolderKanban, Check, MessageSquare } from "lucide-react";
 
-const API = "http://localhost:5000";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 const api = axios.create({ baseURL: API });
 api.interceptors.request.use(config => {
   const token = localStorage.getItem("accessToken");
@@ -79,7 +79,7 @@ export default function DocumentsPage() {
 
   // Fetch projects
   useEffect(() => {
-    api.get("/api/v1/projects")
+    api.get("/projects")
       .then(res => {
         const data = res.data?.data || res.data?.projects || res.data;
         if (Array.isArray(data)) setProjects(data);
@@ -91,7 +91,7 @@ export default function DocumentsPage() {
   useEffect(() => {
     if (!project) return setExistingDocs([]);
     setDocsLoading(true);
-    api.get(`/api/v1/documents?project=${project}`)
+    api.get(`/documents?project=${project}`)
       .then(res => {
         const data = res.data?.data || res.data;
         if (Array.isArray(data)) setExistingDocs(data);
@@ -102,7 +102,7 @@ export default function DocumentsPage() {
 
   const refreshDocs = () => {
     if (!project) return;
-    api.get(`/api/v1/documents?project=${project}`)
+    api.get(`/documents?project=${project}`)
       .then(res => {
         const data = res.data?.data || res.data;
         if (Array.isArray(data)) setExistingDocs(data);
@@ -135,7 +135,7 @@ export default function DocumentsPage() {
           formData.append("project",      project);
           if (notes) formData.append("notes", notes);
 
-          await api.post("/api/v1/documents", formData, {
+          await api.post("/documents", formData, {
             headers: { "Content-Type": "multipart/form-data" },
           });
 
