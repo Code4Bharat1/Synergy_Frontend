@@ -10,6 +10,7 @@ export const createUser = async (data) => {
 export const getAllUsers = async () => {
   const res = await axiosInstance.get("/admin/users");
   return res.data;
+  
 };
 
 /* ---------------- GET USER BY ID ---------------- */

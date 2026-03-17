@@ -229,17 +229,18 @@ export default function UserManagement() {
   };
 
   // ── Load all users ─────────────────────────────────────────────────────────
-  const loadUsers = useCallback(async () => {
-    setFetching(true);
-    try {
-      const data = await api.getAll();
-      setUsers(data);
-    } catch (err) {
-      showToast(err.message, "error");
-    } finally {
-      setFetching(false);
-    }
-  }, []);
+ const loadUsers = useCallback(async () => {
+  setFetching(true);
+  try {
+    const data = await api.getAll();
+    const filtered = Array.isArray(data) ? data : (data.users || []);
+    setUsers(filtered.filter(u => !["admin", "director"].includes(u.role)));
+  } catch (err) {
+    showToast(err.message, "error");
+  } finally {
+    setFetching(false);
+  }
+}, []);
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
 
