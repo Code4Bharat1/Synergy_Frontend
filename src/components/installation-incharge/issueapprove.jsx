@@ -112,7 +112,7 @@ export default function IssueApproval() {
     try {
       setActionLoading(true);
       // Approve → resolved | Reject → in-progress
-      const newStatus = modal.type === "approve" ? "resolved" : "in-progress";
+      const newStatus = (modal.type === "approve" || modal.type === "resolve") ? "resolved" : "in-progress";
       await apiFetch(`/issues/${modal.id}`, {
         method: "PUT",
         body: {
@@ -373,6 +373,16 @@ export default function IssueApproval() {
                     </button>
                   </div>
                 )}
+                {active.status === "in-progress" && (
+  <div className="flex gap-3 flex-wrap">
+    <button
+      onClick={() => setModal({ id: active._id, type: "resolve" })}
+      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-xl px-5 py-2.5 text-sm font-bold transition-all hover:-translate-y-0.5 hover:shadow-lg">
+      <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+      Mark as Resolved
+    </button>
+  </div>
+)}
               </div>
             );
           })()}
@@ -382,7 +392,7 @@ export default function IssueApproval() {
       {/* ── Confirmation Modal ── */}
       {modal && (() => {
         const issue     = issues.find(i => i._id === modal.id);
-        const isApprove = modal.type === "approve";
+        const isApprove = modal.type === "approve" || modal.type === "resolve";
         if (!issue) return null;
         return (
           <div className="fixed inset-0 bg-blue-950/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">

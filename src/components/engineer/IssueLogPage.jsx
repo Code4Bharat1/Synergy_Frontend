@@ -25,16 +25,15 @@ const SEVERITIES = [
 
 const sevColorMap = { Low: "#34C759", Medium: "#FF9500", High: "#FF3B30", Critical: "#9B1C1C" };
 
-const STATIC_DEPARTMENTS = [
-  { _id: "1", name: "IT" },
-  { _id: "2", name: "Maintenance" },
-  { _id: "3", name: "HR" },
-  { _id: "4", name: "Operations" },
-  { _id: "5", name: "Security" },
-  { _id: "6", name: "Administration" },
-  { _id: "7", name: "Other" },
+const DEPARTMENTS = [
+  { id: "attendance",           name: "Attendance"            },
+  { id: "engineer",             name: "Engineer"              },
+  { id: "support",              name: "Support"               },
+  { id: "installationIncharge", name: "Installation Incharge" },
+  { id: "marketingCoordinator", name: "Marketing Coordinator" },
+  { id: "marketingExecutive",   name: "Marketing Executive"   },
+  { id: "qualityControl",       name: "Quality Control"       },
 ];
-
 export default function IssueLogPage() {
   const [form, setForm] = useState({
     project: "", description: "", department: "",
@@ -174,8 +173,8 @@ export default function IssueLogPage() {
                 <select style={{ ...inputStyle, cursor: "pointer" }}
                   value={form.department} onChange={e => upd("department", e.target.value)}>
                   <option value="">Select department</option>
-                  {STATIC_DEPARTMENTS.map(d => (
-                    <option key={d._id} value={d.name}>{d.name}</option>
+                  {DEPARTMENTS.map(d => (
+                    <option key={d.id} value={d.name}>{d.name}</option>
                   ))}
                 </select>
               </div>
@@ -299,8 +298,8 @@ export default function IssueLogPage() {
           <Card style={{ padding: "20px 22px" }}>
             <div style={{ color: "#0F2854", fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Department Reference</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {STATIC_DEPARTMENTS.map(d => (
-                <div key={d._id} style={{
+              {DEPARTMENTS.map(d => (
+                <div key={d.id} style={{
                   display: "flex", alignItems: "center", gap: 8,
                   padding: "7px 10px", borderRadius: 8,
                   background: "rgba(73,136,196,0.04)",

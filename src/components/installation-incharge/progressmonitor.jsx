@@ -80,7 +80,8 @@ function aggregateAttendance(records) {
     const id = user._id || user;
     const name = user.name || "Unknown";
     const role = user.role || "";
-    if (!map[id]) map[id] = { name, role, present: 0, absent: 0, late: 0, total: 0 };
+if (role !== "engineer") return;   // ← add this line
+if (!map[id]) map[id] = { name, role, present: 0, absent: 0, late: 0, total: 0 };
     map[id].total += 1;
     if (r.status === "present" || r.status === "half-day") map[id].present += 1;
     else if (r.status === "absent" || r.status === "on-leave") map[id].absent += 1;
@@ -191,7 +192,7 @@ export default function ProgressMonitoring() {
         }));
 
         setProjects(enriched);
-        setAttendance(aggregateAttendance(attRes.data));
+        setAttendance(aggregateAttendance(attRes.data.filter(r => r.user?.role === "engineer")));
       } catch (err) {
         setError(err.response?.data?.message || err.message);
       } finally {
