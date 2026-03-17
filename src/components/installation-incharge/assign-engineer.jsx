@@ -235,7 +235,7 @@ export default function AssignEngineer() {
           <div className="flex gap-1 bg-blue-100/60 rounded-xl p-1">
             {[
               { key: "all",        label: "All" },
-              { key: "unassigned", label: `Unassigned · ${unassigned}` },
+              { key: "unassigned", label: `Unassigned` },
               { key: "assigned",   label: "Assigned" },
             ].map((f) => (
               <button
