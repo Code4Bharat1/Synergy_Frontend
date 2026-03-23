@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { FileText, Upload, Trash2, Eye, CheckCircle, Send, ClipboardCheck, FolderKanban, Check, MessageSquare } from "lucide-react";
+import { FileText, Upload, Trash2, Eye, CheckCircle, Send, ClipboardCheck, FolderKanban, Check, MessageSquare ,FolderOpen} from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 const api = axios.create({ baseURL: API });
@@ -76,6 +76,15 @@ export default function DocumentsPage() {
   const [progress,     setProgress]     = useState(0);
   const [existingDocs, setExistingDocs] = useState([]);
   const [docsLoading,  setDocsLoading]  = useState(false);
+const [folderUploads, setFolderUploads] = useState({ handover: [], erp: [], comms: [] });
+
+const addFolder = key => e => {
+  const files = Array.from(e.target.files); // all files from folder
+  setFolderUploads(u => ({ ...u, [key]: [...u[key], ...files] }));
+};
+
+const removeFolderFile = (key, name) =>
+  setFolderUploads(u => ({ ...u, [key]: u[key].filter(f => f.name !== name) }));
 
   // Fetch projects
   useEffect(() => {
@@ -117,43 +126,67 @@ export default function DocumentsPage() {
   const removeFile = (key, name) =>
     setUploads(u => ({ ...u, [key]: u[key].filter(f => f.name !== name) }));
 
-  const totalFiles   = Object.values(uploads).flat().length;
-  const requiredDone = DOC_TYPES.filter(d => d.required).every(d => uploads[d.key].length > 0);
+  const totalFiles   = Object.values(uploads).flat().length + Object.values(folderUploads).flat().length;
+const requiredDone = DOC_TYPES.filter(d => d.required).every(d => uploads[d.key].length > 0 || folderUploads[d.key].length > 0);
 
   const handleSubmit = async () => {
-    setLoading(true);
-    setError("");
-    setProgress(0);
-    try {
-      let done = 0;
-      for (const dt of DOC_TYPES) {
-        for (const file of uploads[dt.key]) {
-          const formData = new FormData();
-          formData.append("file",         file);
-          formData.append("title",        `${dt.title} — ${file.name}`);
-          formData.append("documentType", dt.docType);
-          formData.append("project",      project);
-          if (notes) formData.append("notes", notes);
+  setLoading(true);
+  setError("");
+  setProgress(0);
+  try {
+    let done = 0;
 
-          await api.post("/documents", formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
+    // existing single file uploads (unchanged)
+    for (const dt of DOC_TYPES) {
+      for (const file of uploads[dt.key]) {
+        const formData = new FormData();
+        formData.append("file",         file);
+        formData.append("title",        `${dt.title} — ${file.name}`);
+        formData.append("documentType", dt.docType);
+        formData.append("project",      project);
+        if (notes) formData.append("notes", notes);
 
-          done++;
-          setProgress(Math.round((done / totalFiles) * 100));
-        }
+        await api.post("/documents", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        done++;
+        setProgress(Math.round((done / totalFiles) * 100));
       }
-      // Reset uploads, refresh doc list — no success screen
-      setUploads({ handover: [], erp: [], comms: [] });
-      setNotes("");
-      setProgress(0);
-      refreshDocs();
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || "Upload failed");
-    } finally {
-      setLoading(false);
     }
-  };
+
+    // new folder uploads — sent in one batch per doc type
+    for (const dt of DOC_TYPES) {
+      if (folderUploads[dt.key].length === 0) continue;
+
+      const formData = new FormData();
+      folderUploads[dt.key].forEach(file => {
+        formData.append("files", file);
+        formData.append("relativePaths", file.webkitRelativePath || file.name); // 👈 key part
+      });
+      formData.append("documentType", dt.docType);
+      formData.append("project",      project);
+
+      await api.post("/documents/folder", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      done += folderUploads[dt.key].length;
+      setProgress(Math.round((done / totalFiles) * 100));
+    }
+
+    // reset both
+    setUploads({ handover: [], erp: [], comms: [] });
+    setFolderUploads({ handover: [], erp: [], comms: [] });
+    setNotes("");
+    setProgress(0);
+    refreshDocs();
+  } catch (err) {
+    setError(err.response?.data?.message || err.message || "Upload failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="animate-fadeUp">
@@ -217,6 +250,43 @@ export default function DocumentsPage() {
                 <span className="text-brand-mid text-[11px]">{dt.accept} accepted · drag & drop</span>
                 <input type="file" accept={dt.accept} multiple className="hidden" onChange={addFiles(dt.key)} />
               </label>
+              <label className="flex items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-3 cursor-pointer hover:bg-slate-50 transition-all mt-2"
+  style={{ borderColor: "rgba(73,136,196,0.25)" }}
+  onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(73,136,196,0.5)"}
+  onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(73,136,196,0.25)"}
+>
+  <FolderOpen size={15} className={dt.color} strokeWidth={1.5} />
+  <span className={`text-[12px] font-semibold ${dt.color}`}>Upload a folder</span>
+  <input
+    type="file"
+    className="hidden"
+    webkitdirectory=""   
+    multiple
+    onChange={addFolder(dt.key)}
+  />
+</label>
+
+{/* folder files list */}
+{folderUploads[dt.key].length > 0 && (
+  <div className="mt-3 space-y-2">
+    {folderUploads[dt.key].map(f => (
+      <div key={f.webkitRelativePath || f.name} className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 ${dt.bg} border ${dt.border}`}>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <FileText size={13} className={dt.color} />
+          <div className="min-w-0">
+            <div className="text-brand-darkest text-[12px] font-semibold truncate">
+              {f.webkitRelativePath || f.name}  {/* shows full path */}
+            </div>
+            <div className="text-brand-mid text-[10px]">{(f.size / 1024).toFixed(0)} KB</div>
+          </div>
+        </div>
+        <button onClick={() => removeFolderFile(dt.key, f.name)} className="text-red-400 hover:text-red-600 transition-colors p-1">
+          <Trash2 size={12} />
+        </button>
+      </div>
+    ))}
+  </div>
+)}
 
               {uploads[dt.key].length > 0 && (
                 <div className="mt-3 space-y-2">

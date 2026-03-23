@@ -84,6 +84,18 @@ function UploadDocumentForm({ onSubmit, loading, projects = [] }) {
   const [projectId,    setProjectId]= useState("");
   const [files,        setFiles]    = useState([]);
   const [dragOver,     setDragOver] = useState(false);
+  const [folderFiles, setFolderFiles] = useState([]);
+const [uploadMode,  setUploadMode]  = useState("files"); // "files" | "folder"
+
+const addFolderFiles = (incoming) => {
+  const arr = Array.from(incoming).map(f => ({
+    file: f,
+    name: f.webkitRelativePath || f.name,
+    size: f.size,
+    ext:  getFileExt(f.name),
+  }));
+  setFolderFiles(arr);
+};
 
   const addFiles = (incoming) => {
     const arr = Array.from(incoming);
@@ -104,12 +116,19 @@ function UploadDocumentForm({ onSubmit, loading, projects = [] }) {
     addFiles(e.dataTransfer.files);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (files.length === 0) return alert("Please add at least one file.");
-    if (!title.trim())       return alert("Please enter a document title.");
-    onSubmit({ title: title.trim(), documentType, projectId, files });
-  };
+ const handleSubmit = (e) => {
+  e.preventDefault();
+
+  if (uploadMode === "folder") {
+    if (folderFiles.length === 0) return alert("Please select a folder.");
+    onSubmit({ title: title.trim(), documentType, projectId, files: [], folderFiles });
+    return;
+  }
+
+  if (files.length === 0) return alert("Please add at least one file.");
+  if (!title.trim())       return alert("Please enter a document title.");
+  onSubmit({ title: title.trim(), documentType, projectId, files, folderFiles: [] });
+};
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -163,43 +182,117 @@ function UploadDocumentForm({ onSubmit, loading, projects = [] }) {
       </div>
 
       {/* File drop zone */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <label className="text-xs font-semibold text-gray-600">
-            Files * <span className="text-gray-400 font-normal">({files.length}/{MAX_FILES} max)</span>
-          </label>
-          {files.length > 0 && files.length < MAX_FILES && (
-            <label className="flex items-center gap-1 text-xs font-semibold text-blue-600 cursor-pointer hover:text-blue-800 transition-colors">
-              <Plus size={12} /> Add more
-              <input type="file" multiple className="hidden" onChange={e => addFiles(e.target.files)} />
-            </label>
-          )}
-        </div>
+      {/* File drop zone */}
+<div>
+  {/* Mode toggle */}
+  <div className="flex items-center gap-2 mb-3">
+    <button type="button"
+      onClick={() => setUploadMode("files")}
+      className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all
+        ${uploadMode === "files" ? "bg-blue-700 text-white border-blue-700" : "border-gray-200 text-gray-500 hover:border-blue-300"}`}>
+      Files
+    </button>
+    <button type="button"
+      onClick={() => setUploadMode("folder")}
+      className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all
+        ${uploadMode === "folder" ? "bg-blue-700 text-white border-blue-700" : "border-gray-200 text-gray-500 hover:border-blue-300"}`}>
+      <FolderOpen size={12} /> Folder
+    </button>
+  </div>
 
-        <label
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          className={`flex flex-col items-center justify-center gap-2 w-full border-2 border-dashed rounded-xl py-8 cursor-pointer transition-all
-            ${dragOver ? "border-blue-400 bg-blue-50" : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"}
-            ${files.length >= MAX_FILES ? "pointer-events-none opacity-50" : ""}`}
-        >
-          <input
-            type="file"
-            multiple
-            className="hidden"
-            onChange={e => addFiles(e.target.files)}
-            disabled={files.length >= MAX_FILES}
-          />
-          <div className="text-3xl">📂</div>
-          <div className="text-center">
-            <p className="text-sm font-semibold text-gray-700">
-              {files.length >= MAX_FILES ? "Maximum 5 files reached" : "Click to browse or drag & drop"}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">PDF, DOC, XLSX, images — up to 5 files</p>
-          </div>
+  {uploadMode === "files" ? (
+    <>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs font-semibold text-gray-600">
+          Files * <span className="text-gray-400 font-normal">({files.length}/{MAX_FILES} max)</span>
         </label>
+        {files.length > 0 && files.length < MAX_FILES && (
+          <label className="flex items-center gap-1 text-xs font-semibold text-blue-600 cursor-pointer hover:text-blue-800 transition-colors">
+            <Plus size={12} /> Add more
+            <input type="file" multiple className="hidden" onChange={e => addFiles(e.target.files)} />
+          </label>
+        )}
       </div>
+
+      <label
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        className={`flex flex-col items-center justify-center gap-2 w-full border-2 border-dashed rounded-xl py-8 cursor-pointer transition-all
+          ${dragOver ? "border-blue-400 bg-blue-50" : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"}
+          ${files.length >= MAX_FILES ? "pointer-events-none opacity-50" : ""}`}
+      >
+        <input type="file" multiple className="hidden"
+          onChange={e => addFiles(e.target.files)} disabled={files.length >= MAX_FILES} />
+        <div className="text-3xl">📂</div>
+        <div className="text-center">
+          <p className="text-sm font-semibold text-gray-700">
+            {files.length >= MAX_FILES ? "Maximum 5 files reached" : "Click to browse or drag & drop"}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">PDF, DOC, XLSX, images — up to 5 files</p>
+        </div>
+      </label>
+
+      {/* existing file list — unchanged */}
+      {files.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {files.map((f, idx) => {
+            const meta = FILE_ICONS[f.ext] || { icon: "📎", color: "text-gray-500", bg: "bg-gray-100" };
+            return (
+              <div key={idx} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border border-gray-100 ${meta.bg} group`}>
+                <span className="text-lg shrink-0">{meta.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-800 truncate">{f.name}</p>
+                  <p className="text-xs text-gray-400">{formatSize(f.size)} · .{f.ext.toUpperCase()}</p>
+                </div>
+                <button type="button" onClick={() => removeFile(idx)}
+                  className="p-1 rounded-lg hover:bg-red-100 text-gray-300 hover:text-red-500 transition-colors shrink-0">
+                  <X size={13} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
+  ) : (
+    <>
+      {/* Folder upload */}
+      <label className="flex flex-col items-center justify-center gap-2 w-full border-2 border-dashed border-gray-200 hover:border-blue-300 hover:bg-gray-50 rounded-xl py-8 cursor-pointer transition-all">
+       <input
+  type="file"
+  className="hidden"
+  multiple
+  ref={el => { if (el) el.setAttribute("webkitdirectory", ""); }}
+  onChange={e => addFolderFiles(e.target.files)}
+/>
+        <FolderOpen size={28} className="text-blue-400" />
+        <div className="text-center">
+          <p className="text-sm font-semibold text-gray-700">Click to select a folder</p>
+          <p className="text-xs text-gray-400 mt-0.5">All supported files inside will be uploaded</p>
+        </div>
+      </label>
+
+      {folderFiles.length > 0 && (
+        <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
+          <p className="text-xs text-gray-400 font-semibold">{folderFiles.length} files selected</p>
+          {folderFiles.map((f, idx) => {
+            const meta = FILE_ICONS[f.ext] || { icon: "📎", color: "text-gray-500", bg: "bg-gray-100" };
+            return (
+              <div key={idx} className={`flex items-center gap-3 px-3 py-2 rounded-xl border border-gray-100 ${meta.bg}`}>
+                <span className="text-base shrink-0">{meta.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-800 truncate">{f.name}</p>
+                  <p className="text-xs text-gray-400">{formatSize(f.size)}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
+  )}
+</div>
 
       {/* File list */}
       {files.length > 0 && (
@@ -229,7 +322,7 @@ function UploadDocumentForm({ onSubmit, loading, projects = [] }) {
 
       <button
         type="submit"
-        disabled={loading || files.length === 0}
+        disabled={loading || (uploadMode === "files" ? files.length === 0 : folderFiles.length === 0)}
         className="w-full bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
@@ -465,31 +558,50 @@ export default function DocumentsPage() {
   }, [fetchDocuments, fetchProjects]);
 
   // ── CRUD ───────────────────────────────────────────────────────────────────
-  const handleCreate = async ({ title, documentType, projectId, files }) => {
-    try {
-      setActionLoading(true);
-      const token = localStorage.getItem("accessToken");
+  const handleCreate = async ({ title, documentType, projectId, files, folderFiles }) => {
+     console.log("files:", files.length, "folderFiles:", folderFiles.length); //
+  try {
+    setActionLoading(true);
+    const token = localStorage.getItem("accessToken");
 
+    // regular files — unchanged
+    if (files.length > 0) {
       const promises = files.map((f) => {
         const formData = new FormData();
-        formData.append("file",          f.file);
-        formData.append("title",         title);
-        formData.append("documentType",  documentType);
-        if (projectId) formData.append("project", projectId); // ← send project ID
+        formData.append("file",         f.file);
+        formData.append("title",        title);
+        formData.append("documentType", documentType);
+        if (projectId) formData.append("project", projectId);
         return axiosInstance.post("/documents", formData, {
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
         });
       });
-
       await Promise.all(promises);
-      setShowCreate(false);
-      fetchDocuments();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-    } finally {
-      setActionLoading(false);
     }
-  };
+
+    // folder files — new
+    if (folderFiles.length > 0) {
+      const formData = new FormData();
+      folderFiles.forEach(f => {
+        formData.append("files",         f.file);
+        formData.append("relativePaths", f.name); // webkitRelativePath already stored in f.name
+      });
+      formData.append("documentType", documentType);
+      if (projectId) formData.append("project", projectId);
+
+      await axiosInstance.post("/documents/folder", formData, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+      });
+    }
+
+    setShowCreate(false);
+    fetchDocuments();
+  } catch (err) {
+    alert(err.response?.data?.message || err.message);
+  } finally {
+    setActionLoading(false);
+  }
+};
 
   const handleUpdate = async (payload) => {
     try {

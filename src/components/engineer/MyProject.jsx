@@ -322,31 +322,26 @@ function ProjectTaskChecklist({ projectId, engineerId }) {
   const [togglingId, setTogglingId] = useState(null);
   const [collapsed,  setCollapsed]  = useState(false);
 
-  const loadTasks = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res  = await apiFetch("/pending/list");
-      const all  = Array.isArray(res) ? res : res?.data || [];
+const loadTasks = useCallback(async () => {
+  try {
+    setLoading(true);
 
-      const forProject = all.filter(t => {
-        const tProjectId = t.project?._id || t.project;
-        return tProjectId === projectId;
-      });
+    const res = await apiFetch("/pending/list");
+    const all = Array.isArray(res) ? res : res?.data || [];
 
-      const mine = engineerId
-        ? forProject.filter(t => {
-            const assignedId = t.assignedTo?._id || t.assignedTo;
-            return assignedId === engineerId;
-          })
-        : forProject;
+    // ✅ ONLY tasks assigned to current engineer
+    const mine = all.filter(t => {
+      const assignedId = t.assignedTo?._id || t.assignedTo;
+      return assignedId === engineerId;
+    });
 
-      setTasks(mine.length > 0 ? mine : forProject);
-    } catch (err) {
-      console.error("Task load error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, engineerId]);
+    setTasks(mine);
+  } catch (err) {
+    console.error("Task load error:", err);
+  } finally {
+    setLoading(false);
+  }
+}, [engineerId]);
 
   useEffect(() => { loadTasks(); }, [loadTasks]);
 

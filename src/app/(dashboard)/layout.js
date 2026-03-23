@@ -46,11 +46,11 @@ const ROLE_NAVIGATION = {
     { label: "Projects", icon: FolderKanban, href: "/admin/project" },
     { label: "Role Assignment", icon: ShieldCheck, href: "/admin/role" },
     { label: "Document Control", icon: FileText, href: "/admin/document" },
-    { label: "Attendance", icon: CalendarCheck, href: "/admin/attendance" },
+    { label: "Staff Attendance", icon: CalendarCheck, href: "/admin/attendance" },
     {
       label: "Worker attendance",
       icon: CalendarCheck,
-      href: "/attendance/records",
+      href: "/allAttendance",
     },
   ],
   director: [
@@ -94,6 +94,7 @@ const ROLE_NAVIGATION = {
       label: "Complaint Log",
     },
     { href: "/engineer/documents", icon: FileText, label: "Documents" },
+    { label: "Mark Attendance", icon: HardHat, href: "/attendance" },
   ],
   support: [
     { href: "/support", icon: LayoutDashboard, label: "Dashboard" },

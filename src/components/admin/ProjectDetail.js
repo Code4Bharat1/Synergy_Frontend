@@ -4,7 +4,7 @@ import { useRouter, usePathname } from "next/navigation";
 import {
     ArrowLeft, MapPin, Calendar, User, Briefcase, Phone, Users, FileText,
     Upload, Trash2, Eye, Download, X, Loader, CheckCircle2, Image as ImageIcon,
-    File, Search, Filter, Grid, List, ChevronDown, Clock, Shield
+    File, Search, Filter, Grid, List, ChevronDown, Clock, Shield,FolderOpen,
 } from "lucide-react";
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -54,6 +54,16 @@ const api = {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed to delete file");
     },
+    async uploadFolder(projectId, formData) {
+    const res = await fetch(`${API_BASE}/project-files/${projectId}/files/folder`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to upload folder");
+    return data.files;
+},
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -121,6 +131,7 @@ export default function ProjectDetail({ params }) {
     const [filterType, setFilterType] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
     const [dragActive, setDragActive] = useState(false);
+    const [uploadMode, setUploadMode] = useState("files"); // "files" | "folder"
 
     const showToast = (msg, type = "success") => {
         setToast({ msg, type });
@@ -162,7 +173,26 @@ export default function ProjectDetail({ params }) {
             setUploading(false);
         }
     };
-
+const handleFolderInput = async (e) => {
+    const selectedFiles = e.target.files;
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    setUploading(true);
+    try {
+        const formData = new FormData();
+        Array.from(selectedFiles).forEach(f => {
+            formData.append("files", f);
+            formData.append("relativePaths", f.webkitRelativePath || f.name);
+        });
+        const uploaded = await api.uploadFolder(projectId, formData);
+        setFiles(prev => [...(uploaded || []), ...prev]);
+        showToast(`${selectedFiles.length} file(s) uploaded from folder`);
+    } catch (err) {
+        showToast(err.message, "error");
+    } finally {
+        setUploading(false);
+    }
+};
+    
     const handleFileInput = (e) => handleUpload(e.target.files);
 
     // Drag and drop
@@ -369,13 +399,33 @@ export default function ProjectDetail({ params }) {
                                 {imageCount > 0 && <span className="ml-1">· {imageCount} Image{imageCount !== 1 ? "s" : ""}</span>}
                             </p>
                         </div>
-                        <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow cursor-pointer hover:opacity-90 transition-all disabled:opacity-50"
-                            style={{ background: "#0F2854" }}>
-                            {uploading ? <Loader size={14} className="animate-spin" /> : <Upload size={14} />}
-                            {uploading ? "Uploading…" : "Upload Files"}
-                            <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp"
-                                className="hidden" onChange={handleFileInput} disabled={uploading} />
-                        </label>
+                        <div className="flex items-center gap-2">
+    {/* Files toggle */}
+    <label className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold shadow cursor-pointer hover:opacity-90 transition-all ${uploadMode === "files" ? "text-white" : "text-[#0F2854] bg-white border border-[#0F2854]/20"}`}
+        style={uploadMode === "files" ? { background: "#0F2854" } : {}}>
+        {uploading && uploadMode === "files" ? <Loader size={14} className="animate-spin" /> : <Upload size={14} />}
+        {uploading && uploadMode === "files" ? "Uploading…" : "Upload Files"}
+        <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp"
+            className="hidden" onChange={handleFileInput} disabled={uploading} />
+    </label>
+
+    {/* Folder toggle */}
+    <label className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold shadow cursor-pointer hover:opacity-90 transition-all ${uploadMode === "folder" ? "text-white" : "text-[#0F2854] bg-white border border-[#0F2854]/20"}`}
+        style={uploadMode === "folder" ? { background: "#0F2854" } : {}}
+        onClick={() => setUploadMode("folder")}
+    >
+        {uploading && uploadMode === "folder" ? <Loader size={14} className="animate-spin" /> : <FolderOpen size={14} />}
+        {uploading && uploadMode === "folder" ? "Uploading…" : "Upload Folder"}
+        <input
+            type="file"
+            className="hidden"
+            multiple
+            ref={el => { if (el) el.setAttribute("webkitdirectory", ""); }}
+            onChange={handleFolderInput}
+            disabled={uploading}
+        />
+    </label>
+</div>
                     </div>
 
                     {/* Filter bar */}

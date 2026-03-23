@@ -1,10 +1,11 @@
+//Worker attendance
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, AlertCircle, Calendar, RefreshCw, Send, HardHat,
   CheckCheck, Plus, X, User, Phone, Briefcase,
   Building2, CalendarDays, Trash2, UserPlus, Users, Activity, RotateCcw,
-  Clock, CheckCircle2, ChevronLeft, ChevronRight, Filter,
+  Clock, CheckCircle2, ChevronLeft, ChevronRight, Filter,UserCheck, MapPin,
 } from "lucide-react";
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -15,6 +16,19 @@ const authHeaders = () => ({
   Authorization: `Bearer ${getToken()}`,
 });
 
+const API_ROOT = API_BASE.replace(/\/api\/v1\/?$/, "");
+
+// const OFFICE_COORDS = { lat: 19.07285143363228, lng: 72.88041850211928 };
+const OFFICE_COORDS = { lat: 19.091400, lng: 72.887484 };
+const ALLOWED_RADIUS_METERS = 200;
+
+function getDistanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
 // ── Constants ─────────────────────────────────────────────────────────────────
 const STATUSES = [
   { value: "present",  label: "P",  full: "Present",  cls: "bg-emerald-500 text-white" },
@@ -116,10 +130,11 @@ function to12hr(hhmm) {
 
 // ── API ───────────────────────────────────────────────────────────────────────
 const api = {
-  async getWorkers(site, date) {
+  async getWorkers(site, date,projectId) {
     const params = new URLSearchParams();
     if (site) params.set("site", site);
     if (date) params.set("date", date);
+    if (projectId) params.set("project", projectId);
     const res = await fetch(`${API_BASE}/site-attendance?${params}`, { headers: authHeaders() });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to load workers");
@@ -160,9 +175,23 @@ const api = {
     if (!res.ok) throw new Error(data.message || "Worker not found");
     return data.worker;
   },
-  async getInactiveWorkers(site) {
+  async getWorkerAssignments(workerId) {
+    const res = await fetch(`${API_BASE}/site-workers/${workerId}/assignments`, { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to load assignments");
+    return data.assignments || [];
+  },
+  async getProjects() {
+    const res = await fetch(`${API_BASE}/projects`, { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to load projects");
+    console.log("Projects API response:", data); // ← check browser console
+    return data.projects || data.data || data.result || data || [];
+  },
+ async getInactiveWorkers(site, projectId) {
     const params = new URLSearchParams({ active: "false" });
-    if (site) params.set("site", site);
+    if (site)      params.set("site", site);
+    if (projectId) params.set("project", projectId);
     const res = await fetch(`${API_BASE}/site-workers?${params}`, { headers: authHeaders() });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to load inactive workers");
@@ -178,8 +207,324 @@ const api = {
     if (!res.ok) throw new Error(data.message || "Failed to submit");
     return data;
   },
+  async engineerPunchIn(location, notes, projectId) {
+  const res = await fetch(`${API_BASE}/attendance/punch-in`, {
+    method: "POST", headers: authHeaders(),
+    body: JSON.stringify({ location, notes, project: projectId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Punch in failed");
+  return data.attendance;
+},
+async engineerPunchOut(projectId) {
+  const res = await fetch(`${API_BASE}/attendance/punch-out`, {
+    method: "POST", headers: authHeaders(),
+    body: JSON.stringify({ project: projectId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Punch out failed");
+  return data.attendance;
+},
+async getMyAttendance() {
+  const res = await fetch(`${API_BASE}/attendance/me`, { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed");
+  return Array.isArray(data) ? data : (data.records || []);
+},
 };
+function EngineerAttendanceModal({ onClose, defaultProjectId }) {
+  const videoRef = useRef(null), canvasRef = useRef(null);
+  const streamRef = useRef(null), watchRef = useRef(null);
 
+  const [selectedProject, setSelectedProject] = useState(defaultProjectId || "");
+  const [punchInTime,  setPunchInTime]  = useState(null);
+  const [punchOutTime, setPunchOutTime] = useState(null);
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState("");
+  const [success,  setSuccess]  = useState("");
+  const [notes,    setNotes]    = useState("");
+  const [photo,    setPhoto]    = useState(null);
+  const [step,     setStep]     = useState("capture");
+  const [pendingAction, setPendingAction] = useState(null);
+  const [camError, setCamError] = useState(false);
+  const [camErrMsg, setCamErrMsg] = useState("");
+  const [geoStatus,    setGeoStatus]    = useState("fetching");
+  const [distanceAway, setDistanceAway] = useState(null);
+  const [locationStr,  setLocationStr]  = useState("Fetching location…");
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
+
+  useEffect(() => {
+    api.getMyAttendance().then(records => {
+      const todayStr = new Date().toDateString();
+      const rec = records.find(r => {
+        const ts = r.punchInTime || r.punchIn || r.checkIn || r.startTime;
+        return ts && new Date(ts).toDateString() === todayStr;
+      });
+      if (rec) {
+        const inTs  = rec.punchInTime  || rec.punchIn  || rec.checkIn;
+        const outTs = rec.punchOutTime || rec.punchOut || rec.checkOut;
+        if (inTs)  setPunchInTime(new Date(inTs).toLocaleTimeString("en-US", { hour:"2-digit", minute:"2-digit" }));
+        if (outTs) setPunchOutTime(new Date(outTs).toLocaleTimeString("en-US", { hour:"2-digit", minute:"2-digit" }));
+      }
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!navigator.geolocation) { setGeoStatus("denied"); return; }
+    watchRef.current = navigator.geolocation.watchPosition(
+      pos => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        setLocationStr(`${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E`);
+        const dist = getDistanceMeters(lat, lng, OFFICE_COORDS.lat, OFFICE_COORDS.lng);
+        setDistanceAway(Math.round(dist));
+        setGeoStatus(dist <= ALLOWED_RADIUS_METERS ? "allowed" : "too-far");
+      },
+      () => setGeoStatus("denied"),
+      { enableHighAccuracy: true, maximumAge: 10000 }
+    );
+    return () => { if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current); };
+  }, []);
+
+  useEffect(() => {
+    if (!pendingAction) return;
+    setCamError(false); setPhoto(null); setStep("capture"); setNotes("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCamError(true); setCamErrMsg("Camera not supported."); return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false })
+      .then(stream => { streamRef.current = stream; if (videoRef.current) videoRef.current.srcObject = stream; })
+      .catch(err => { setCamError(true); setCamErrMsg(`Camera error: ${err.message}`); });
+    return () => streamRef.current?.getTracks().forEach(t => t.stop());
+  }, [pendingAction]);
+
+  const takePhoto = () => {
+    const v = videoRef.current, c = canvasRef.current;
+    c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
+    c.getContext("2d").drawImage(v, 0, 0);
+    setPhoto(c.toDataURL("image/jpeg", 0.85));
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    setStep("confirm");
+  };
+
+  const retake = () => {
+    setPhoto(null); setStep("capture");
+    navigator.mediaDevices?.getUserMedia({ video: { facingMode: "user" }, audio: false })
+      .then(stream => { streamRef.current = stream; if (videoRef.current) videoRef.current.srcObject = stream; });
+  };
+
+  const handleConfirm = async () => {
+    if (!selectedProject) { setError("Please select a project first"); return; }
+    setLoading(true); setError("");
+    try {
+      if (pendingAction === "in") {
+        const rec = await api.engineerPunchIn(locationStr, notes.trim(), selectedProject);
+        const inTs = rec.punchInTime || rec.punchIn || rec.checkIn;
+        if (inTs) setPunchInTime(new Date(inTs).toLocaleTimeString("en-US", { hour:"2-digit", minute:"2-digit" }));
+        setSuccess("Punched in successfully! ✅");
+      } else {
+        const rec = await api.engineerPunchOut(selectedProject);
+        const outTs = rec.punchOutTime || rec.punchOut || rec.checkOut;
+        if (outTs) setPunchOutTime(new Date(outTs).toLocaleTimeString("en-US", { hour:"2-digit", minute:"2-digit" }));
+        setSuccess("Punched out successfully! 🏁");
+      }
+      setPendingAction(null);
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+
+  const isPunchedIn = !!punchInTime, isPunchedOut = !!punchOutTime;
+  const geoBlocked = geoStatus !== "allowed";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto">
+
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+              <UserCheck size={15} className="text-indigo-500"/>
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-extra-darkblue">My Attendance</h3>
+              <p className="text-xs text-gray-400">Mark your own attendance for today</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={15}/></button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Clock */}
+          <div className="text-center py-1">
+            <div className="text-3xl font-bold tabular-nums text-extra-darkblue">
+              {now.toLocaleTimeString("en-US", { hour:"2-digit", minute:"2-digit", second:"2-digit" })}
+            </div>
+            <div className="text-xs text-gray-400 mt-1">
+              {now.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
+            </div>
+          </div>
+
+          {/* Project selector */}
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">
+              Project <span className="text-red-400">*</span>
+              <span className="text-gray-400 font-normal ml-1">(attendance tagged to this project)</span>
+            </label>
+            <ProjectSelect value={selectedProject} onChange={setSelectedProject} placeholder="Select project…"/>
+            {!selectedProject && (
+              <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                <AlertCircle size={11}/> Select a project to enable punch in / out
+              </p>
+            )}
+          </div>
+
+          {/* Geo status */}
+          <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold border ${
+            geoStatus === "allowed"  ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+            geoStatus === "fetching" ? "bg-blue-50 text-blue-600 border-blue-100" :
+                                       "bg-red-50 text-red-600 border-red-100"
+          }`}>
+            <MapPin size={12} className="shrink-0"/>
+            {geoStatus === "fetching" && "📡 Fetching your location…"}
+            {geoStatus === "allowed"  && `✓ On-site · ${locationStr}`}
+            {geoStatus === "too-far"  && `📍 ${distanceAway}m from site — move closer to punch`}
+            {geoStatus === "denied"   && "⚠ Location access denied — enable in browser settings"}
+          </div>
+
+          {/* Today's record */}
+          {(punchInTime || punchOutTime) && (
+            <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 space-y-1.5">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Today's Record</p>
+              <div className="flex items-center gap-4 flex-wrap">
+                {punchInTime  && <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"/><span className="text-xs font-semibold text-gray-700">In: {punchInTime}</span></div>}
+                {punchOutTime && <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400"/><span className="text-xs font-semibold text-gray-700">Out: {punchOutTime}</span></div>}
+                {isPunchedIn && !isPunchedOut && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 animate-pulse">● On-Site</span>}
+              </div>
+            </div>
+          )}
+
+          {error   && <div className="flex items-center gap-2 bg-red-50 border border-red-100 text-red-600 text-xs px-3 py-2.5 rounded-xl"><AlertCircle size={13}/> {error}</div>}
+          {success && <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs px-3 py-2.5 rounded-xl"><CheckCheck size={13}/> {success}</div>}
+
+          {/* Camera flow */}
+          {pendingAction && (
+            <div className="border border-gray-100 rounded-xl overflow-hidden">
+              <div className={`px-3 py-2 text-xs font-bold text-white ${pendingAction === "in" ? "bg-extra-darkblue" : "bg-orange-500"}`}>
+                {pendingAction === "in" ? "📍 Punch In" : "🏁 Punch Out"} — {step === "capture" ? "Take a Selfie" : "Confirm & Submit"}
+              </div>
+              <div className="relative bg-black w-full" style={{ height: "200px" }}>
+                {camError ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-50 px-4">
+                    <p className="text-xs text-gray-400 text-center">{camErrMsg}</p>
+                    <button onClick={() => setStep("confirm")} className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-extra-darkblue">Skip Photo & Continue →</button>
+                  </div>
+                ) : step === "capture" ? (
+                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" style={{ transform:"scaleX(-1)" }}/>
+                ) : photo ? (
+                  <img src={photo} alt="selfie" className="w-full h-full object-cover" style={{ transform:"scaleX(-1)" }}/>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-50"><span className="text-4xl">👤</span></div>
+                )}
+                <canvas ref={canvasRef} className="hidden"/>
+              </div>
+              {step === "confirm" && (
+                <div className="px-3 pt-3">
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)}
+                    placeholder={pendingAction === "in" ? "e.g. Starting site inspection…" : "e.g. Completed tasks for today."}
+                    rows={2} maxLength={300} disabled={loading}
+                    className="w-full text-sm rounded-xl px-3 py-2 resize-none outline-none border border-gray-200 focus:border-blue-400 text-gray-700 placeholder-gray-300 bg-gray-50"/>
+                  <p className="text-right text-[10px] mt-0.5 text-gray-400">{notes.length}/300</p>
+                </div>
+              )}
+              <div className="flex gap-2 p-3">
+                <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); setPendingAction(null); }} disabled={loading}
+                  className="flex-1 py-2 rounded-xl text-xs font-semibold border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40">Cancel</button>
+                {step === "capture" ? (
+                  <>
+                    <button onClick={() => setStep("confirm")} disabled={loading}
+                      className="flex-1 py-2 rounded-xl text-xs font-semibold border border-gray-200 text-gray-500 hover:bg-gray-50">Skip Photo</button>
+                    <button onClick={takePhoto} disabled={camError || loading}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 ${pendingAction === "in" ? "bg-extra-darkblue" : "bg-orange-500"}`}>📷 Capture</button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={retake} disabled={loading}
+                      className="flex-1 py-2 rounded-xl text-xs font-semibold border border-gray-200 text-gray-500 hover:bg-gray-50">Retake</button>
+                    <button onClick={handleConfirm} disabled={loading}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 flex items-center justify-center gap-1.5 ${pendingAction === "in" ? "bg-extra-darkblue" : "bg-orange-500"}`}>
+                      {loading ? <><RefreshCw size={12} className="animate-spin"/> Saving…</> : "✓ Confirm"}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Punch buttons */}
+          {!pendingAction && (
+            <div className="flex gap-3">
+              {!isPunchedIn ? (
+                <button onClick={() => setPendingAction("in")} disabled={geoBlocked || !selectedProject}
+                  className="flex-1 py-3 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 disabled:opacity-40 active:scale-95 transition-all"
+                  style={{ background: "linear-gradient(135deg, #0F2854, #1C4D8D)" }}>
+                  📍 Punch In
+                </button>
+              ) : !isPunchedOut ? (
+                <>
+                  <div className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/> On-Site since {punchInTime}
+                  </div>
+                  <button onClick={() => setPendingAction("out")} disabled={geoBlocked || !selectedProject}
+                    className="flex-1 py-3 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 disabled:opacity-40 active:scale-95 transition-all"
+                    style={{ background: "linear-gradient(135deg, #E07800, #FF9500)" }}>
+                    🏁 Punch Out
+                  </button>
+                </>
+              ) : (
+                <div className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold bg-gray-50 text-gray-500 border border-gray-200">
+                  <CheckCheck size={15}/> Day Complete · {punchInTime} → {punchOutTime}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="px-4 pb-4">
+          <button onClick={onClose} className="w-full py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-colors">Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+// ── Project Select ────────────────────────────────────────────────────────────
+function ProjectSelect({ value, onChange }) {
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getProjects()
+      .then(setProjects)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="text-xs border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 text-gray-700 bg-white w-36 sm:w-44">
+      <option value="">All Projects</option>
+      {loading && <option disabled>Loading…</option>}
+      {projects.map(p => (
+        <option key={p._id} value={p._id}>
+          {p.name || p.title || p._id}
+        </option>
+      ))}
+    </select>
+  );
+}
 // ── Section Card ──────────────────────────────────────────────────────────────
 function SectionCard({ icon: Icon, iconColor, iconBg, title, sub, children, action }) {
   return (
@@ -202,7 +547,7 @@ function SectionCard({ icon: Icon, iconColor, iconBg, title, sub, children, acti
 }
 
 // ── Add Worker Modal ──────────────────────────────────────────────────────────
-function AddWorkerModal({ site, onClose, onAdded }) {
+function AddWorkerModal({ site, projectId, onClose, onAdded }) {
   const [form, setForm] = useState({ name:"", phone:"", trade:"general", contractor:"", idProof:"", zone:"", durationDays:1, customDays:"", customUnit:"days" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -215,13 +560,16 @@ function AddWorkerModal({ site, onClose, onAdded }) {
 
   const handleSubmit = async () => {
     if (!form.name.trim()) { setError("Name is required"); return; }
+if (!form.idProof.trim()) { setError("ID Proof is required to uniquely identify the worker"); return; }
     if (form.durationMode === "custom" && !form.customEnd) { setError("Pick a custom end date"); return; }
     setSaving(true); setError("");
     try {
       // Build payload — custom mode sends assignmentStart+End, quick mode sends durationDays
+      const finalProject = form.project || projectId;
+      if (!finalProject) { setError("Please select a project"); return; }
       const payload = form.durationMode === "custom"
-        ? { ...form, site, assignmentStart: form.customStart || todayISO(), assignmentEnd: form.customEnd, durationDays: undefined }
-        : { ...form, site };
+        ? { ...form, site, project: finalProject, assignmentStart: form.customStart || todayISO(), assignmentEnd: form.customEnd, durationDays: undefined }
+        : { ...form, site, project: finalProject };
       const worker = await api.createWorker(payload);
       onAdded(worker); onClose();
     } catch (err) { setError(err.message); }
@@ -295,6 +643,13 @@ function AddWorkerModal({ site, onClose, onAdded }) {
                   className="w-full pl-8 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-gray-800 placeholder-gray-300"/>
               </div>
             </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Project <span className="text-red-400">*</span></label>
+            <ProjectSelect value={form.project || projectId || ""} onChange={v => set("project", v)} />
+            {!form.project && !projectId && (
+              <p className="text-xs text-amber-600 mt-1">Select a project to assign this worker</p>
+            )}
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-600 block mb-1.5">ID Proof (Aadhaar / Any)</label>
@@ -729,9 +1084,21 @@ function DeactivateModal({ worker, onClose, onDeactivated }) {
 
 // ── Worker Detail Popup ───────────────────────────────────────────────────────
 function WorkerDetailPopup({ worker, record, onClose, onChange, onAutoSave, onDeactivate, onRenew }) {
+  const [assignments, setAssignments] = useState([]);
+
+  useEffect(() => {
+    console.log("Fetching assignments for worker._id:", worker._id);
+    api.getWorkerAssignments(worker._id)
+      .then(data => {
+        console.log("Assignments received:", data);
+        setAssignments(data);
+      })
+      .catch(err => console.error("Assignments error:", err));
+  }, [worker._id]);
+
   const trade = worker.trade || "general";
   const tradeCls = TRADE_COLORS[trade] || TRADE_COLORS.general;
-  const autoStatus = calcStatus(record.punchInTime, record.punchOutTime);
+  const autoStatus = record.status || calcStatus(record.punchInTime, record.punchOutTime);
   const statusCls = STATUS_BADGE[autoStatus] || STATUS_BADGE.absent;
   const statusLabel = STATUSES.find(s => s.value === autoStatus)?.full || "Absent";
   const span = assignmentLabel(worker.assignmentStart, worker.assignmentEnd);
@@ -768,12 +1135,30 @@ function WorkerDetailPopup({ worker, record, onClose, onChange, onAutoSave, onDe
               <span className="truncate">{worker.idProof}</span>
             </div>
           )}
+          {assignments.length > 0 && (
+            <div className="col-span-2 space-y-1">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Assigned Under</p>
+              <div className="flex flex-wrap gap-1.5">
+                {assignments.map(a => (
+                  <div key={a._id} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold border ${
+                    a.isActive ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-gray-50 border-gray-200 text-gray-400"
+                  }`}>
+                    <span>🏗️</span>
+                    <span>{a.project?.name || a.project?.title || "Project"}</span>
+                    <span className="text-gray-400 font-normal">·</span>
+                    <span>{a.engineer?.name || "Engineer"}</span>
+                    {!a.isActive && <span className="text-gray-400">(inactive)</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          {/* <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1.5">Punch In</label>
+              <label className="text-xs font-semibold text-black block mb-1.5">Punch In</label>
               <button
                 onClick={() => {
                   if (record.punchInTime) return;
@@ -783,13 +1168,13 @@ function WorkerDetailPopup({ worker, record, onClose, onChange, onAutoSave, onDe
                 }}
                 disabled={!!record.punchInTime}
                 className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border transition-all ${
-                  record.punchInTime ? "bg-emerald-50 text-emerald-700 border-emerald-200 cursor-not-allowed" : "bg-white text-gray-400 border-gray-200 hover:border-blue-300 hover:text-blue-600 active:scale-95"
+                  record.punchInTime ? "bg-emerald-50 text-emerald-700 border-emerald-200 cursor-not-allowed" : "bg-white text-black border-gray-200 hover:border-blue-300 hover:text-blue-600 active:scale-95"
                 }`}>
-                {record.punchInTime ? <>✅ {to12hr(record.punchInTime)}</> : <>⏱ Tap to stamp</>}
+                {record.punchInTime ? <>✅ {to12hr(record.punchInTime)}</> : <>⏱  Punch in</>}
               </button>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1.5">Punch Out</label>
+              <label className="text-xs font-semibold text-black block mb-1.5">Punch Out</label>
               <button
                 onClick={() => {
                   if (record.punchOutTime) return;
@@ -799,12 +1184,36 @@ function WorkerDetailPopup({ worker, record, onClose, onChange, onAutoSave, onDe
                 }}
                 disabled={!!record.punchOutTime}
                 className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border transition-all ${
-                  record.punchOutTime ? "bg-red-50 text-red-600 border-red-200 cursor-not-allowed" : "bg-white text-gray-400 border-gray-200 hover:border-red-300 hover:text-red-500 active:scale-95"
+                  record.punchOutTime ? "bg-red-50 text-red-600 border-red-200 cursor-not-allowed" : "bg-white text-black border-gray-200 hover:border-red-300 hover:text-red-500 active:scale-95"
                 }`}>
-                {record.punchOutTime ? <>🔴 {to12hr(record.punchOutTime)}</> : <>⏱ Tap to stamp</>}
+                {record.punchOutTime ? <>🔴 {to12hr(record.punchOutTime)}</> : <>⏱ Punch Out</>}
               </button>
             </div>
-          </div>
+          </div> */}
+          <div>
+  <label className="text-xs font-semibold text-black block mb-2">Attendance Status</label>
+  <div className="grid grid-cols-3 gap-2">
+    {STATUSES.map(s => {
+      const isSelected = (record.status || calcStatus(record.punchInTime, record.punchOutTime)) === s.value;
+      return (
+        <button
+          key={s.value}
+          onClick={() => {
+            const updated = { ...record, status: s.value };
+            onChange(updated);
+            onAutoSave(updated);
+          }}
+          className={`py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 ${
+            isSelected
+              ? s.cls + " border-transparent shadow-sm scale-[1.02]"
+              : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+          }`}>
+          {s.full}
+        </button>
+      );
+    })}
+  </div>
+</div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-gray-500 block mb-1.5">Zone</label>
@@ -845,7 +1254,7 @@ function WorkerDetailPopup({ worker, record, onClose, onChange, onAutoSave, onDe
 function WorkerCard({ worker, record, onClick }) {
   const trade = worker.trade || "general";
   const tradeCls = TRADE_COLORS[trade] || TRADE_COLORS.general;
-  const autoStatus = calcStatus(record.punchInTime, record.punchOutTime);
+  const autoStatus = record.status || calcStatus(record.punchInTime, record.punchOutTime);
   const statusCls = STATUS_BADGE[autoStatus] || STATUS_BADGE.absent;
   const statusLabel = STATUSES.find(s => s.value === autoStatus)?.full || "Absent";
   const borderCls = STATUS_BORDER[autoStatus] || "border-l-gray-200";
@@ -1062,11 +1471,20 @@ export default function SiteAttendanceMarkPage() {
   const [page, setPage] = useState(1);
   const [inactivePage, setInactivePage] = useState(1);
   const [inactiveSearch, setInactiveSearch] = useState("");
+  const [showEngineerAttendance, setShowEngineerAttendance] = useState(false);
 
   const [site, setSiteRaw] = useState(() => {
     if (typeof window === "undefined") return "";
     return localStorage.getItem("attendance_site") || "";
   });
+  const [projectId, setProjectIdRaw] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("attendance_project") || "";
+  });
+  const setProjectId = (val) => {
+    setProjectIdRaw(val);
+    if (typeof window !== "undefined") localStorage.setItem("attendance_project", val);
+  };
   const setSite = (val) => {
     setSiteRaw(val);
     if (typeof window !== "undefined") localStorage.setItem("attendance_site", val);
@@ -1078,36 +1496,49 @@ export default function SiteAttendanceMarkPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const loadWorkers = useCallback(async () => {
-    setFetching(true); setSubmitted(false);
-    try {
-      const data = await api.getWorkers(site, date);
-      setWorkers(data);
-      const init = {};
-      data.forEach(w => {
-        const att = w.attendance;
-        const inTime  = att?.punchInTime  ? toLocalHHMM(att.punchInTime)  : "";
-        const outTime = att?.punchOutTime ? toLocalHHMM(att.punchOutTime) : "";
-        init[w._id] = {
-          workerId: w._id, status: calcStatus(inTime, outTime),
-          punchInTime: inTime, punchOutTime: outTime,
-          zone: att?.zone || w.zone || "", taskAssigned: att?.taskAssigned || "", notes: att?.notes || "",
-        };
-      });
-      setRecords(init);
-    } catch (err) { showToast(err.message); }
-    finally { setFetching(false); }
-  }, [site, date]);
+ const loadWorkers = useCallback(async () => {
+  setFetching(true); setSubmitted(false);
+  try {
+    const data = await api.getWorkers(site, date, projectId);
+    setWorkers(data);
+    const init = {};
+    data.forEach(w => {
+      const att = w.attendance;
+
+      // ✅ Convert att.date to local YYYY-MM-DD and compare with selected date
+      const attDate = att?.date
+        ? new Date(att.date).toLocaleDateString("en-CA") // "2026-03-22" in local time
+        : null;
+      const isForSelectedDate = attDate === date;
+
+      const inTime  = isForSelectedDate && att?.punchInTime  ? toLocalHHMM(att.punchInTime)  : "";
+      const outTime = isForSelectedDate && att?.punchOutTime ? toLocalHHMM(att.punchOutTime) : "";
+
+      init[w._id] = {
+        workerId:     w._id,
+        assignmentId: w.assignmentId || null,
+        status:       (isForSelectedDate && att?.status) ? att.status : calcStatus(inTime, outTime),
+        punchInTime:  inTime,
+        punchOutTime: outTime,
+        zone:         att?.zone         || w.zone || "",
+        taskAssigned: att?.taskAssigned || "",
+        notes:        att?.notes        || "",
+      };
+    });
+    setRecords(init);
+  } catch (err) { showToast(err.message); }
+  finally { setFetching(false); }
+}, [site, date, projectId]);
 
   useEffect(() => { loadWorkers(); }, [loadWorkers]);
 
   const loadInactiveWorkers = useCallback(async () => {
     if (!showInactive) return;
     setFetchingInactive(true);
-    try { setInactiveWorkers(await api.getInactiveWorkers(site)); }
+    try { setInactiveWorkers(await api.getInactiveWorkers(site, projectId)); }
     catch (err) { showToast(err.message); }
     finally { setFetchingInactive(false); }
-  }, [showInactive, site]);
+  }, [showInactive, site, projectId]);
 
   useEffect(() => { loadInactiveWorkers(); }, [loadInactiveWorkers]);
   useEffect(() => { setPage(1); }, [search, filterStatus]);
@@ -1117,16 +1548,18 @@ export default function SiteAttendanceMarkPage() {
     try {
       const base = date || todayISO();
       await api.bulkSubmit({
-        site, date: base,
-        records: [{
-          workerId: record.workerId, status: record.status || "present",
+        site, project: projectId, date: base,
+       records: [{
+          workerId: record.workerId,
+          assignmentId: record.assignmentId || null,
+          status: record.status || "present",
           punchInTime:  record.punchInTime  ? `${base}T${record.punchInTime}:00`  : null,
           punchOutTime: record.punchOutTime ? `${base}T${record.punchOutTime}:00` : null,
           zone: record.zone || "", taskAssigned: record.taskAssigned || "", notes: record.notes || "",
         }],
       });
     } catch (err) { showToast("Auto-save failed: " + err.message); }
-  }, [site, date]);
+  }, [site, date, projectId]);
 
   const handleWorkerAdded = (worker) => {
     setWorkers(prev => [...prev, worker]);
@@ -1167,10 +1600,11 @@ export default function SiteAttendanceMarkPage() {
       const base = date || todayISO();
       const recordsArray = Object.values(records).map(r => ({
         ...r,
+        assignmentId: r.assignmentId || null,
         punchInTime:  r.punchInTime  ? `${base}T${r.punchInTime}:00`  : null,
         punchOutTime: r.punchOutTime ? `${base}T${r.punchOutTime}:00` : null,
       }));
-      await api.bulkSubmit({ site, date, records: recordsArray });
+      await api.bulkSubmit({ site, project: projectId, date, records: recordsArray });
       setSubmitted(true);
       showToast(`Attendance saved for ${recordsArray.length} workers`, "success");
     } catch (err) { showToast(err.message); }
@@ -1193,16 +1627,21 @@ export default function SiteAttendanceMarkPage() {
   const paginatedInactive = filteredInactive.slice((inactivePage-1)*PAGE_SIZE, inactivePage*PAGE_SIZE);
 
   const totalWorkers = workers.length;
-  const presentCount = Object.values(records).filter(r => ["present","late","half-day"].includes(calcStatus(r.punchInTime, r.punchOutTime))).length;
-  const absentCount  = Object.values(records).filter(r => calcStatus(r.punchInTime, r.punchOutTime) === "absent").length;
-  const markedCount  = Object.values(records).filter(r => r.punchInTime).length;
+ 
+const presentCount = Object.values(records).filter(r => ["present","late","half-day"].includes(r.status || calcStatus(r.punchInTime, r.punchOutTime))).length;
+const absentCount  = Object.values(records).filter(r => (r.status || calcStatus(r.punchInTime, r.punchOutTime)) === "absent").length;
+const markedCount  = Object.values(records).filter(r => r.status && r.status !== "absent").length;
   const hasActiveFilter = filterStatus !== "all" || search;
 
   return (
     <div className="space-y-4 pb-6">
-
-      {showModal        && <AddWorkerModal site={site} onClose={() => setShowModal(false)} onAdded={handleWorkerAdded}/>}
-      {renewingWorker   && <RenewModal worker={renewingWorker} onClose={() => setRenewingWorker(null)} onRenewed={handleRenewed}/>}
+      {showEngineerAttendance && (
+        <EngineerAttendanceModal onClose={()=> setShowEngineerAttendance(false)}
+        defaultProjectId={projectId}
+        />
+      )}
+     {showModal        && <AddWorkerModal site={site} projectId={projectId} onClose={() => setShowModal(false)} onAdded={handleWorkerAdded}/>}
+     {renewingWorker   && <RenewModal worker={renewingWorker} onClose={() => setRenewingWorker(null)} onRenewed={handleRenewed}/>}
       {deactivatingWorker && <DeactivateModal worker={deactivatingWorker} onClose={() => setDeactivatingWorker(null)} onDeactivated={handleDeactivated}/>}
       {showIdLookup     && <IdLookupModal onClose={() => setShowIdLookup(false)} onRenew={setRenewingWorker}/>}
       {detailWorker     && (
@@ -1237,6 +1676,11 @@ export default function SiteAttendanceMarkPage() {
             </p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            <button
+  onClick={() => setShowEngineerAttendance(true)}
+  className="flex items-center gap-1 px-2 sm:px-3 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold transition-all active:scale-95">
+  <UserCheck size={13}/> <span className="hidden sm:inline">My Attendance</span>
+</button>
             <button onClick={() => setShowIdLookup(true)}
               className="flex items-center gap-1 px-2 sm:px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all active:scale-95">
               🪪 <span className="hidden sm:inline">Renew Contract</span>
@@ -1252,9 +1696,8 @@ export default function SiteAttendanceMarkPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <input type="text" placeholder="Filter by site…" value={site} onChange={e => setSite(e.target.value)}
-            className="text-xs border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 text-gray-700 placeholder-gray-300 bg-white w-28 sm:w-36"/>
-          <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-xl px-2.5 py-2">
+         <ProjectSelect value={projectId} onChange={setProjectId} />
+         <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-xl px-2.5 py-2">
             <Calendar size={12} className="text-blue-500 shrink-0"/>
             <input type="date" value={date} onChange={e => setDate(e.target.value)}
               className="bg-transparent outline-none text-blue-700 text-xs font-semibold cursor-pointer w-[100px] sm:w-auto"/>
@@ -1293,7 +1736,7 @@ export default function SiteAttendanceMarkPage() {
             </span>
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5" style={{scrollbarWidth:"none"}}>
               {STATUSES.map(s => {
-                const count = Object.values(records).filter(r => calcStatus(r.punchInTime, r.punchOutTime) === s.value).length;
+                const count = Object.values(records).filter(r => (r.status || calcStatus(r.punchInTime, r.punchOutTime)) === s.value).length;
                 return count > 0 ? (
                   <span key={s.value} className={`text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 ${s.cls}`}>{s.full}: {count}</span>
                 ) : null;
@@ -1306,6 +1749,7 @@ export default function SiteAttendanceMarkPage() {
           </div>
         </div>
       )}
+
 
       {/* ── Worker cards section ── */}
       <SectionCard
