@@ -365,7 +365,7 @@ function AddModal({ projects, onClose, onSubmit, loading }) {
             <select required value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })}
               className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#1C4D8D] focus:ring-2 focus:ring-blue-50 text-[#0F2854] bg-white">
               <option value="">— Select Project —</option>
-              {projects.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+              {projects?.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
             </select>
           </div>
 
@@ -382,7 +382,7 @@ function AddModal({ projects, onClose, onSubmit, loading }) {
               <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Category *</label>
               <select required value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
                 className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#1C4D8D] focus:ring-2 focus:ring-blue-50 text-[#0F2854] bg-white">
-                {["Travel", "Material", "Food", "Logistics", "Accommodation", "Other"].map(opt => (
+                {["Travel", "Material", "Food", "Logistics", "Accommodation", "Other"]?.map(opt => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
@@ -542,15 +542,15 @@ export default function MyExpenses() {
       const userProjects = Array.isArray(pRes) ? pRes : pRes.projects || [];
       setProjects(userProjects);
 
-      const expPromises = userProjects.map(p =>
+      const expPromises = userProjects?.map(p =>
         apiFetch(`/expenses/project/${p._id}`).catch(() => ({ expenses: [] }))
       );
       const resArray = await Promise.all(expPromises);
 
       let allExpenses = [];
       resArray.forEach((r, idx) => {
-        const mapped = (r.expenses || []).map(e => ({ ...e, projectObj: userProjects[idx] }));
-        allExpenses.push(...mapped);
+        const mapped = (r.expenses || [])?.map(e => ({ ...e, projectObj: userProjects[idx] }));
+        allExpenses.push(..?.mapped);
       });
 
       setExpenses(allExpenses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
@@ -617,7 +617,7 @@ export default function MyExpenses() {
             { label: "Approved", value: approved,                           sub: "of total", color: "text-emerald-600" },
             { label: "Pending",  value: pending,                            sub: "awaiting",  color: "text-amber-600" },
             { label: "Amount",   value: `₹${totalAmt.toLocaleString()}`,   sub: "submitted" },
-          ].map(s => (
+          ]?.map(s => (
             <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
               <p className={`text-xl font-bold ${s.color || "text-[#0F2854]"}`}>{s.value}</p>
               <p className="text-xs text-gray-500 font-medium">{s.label} <span className="text-gray-500">{s.sub}</span></p>
@@ -639,7 +639,7 @@ export default function MyExpenses() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {expenses.map(exp => (
+          {expenses?.map(exp => (
             <ExpenseCard key={exp._id} exp={exp} onView={setDetailExp} />
           ))}
         </div>

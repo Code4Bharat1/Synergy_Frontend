@@ -30,20 +30,23 @@ function RoleSwitchOptions({ onClose }) {
   };
 
   const roles = [
-    { id: "admin",                label: "Admin" },
-    { id: "attendance",           label: "Attendance" },
-    { id: "engineer",             label: "Engineer" },
+    { id: "admin", label: "Admin" },
+    { id: "attendance", label: "Attendance" },
+    { id: "engineer", label: "Engineer" },
     { id: "installationIncharge", label: "Installation Incharge" },
     { id: "marketingCoordinator", label: "Marketing Coordinator" },
-    { id: "marketingExecutive",   label: "Marketing Executive" },
-    { id: "qualityControl",       label: "Quality Control" },
-    { id: "support",              label: "Support" },
+    { id: "marketingExecutive", label: "Marketing Executive" },
+    { id: "qualityControl", label: "Quality Control" },
+    { id: "support", label: "Support" },
   ];
 
   return (
     <div className="flex flex-col gap-0.5">
       <button
-        onClick={() => { handleBackToDirector(); onClose?.(); }}
+        onClick={() => {
+          handleBackToDirector();
+          onClose?.();
+        }}
         className="text-left px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded transition-colors"
       >
         Back to Director
@@ -52,10 +55,13 @@ function RoleSwitchOptions({ onClose }) {
       <span className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
         Switch To:
       </span>
-      {roles.map(r => (
+      {roles?.map((r) => (
         <button
           key={r.id}
-          onClick={() => { handleSwitchRole(r.id); onClose?.(); }}
+          onClick={() => {
+            handleSwitchRole(r.id);
+            onClose?.();
+          }}
           className="text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 hover:text-extra-blue rounded transition-colors"
         >
           {r.label}
@@ -80,11 +86,11 @@ function Navbar({ user, onMenuClick }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const isDirector = user?.role === "director" || user?.originalRole === "director";
+  const isDirector =
+    user?.role === "director" || user?.originalRole === "director";
 
   return (
     <header className="h-16 border-b border-gray-100 bg-white flex items-center justify-between px-4 md:px-6 shrink-0">
-
       {/* Left */}
       <div className="flex items-center gap-3">
         <button
@@ -110,16 +116,23 @@ function Navbar({ user, onMenuClick }) {
           <div className="relative" ref={dropdownRef}>
             {/* Toggle button — clickable */}
             <button
-              onClick={() => setDropdownOpen(prev => !prev)}
+              onClick={() => setDropdownOpen((prev) => !prev)}
               className="flex items-center gap-1 text-xs font-semibold px-2 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors"
             >
               <span className="hidden sm:inline">Viewing As: </span>
               <span>{user.role}</span>
               <svg
                 className={`w-3 h-3 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
-                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </button>
 
@@ -139,7 +152,6 @@ function Navbar({ user, onMenuClick }) {
           {user.name.charAt(0).toUpperCase()}
         </div>
       </div>
-
     </header>
   );
 }

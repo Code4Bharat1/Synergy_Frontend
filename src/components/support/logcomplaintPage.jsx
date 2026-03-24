@@ -1,11 +1,32 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  Search, MapPin, Package, Layers, HardHat, Palette,
-  FileText, AlignLeft, AlertTriangle, Camera, Video,
-  Plus, X, CheckCircle, ChevronLeft, ChevronRight, Send, Loader2,
+  Search,
+  MapPin,
+  Package,
+  Layers,
+  HardHat,
+  Palette,
+  FileText,
+  AlignLeft,
+  AlertTriangle,
+  Camera,
+  Video,
+  Plus,
+  X,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Send,
+  Loader2,
 } from "lucide-react";
-import { mockProjects, PageHeader, Card, inputStyle, labelStyle } from "./shared";
+import {
+  mockProjects,
+  PageHeader,
+  Card,
+  inputStyle,
+  labelStyle,
+} from "./shared";
 import axiosInstance from "../../lib/axios";
 
 const getToken = () =>
@@ -13,26 +34,70 @@ const getToken = () =>
 const authCfg = () => ({ headers: { Authorization: `Bearer ${getToken()}` } });
 
 // ── Mock fallback ─────────────────────────────────────────────────────────────
-const _mockProjects = (typeof mockProjects !== "undefined" ? mockProjects : [
-  { id: "PRJ-2401", client: "AquaPark Dubai", location: "Dubai", items: ["Waterslide Alpha", "Lazy River Flume", "Body Slide 360"] },
-  { id: "PRJ-2389", client: "Blue Lagoon Resort", location: "Maldives", items: ["Wave Pool Panel B", "Speed Slide Mini"] },
-  { id: "PRJ-2412", client: "Ocean World", location: "Singapore", items: ["Funnel Ride X2", "Master Blaster"] },
-  { id: "PRJ-2376", client: "SunSplash Inc.", location: "Florida", items: ["Speed Slide Pro"] },
-]);
+const _mockProjects =
+  typeof mockProjects !== "undefined"
+    ? mockProjects
+    : [
+        {
+          id: "PRJ-2401",
+          client: "AquaPark Dubai",
+          location: "Dubai",
+          items: ["Waterslide Alpha", "Lazy River Flume", "Body Slide 360"],
+        },
+        {
+          id: "PRJ-2389",
+          client: "Blue Lagoon Resort",
+          location: "Maldives",
+          items: ["Wave Pool Panel B", "Speed Slide Mini"],
+        },
+        {
+          id: "PRJ-2412",
+          client: "Ocean World",
+          location: "Singapore",
+          items: ["Funnel Ride X2", "Master Blaster"],
+        },
+        {
+          id: "PRJ-2376",
+          client: "SunSplash Inc.",
+          location: "Florida",
+          items: ["Speed Slide Pro"],
+        },
+      ];
 
-const STEPS = ["Select Project", "Select Item", "Complaint Details", "Required Materials"];
+const STEPS = [
+  "Select Project",
+  "Select Item",
+  "Complaint Details",
+  "Required Materials",
+];
 
-const _inputStyle = (typeof inputStyle !== "undefined" ? inputStyle : {
-  width: "100%", boxSizing: "border-box",
-  padding: "9px 12px",
-  border: "1px solid rgba(73,136,196,0.25)", borderRadius: 8,
-  fontSize: 13, color: "#0F2854", background: "#fff", outline: "none",
-  fontFamily: "inherit",
-});
-const _labelStyle = (typeof labelStyle !== "undefined" ? labelStyle : {
-  display: "block", fontSize: 10, fontWeight: 600,
-  letterSpacing: 0.6, color: "#4988C4", marginBottom: 5, textTransform: "uppercase",
-});
+const _inputStyle =
+  typeof inputStyle !== "undefined"
+    ? inputStyle
+    : {
+        width: "100%",
+        boxSizing: "border-box",
+        padding: "9px 12px",
+        border: "1px solid rgba(73,136,196,0.25)",
+        borderRadius: 8,
+        fontSize: 13,
+        color: "#0F2854",
+        background: "#fff",
+        outline: "none",
+        fontFamily: "inherit",
+      };
+const _labelStyle =
+  typeof labelStyle !== "undefined"
+    ? labelStyle
+    : {
+        display: "block",
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: 0.6,
+        color: "#4988C4",
+        marginBottom: 5,
+        textTransform: "uppercase",
+      };
 
 // ── StepBar ───────────────────────────────────────────────────────────────────
 function StepBar({ step }) {
@@ -49,30 +114,49 @@ function StepBar({ step }) {
         }
       `}</style>
       <div className="stepbar">
-        {STEPS.map((label, i) => {
+        {STEPS?.map((label, i) => {
           const s = i + 1;
           const done = step > s;
           const active = step === s;
           return (
             <div key={s} style={{ display: "flex", alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{
-                  width: 30, height: 30, borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: done || active ? "#0F2854" : "#fff",
-                  border: `2px solid ${done || active ? "#0F2854" : "rgba(73,136,196,0.3)"}`,
-                  color: done || active ? "#BDE8F5" : "#4988C4",
-                  fontSize: 12, fontWeight: 700, flexShrink: 0, transition: "all 0.3s",
-                }}>
+                <div
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: done || active ? "#0F2854" : "#fff",
+                    border: `2px solid ${done || active ? "#0F2854" : "rgba(73,136,196,0.3)"}`,
+                    color: done || active ? "#BDE8F5" : "#4988C4",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                    transition: "all 0.3s",
+                  }}
+                >
                   {done ? <CheckCircle size={14} /> : s}
                 </div>
-                <span className="step-label" style={{
-                  fontWeight: active ? 700 : 400,
-                  color: active ? "#0F2854" : done ? "#4988C4" : "#9DB5C8",
-                }}>{label}</span>
+                <span
+                  className="step-label"
+                  style={{
+                    fontWeight: active ? 700 : 400,
+                    color: active ? "#0F2854" : done ? "#4988C4" : "#9DB5C8",
+                  }}
+                >
+                  {label}
+                </span>
               </div>
               {i < STEPS.length - 1 && (
-                <div className="step-connector" style={{ background: done ? "#0F2854" : "rgba(73,136,196,0.2)" }} />
+                <div
+                  className="step-connector"
+                  style={{
+                    background: done ? "#0F2854" : "rgba(73,136,196,0.2)",
+                  }}
+                />
               )}
             </div>
           );
@@ -86,10 +170,23 @@ function StepBar({ step }) {
 function IconInput({ icon: Icon, ...props }) {
   return (
     <div style={{ position: "relative" }}>
-      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#4988C4", pointerEvents: "none", display: "flex" }}>
+      <span
+        style={{
+          position: "absolute",
+          left: 10,
+          top: "50%",
+          transform: "translateY(-50%)",
+          color: "#4988C4",
+          pointerEvents: "none",
+          display: "flex",
+        }}
+      >
         <Icon size={13} />
       </span>
-      <input {...props} style={{ ..._inputStyle, paddingLeft: 30, ...props.style }} />
+      <input
+        {...props}
+        style={{ ..._inputStyle, paddingLeft: 30, ...props.style }}
+      />
     </div>
   );
 }
@@ -98,8 +195,15 @@ function IconInput({ icon: Icon, ...props }) {
 export default function LogComplaintPage() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    project: null, item: "", batchNo: "BT-2024-117", contractor: "AquaBuild LLC", gelCoat: "GC-003-A",
-    title: "", desc: "", severity: "Medium", materials: [],
+    project: null,
+    item: "",
+    batchNo: "BT-2024-117",
+    contractor: "AquaBuild LLC",
+    gelCoat: "GC-003-A",
+    title: "",
+    desc: "",
+    severity: "Medium",
+    materials: [],
   });
   const [mat, setMat] = useState({ name: "", qty: "", cost: "" });
   const [submitted, setSubmitted] = useState(false);
@@ -113,60 +217,173 @@ export default function LogComplaintPage() {
       const r = await axiosInstance.get("/projects", authCfg());
       const data = Array.isArray(r.data) ? r.data : r.data.projects || [];
       if (data.length > 0)
-        setProjects(data.map(p => ({ id: p._id, client: p.clientName || p.name, name: p.name, location: p.location || "—", items: p.items || [] })));
-    } catch { /* keep mock */ }
+        setProjects(
+          data?.map((p) => ({
+            id: p._id,
+            client: p.clientName || p.name,
+            name: p.name,
+            location: p.location || "—",
+            items: p.items || [],
+          })),
+        );
+    } catch {
+      /* keep mock */
+    }
   }, []);
 
-  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
-  const upd = (key, val) => setForm(f => ({ ...f, [key]: val }));
+  const upd = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
-  const addMaterial = () => { if (!mat.name) return; setForm(f => ({ ...f, materials: [...f.materials, { ...mat }] })); setMat({ name: "", qty: "", cost: "" }); };
-  const removeMaterial = idx => setForm(f => ({ ...f, materials: f.materials.filter((_, i) => i !== idx) }));
+  const addMaterial = () => {
+    if (!mat.name) return;
+    setForm((f) => ({ ...f, materials: [...f.materials, { ...mat }] }));
+    setMat({ name: "", qty: "", cost: "" });
+  };
+  const removeMaterial = (idx) =>
+    setForm((f) => ({
+      ...f,
+      materials: f.materials.filter((_, i) => i !== idx),
+    }));
 
   const handleSubmit = async () => {
-    if (!form.title.trim()) return setSubmitError("Please enter a complaint title.");
-    setLoading(true); setSubmitError(null);
+    if (!form.title.trim())
+      return setSubmitError("Please enter a complaint title.");
+    setLoading(true);
+    setSubmitError(null);
     try {
-      await axiosInstance.post("/complaints", {
-        title: form.title.trim(),
-        description: form.desc.trim() || form.title.trim(),
-        project: form.project?.id || undefined,
-        priority: form.severity.toLowerCase(),
-        status: "open",
-      }, authCfg());
+      await axiosInstance.post(
+        "/complaints",
+        {
+          title: form.title.trim(),
+          description: form.desc.trim() || form.title.trim(),
+          project: form.project?.id || undefined,
+          priority: form.severity.toLowerCase(),
+          status: "open",
+        },
+        authCfg(),
+      );
       setSubmitted(true);
     } catch (err) {
-      setSubmitError(err.response?.data?.message || "Submission failed. Please retry.");
-    } finally { setLoading(false); }
+      setSubmitError(
+        err.response?.data?.message || "Submission failed. Please retry.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const resetAll = () => { setSubmitted(false); setStep(1); setSubmitError(null); setForm({ project: null, item: "", batchNo: "BT-2024-117", contractor: "AquaBuild LLC", gelCoat: "GC-003-A", title: "", desc: "", severity: "Medium", materials: [] }); };
+  const resetAll = () => {
+    setSubmitted(false);
+    setStep(1);
+    setSubmitError(null);
+    setForm({
+      project: null,
+      item: "",
+      batchNo: "BT-2024-117",
+      contractor: "AquaBuild LLC",
+      gelCoat: "GC-003-A",
+      title: "",
+      desc: "",
+      severity: "Medium",
+      materials: [],
+    });
+  };
 
   // ── Success screen ────────────────────────────────────────────────────────
-  if (submitted) return (
-    <>
-      <style>{`.lc-wrapper{font-family:'DM Sans','Segoe UI',sans-serif;padding:16px;max-width:100%;box-sizing:border-box}`}</style>
-      <div className="lc-wrapper">
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ color: "#4988C4", fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>New Entry</div>
-          <h1 style={{ color: "#0F2854", fontSize: "clamp(20px,4vw,26px)", fontWeight: 800, margin: 0 }}>Log New Complaint</h1>
-        </div>
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(73,136,196,0.15)", boxShadow: "0 2px 12px rgba(15,40,84,0.06)", padding: "48px 32px", textAlign: "center", maxWidth: 520 }}>
-          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(52,199,89,0.12)", border: "2px solid #34C759", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-            <CheckCircle size={30} color="#34C759" />
+  if (submitted)
+    return (
+      <>
+        <style>{`.lc-wrapper{font-family:'DM Sans','Segoe UI',sans-serif;padding:16px;max-width:100%;box-sizing:border-box}`}</style>
+        <div className="lc-wrapper">
+          <div style={{ marginBottom: 24 }}>
+            <div
+              style={{
+                color: "#4988C4",
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: 2,
+                textTransform: "uppercase",
+                marginBottom: 4,
+              }}
+            >
+              New Entry
+            </div>
+            <h1
+              style={{
+                color: "#0F2854",
+                fontSize: "clamp(20px,4vw,26px)",
+                fontWeight: 800,
+                margin: 0,
+              }}
+            >
+              Log New Complaint
+            </h1>
           </div>
-          <div style={{ color: "#0F2854", fontSize: 20, fontWeight: 800, marginBottom: 8 }}>Complaint Submitted!</div>
-          <div style={{ color: "#4988C4", fontSize: 13, marginBottom: 24 }}>
-            <strong>{form.title}</strong> has been logged for review.
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              border: "1px solid rgba(73,136,196,0.15)",
+              boxShadow: "0 2px 12px rgba(15,40,84,0.06)",
+              padding: "48px 32px",
+              textAlign: "center",
+              maxWidth: 520,
+            }}
+          >
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: "50%",
+                background: "rgba(52,199,89,0.12)",
+                border: "2px solid #34C759",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 20px",
+              }}
+            >
+              <CheckCircle size={30} color="#34C759" />
+            </div>
+            <div
+              style={{
+                color: "#0F2854",
+                fontSize: 20,
+                fontWeight: 800,
+                marginBottom: 8,
+              }}
+            >
+              Complaint Submitted!
+            </div>
+            <div style={{ color: "#4988C4", fontSize: 13, marginBottom: 24 }}>
+              <strong>{form.title}</strong> has been logged for review.
+            </div>
+            <button
+              onClick={resetAll}
+              style={{
+                background: "#0F2854",
+                color: "#BDE8F5",
+                border: "none",
+                padding: "10px 24px",
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontFamily: "inherit",
+              }}
+            >
+              <Plus size={14} /> Log Another Complaint
+            </button>
           </div>
-          <button onClick={resetAll} style={{ background: "#0F2854", color: "#BDE8F5", border: "none", padding: "10px 24px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>
-            <Plus size={14} /> Log Another Complaint
-          </button>
         </div>
-      </div>
-    </>
-  );
+      </>
+    );
 
   return (
     <>
@@ -293,12 +510,33 @@ export default function LogComplaintPage() {
       `}</style>
 
       <div className="lc-wrapper">
-
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ color: "#4988C4", fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>New Entry</div>
-          <h1 style={{ color: "#0F2854", fontSize: "clamp(20px,4vw,26px)", fontWeight: 800, margin: 0 }}>Log New Complaint</h1>
-          <p style={{ color: "#4988C4", fontSize: 13, margin: "4px 0 0" }}>Follow the steps to register a new complaint</p>
+          <div
+            style={{
+              color: "#4988C4",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: 2,
+              textTransform: "uppercase",
+              marginBottom: 4,
+            }}
+          >
+            New Entry
+          </div>
+          <h1
+            style={{
+              color: "#0F2854",
+              fontSize: "clamp(20px,4vw,26px)",
+              fontWeight: 800,
+              margin: 0,
+            }}
+          >
+            Log New Complaint
+          </h1>
+          <p style={{ color: "#4988C4", fontSize: 13, margin: "4px 0 0" }}>
+            Follow the steps to register a new complaint
+          </p>
         </div>
 
         <div className="lc-card">
@@ -307,33 +545,104 @@ export default function LogComplaintPage() {
           {/* ── Step 1: Select Project ── */}
           {step === 1 && (
             <div>
-              <div style={{ color: "#0F2854", fontWeight: 700, fontSize: 16, marginBottom: 20 }}>Step 1 — Select Project</div>
+              <div
+                style={{
+                  color: "#0F2854",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  marginBottom: 20,
+                }}
+              >
+                Step 1 — Select Project
+              </div>
               <div style={{ marginBottom: 16 }}>
-                <label style={_labelStyle}>SEARCH BY PROJECT NAME OR NUMBER</label>
-                <IconInput icon={Search} placeholder="Type to search…" value={searchQ} onChange={e => setSearchQ(e.target.value)} />
+                <label style={_labelStyle}>
+                  SEARCH BY PROJECT NAME OR NUMBER
+                </label>
+                <IconInput
+                  icon={Search}
+                  placeholder="Type to search…"
+                  value={searchQ}
+                  onChange={(e) => setSearchQ(e.target.value)}
+                />
               </div>
               <div className="project-grid">
                 {projects
-                  .filter(p => !searchQ || (p.client || p.name || "").toLowerCase().includes(searchQ.toLowerCase()))
-                  .map(p => (
-                    <div key={p.id} onClick={() => upd("project", p)} style={{
-                      padding: "14px 16px", borderRadius: 10, cursor: "pointer",
-                      border: `2px solid ${form.project?.id === p.id ? "#0F2854" : "rgba(73,136,196,0.2)"}`,
-                      background: form.project?.id === p.id ? "rgba(15,40,84,0.04)" : "#fff",
-                      transition: "all 0.2s",
-                    }}>
-                      <div style={{ color: "#1C4D8D", fontWeight: 700, fontSize: 12, marginBottom: 2 }}>{String(p.id).slice(-6).toUpperCase()}</div>
-                      <div style={{ color: "#0F2854", fontWeight: 600, fontSize: 13 }}>{p.name || p.client}</div>
-                      <div style={{ color: "#4988C4", fontSize: 11, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                  .filter(
+                    (p) =>
+                      !searchQ ||
+                      (p.client || p.name || "")
+                        .toLowerCase()
+                        .includes(searchQ.toLowerCase()),
+                  )
+                  ?.map((p) => (
+                    <div
+                      key={p.id}
+                      onClick={() => upd("project", p)}
+                      style={{
+                        padding: "14px 16px",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        border: `2px solid ${form.project?.id === p.id ? "#0F2854" : "rgba(73,136,196,0.2)"}`,
+                        background:
+                          form.project?.id === p.id
+                            ? "rgba(15,40,84,0.04)"
+                            : "#fff",
+                        transition: "all 0.2s",
+                      }}
+                    >
+                      <div
+                        style={{
+                          color: "#1C4D8D",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          marginBottom: 2,
+                        }}
+                      >
+                        {String(p.id).slice(-6).toUpperCase()}
+                      </div>
+                      <div
+                        style={{
+                          color: "#0F2854",
+                          fontWeight: 600,
+                          fontSize: 13,
+                        }}
+                      >
+                        {p.name || p.client}
+                      </div>
+                      <div
+                        style={{
+                          color: "#4988C4",
+                          fontSize: 11,
+                          marginTop: 4,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
                         <MapPin size={11} /> {p.location}
                       </div>
                     </div>
                   ))}
               </div>
               {form.project && (
-                <div style={{ background: "rgba(52,199,89,0.08)", border: "1px solid rgba(52,199,89,0.3)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#1C4D8D", display: "flex", alignItems: "center", gap: 6 }}>
+                <div
+                  style={{
+                    background: "rgba(52,199,89,0.08)",
+                    border: "1px solid rgba(52,199,89,0.3)",
+                    borderRadius: 8,
+                    padding: "10px 14px",
+                    fontSize: 12,
+                    color: "#1C4D8D",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
                   <CheckCircle size={13} color="#34C759" />
-                  Auto-loaded: <strong>{form.project.client}</strong> · {form.project.location} · {form.project.items.length} items installed
+                  Auto-loaded: <strong>{form.project.client}</strong> ·{" "}
+                  {form.project.location} · {form.project.items.length} items
+                  installed
                 </div>
               )}
             </div>
@@ -342,35 +651,124 @@ export default function LogComplaintPage() {
           {/* ── Step 2: Select Item ── */}
           {step === 2 && (
             <div>
-              <div style={{ color: "#0F2854", fontWeight: 700, fontSize: 16, marginBottom: 20 }}>Step 2 — Select Item</div>
+              <div
+                style={{
+                  color: "#0F2854",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  marginBottom: 20,
+                }}
+              >
+                Step 2 — Select Item
+              </div>
               {!form.project ? (
-                <div style={{ background: "rgba(255,149,0,0.08)", border: "1px solid rgba(255,149,0,0.25)", borderRadius: 8, padding: "12px 14px", color: "#FF9500", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-                  <ChevronLeft size={14} /> Please go back and select a project first.
+                <div
+                  style={{
+                    background: "rgba(255,149,0,0.08)",
+                    border: "1px solid rgba(255,149,0,0.25)",
+                    borderRadius: 8,
+                    padding: "12px 14px",
+                    color: "#FF9500",
+                    fontSize: 13,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <ChevronLeft size={14} /> Please go back and select a project
+                  first.
                 </div>
               ) : (
                 <>
                   <div style={{ marginBottom: 16 }}>
-                    <label style={_labelStyle}>INSTALLED ITEMS — {form.project.id}</label>
+                    <label style={_labelStyle}>
+                      INSTALLED ITEMS — {form.project.id}
+                    </label>
                     <div style={{ position: "relative" }}>
-                      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#4988C4", display: "flex", pointerEvents: "none" }}><Package size={13} /></span>
-                      <select style={{ ..._inputStyle, paddingLeft: 30, cursor: "pointer", appearance: "none" }} value={form.item} onChange={e => upd("item", e.target.value)}>
+                      <span
+                        style={{
+                          position: "absolute",
+                          left: 10,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          color: "#4988C4",
+                          display: "flex",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        <Package size={13} />
+                      </span>
+                      <select
+                        style={{
+                          ..._inputStyle,
+                          paddingLeft: 30,
+                          cursor: "pointer",
+                          appearance: "none",
+                        }}
+                        value={form.item}
+                        onChange={(e) => upd("item", e.target.value)}
+                      >
                         <option value="">Choose an item...</option>
-                        {form.project.items.map(it => <option key={it}>{it}</option>)}
+                        {form.project.items?.map((it) => (
+                          <option key={it}>{it}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
                   {form.item && (
-                    <div style={{ background: "rgba(189,232,245,0.15)", border: "1px solid rgba(73,136,196,0.2)", borderRadius: 10, padding: "18px" }}>
-                      <div style={{ color: "#0F2854", fontWeight: 700, fontSize: 13, marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
-                        <Package size={14} color="#4988C4" /> Item Details (Auto-loaded)
+                    <div
+                      style={{
+                        background: "rgba(189,232,245,0.15)",
+                        border: "1px solid rgba(73,136,196,0.2)",
+                        borderRadius: 10,
+                        padding: "18px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          color: "#0F2854",
+                          fontWeight: 700,
+                          fontSize: 13,
+                          marginBottom: 14,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        <Package size={14} color="#4988C4" /> Item Details
+                        (Auto-loaded)
                       </div>
                       <div className="item-detail-grid">
-                        {[["Batch Number", form.batchNo, Layers], ["Contractor Name", form.contractor, HardHat], ["Gel Coat Batch", form.gelCoat, Palette]].map(([k, v, Icon]) => (
+                        {[
+                          ["Batch Number", form.batchNo, Layers],
+                          ["Contractor Name", form.contractor, HardHat],
+                          ["Gel Coat Batch", form.gelCoat, Palette],
+                        ]?.map(([k, v, Icon]) => (
                           <div key={k}>
-                            <div style={{ color: "#4988C4", fontSize: 10, fontWeight: 600, letterSpacing: 0.5, marginBottom: 4, textTransform: "uppercase", display: "flex", alignItems: "center", gap: 4 }}>
+                            <div
+                              style={{
+                                color: "#4988C4",
+                                fontSize: 10,
+                                fontWeight: 600,
+                                letterSpacing: 0.5,
+                                marginBottom: 4,
+                                textTransform: "uppercase",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4,
+                              }}
+                            >
                               <Icon size={10} /> {k}
                             </div>
-                            <div style={{ color: "#0F2854", fontSize: 13, fontWeight: 700 }}>{v}</div>
+                            <div
+                              style={{
+                                color: "#0F2854",
+                                fontSize: 13,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {v}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -384,38 +782,93 @@ export default function LogComplaintPage() {
           {/* ── Step 3: Complaint Details ── */}
           {step === 3 && (
             <div>
-              <div style={{ color: "#0F2854", fontWeight: 700, fontSize: 16, marginBottom: 20 }}>Step 3 — Complaint Details</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
+              <div
+                style={{
+                  color: "#0F2854",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  marginBottom: 20,
+                }}
+              >
+                Step 3 — Complaint Details
+              </div>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 16 }}
+              >
                 <div>
                   <label style={_labelStyle}>COMPLAINT TITLE *</label>
-                  <IconInput icon={FileText} placeholder="Short description of the issue..." value={form.title} onChange={e => upd("title", e.target.value)} />
+                  <IconInput
+                    icon={FileText}
+                    placeholder="Short description of the issue..."
+                    value={form.title}
+                    onChange={(e) => upd("title", e.target.value)}
+                  />
                 </div>
 
                 <div>
                   <label style={_labelStyle}>DESCRIPTION *</label>
                   <div style={{ position: "relative" }}>
-                    <span style={{ position: "absolute", left: 10, top: 12, color: "#4988C4", display: "flex", pointerEvents: "none" }}><AlignLeft size={13} /></span>
-                    <textarea style={{ ..._inputStyle, minHeight: 90, resize: "vertical", paddingLeft: 30 }} placeholder="Detailed description..." value={form.desc} onChange={e => upd("desc", e.target.value)} />
+                    <span
+                      style={{
+                        position: "absolute",
+                        left: 10,
+                        top: 12,
+                        color: "#4988C4",
+                        display: "flex",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      <AlignLeft size={13} />
+                    </span>
+                    <textarea
+                      style={{
+                        ..._inputStyle,
+                        minHeight: 90,
+                        resize: "vertical",
+                        paddingLeft: 30,
+                      }}
+                      placeholder="Detailed description..."
+                      value={form.desc}
+                      onChange={(e) => upd("desc", e.target.value)}
+                    />
                   </div>
                 </div>
 
                 <div>
                   <label style={_labelStyle}>SEVERITY LEVEL</label>
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    {["Low", "Medium", "High", "Critical"].map(s => {
-                      const colors = { Low: "#34C759", Medium: "#FFCC00", High: "#FF9500", Critical: "#FF3B30" };
+                    {["Low", "Medium", "High", "Critical"]?.map((s) => {
+                      const colors = {
+                        Low: "#34C759",
+                        Medium: "#FFCC00",
+                        High: "#FF9500",
+                        Critical: "#FF3B30",
+                      };
                       const active = form.severity === s;
                       return (
-                        <button key={s} onClick={() => upd("severity", s)} style={{
-                          flex: "1 1 60px", padding: "9px 4px", borderRadius: 8,
-                          border: `2px solid ${active ? colors[s] : "rgba(73,136,196,0.2)"}`,
-                          background: active ? `${colors[s]}18` : "#fff",
-                          color: active ? colors[s] : "#4988C4",
-                          fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.2s",
-                          fontFamily: "inherit",
-                        }}>
-                          {s === "Critical" && <AlertTriangle size={10} style={{ marginRight: 3 }} />}
+                        <button
+                          key={s}
+                          onClick={() => upd("severity", s)}
+                          style={{
+                            flex: "1 1 60px",
+                            padding: "9px 4px",
+                            borderRadius: 8,
+                            border: `2px solid ${active ? colors[s] : "rgba(73,136,196,0.2)"}`,
+                            background: active ? `${colors[s]}18` : "#fff",
+                            color: active ? colors[s] : "#4988C4",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          {s === "Critical" && (
+                            <AlertTriangle
+                              size={10}
+                              style={{ marginRight: 3 }}
+                            />
+                          )}
                           {s}
                         </button>
                       );
@@ -425,20 +878,48 @@ export default function LogComplaintPage() {
 
                 <div className="upload-grid">
                   {[
-                    { label: "PHOTO UPLOAD *", accept: "image/*", Icon: Camera, hint: "Click to upload photos", multiple: true },
-                    { label: "VIDEO UPLOAD (OPTIONAL)", accept: "video/*", Icon: Video, hint: "Click to upload video", multiple: false },
-                  ].map(({ label, accept, Icon, hint, multiple }) => (
+                    {
+                      label: "PHOTO UPLOAD *",
+                      accept: "image/*",
+                      Icon: Camera,
+                      hint: "Click to upload photos",
+                      multiple: true,
+                    },
+                    {
+                      label: "VIDEO UPLOAD (OPTIONAL)",
+                      accept: "video/*",
+                      Icon: Video,
+                      hint: "Click to upload video",
+                      multiple: false,
+                    },
+                  ]?.map(({ label, accept, Icon, hint, multiple }) => (
                     <div key={label}>
                       <label style={_labelStyle}>{label}</label>
-                      <label style={{
-                        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                        border: "2px dashed rgba(73,136,196,0.35)", borderRadius: 10, padding: "24px 16px",
-                        color: "#4988C4", fontSize: 12, cursor: "pointer", gap: 8,
-                        background: "rgba(189,232,245,0.05)", transition: "all 0.2s",
-                      }}>
+                      <label
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          border: "2px dashed rgba(73,136,196,0.35)",
+                          borderRadius: 10,
+                          padding: "24px 16px",
+                          color: "#4988C4",
+                          fontSize: 12,
+                          cursor: "pointer",
+                          gap: 8,
+                          background: "rgba(189,232,245,0.05)",
+                          transition: "all 0.2s",
+                        }}
+                      >
                         <Icon size={28} color="rgba(73,136,196,0.5)" />
                         <span>{hint}</span>
-                        <input type="file" accept={accept} multiple={multiple} style={{ display: "none" }} />
+                        <input
+                          type="file"
+                          accept={accept}
+                          multiple={multiple}
+                          style={{ display: "none" }}
+                        />
                       </label>
                     </div>
                   ))}
@@ -450,64 +931,184 @@ export default function LogComplaintPage() {
           {/* ── Step 4: Required Materials ── */}
           {step === 4 && (
             <div>
-              <div style={{ color: "#0F2854", fontWeight: 700, fontSize: 16, marginBottom: 20 }}>Step 4 — Required Materials</div>
+              <div
+                style={{
+                  color: "#0F2854",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  marginBottom: 20,
+                }}
+              >
+                Step 4 — Required Materials
+              </div>
 
               {/* Add material row */}
               <div className="mat-add-row">
                 <div>
                   <label style={_labelStyle}>MATERIAL NAME</label>
-                  <IconInput icon={Package} placeholder="e.g. Gel coat resin" value={mat.name} onChange={e => setMat(m => ({ ...m, name: e.target.value }))} />
+                  <IconInput
+                    icon={Package}
+                    placeholder="e.g. Gel coat resin"
+                    value={mat.name}
+                    onChange={(e) =>
+                      setMat((m) => ({ ...m, name: e.target.value }))
+                    }
+                  />
                 </div>
                 <div>
                   <label style={_labelStyle}>QUANTITY</label>
-                  <input style={_inputStyle} type="number" placeholder="0" value={mat.qty} onChange={e => setMat(m => ({ ...m, qty: e.target.value }))} />
+                  <input
+                    style={_inputStyle}
+                    type="number"
+                    placeholder="0"
+                    value={mat.qty}
+                    onChange={(e) =>
+                      setMat((m) => ({ ...m, qty: e.target.value }))
+                    }
+                  />
                 </div>
                 <div>
                   <label style={_labelStyle}>EST. COST (USD)</label>
-                  <input style={_inputStyle} type="number" placeholder="0.00" value={mat.cost} onChange={e => setMat(m => ({ ...m, cost: e.target.value }))} />
+                  <input
+                    style={_inputStyle}
+                    type="number"
+                    placeholder="0.00"
+                    value={mat.cost}
+                    onChange={(e) =>
+                      setMat((m) => ({ ...m, cost: e.target.value }))
+                    }
+                  />
                 </div>
-                <button onClick={addMaterial} className="mat-add-btn" style={{
-                  background: "#0F2854", color: "#BDE8F5", border: "none",
-                  padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 700,
-                  cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5,
-                  fontFamily: "inherit",
-                }}>
+                <button
+                  onClick={addMaterial}
+                  className="mat-add-btn"
+                  style={{
+                    background: "#0F2854",
+                    color: "#BDE8F5",
+                    border: "none",
+                    padding: "10px 16px",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontFamily: "inherit",
+                  }}
+                >
                   <Plus size={14} /> Add
                 </button>
               </div>
 
               {form.materials.length === 0 ? (
-                <div style={{ background: "rgba(189,232,245,0.1)", borderRadius: 8, padding: "20px", textAlign: "center", color: "#4988C4", fontSize: 12, border: "1px dashed rgba(73,136,196,0.2)" }}>
+                <div
+                  style={{
+                    background: "rgba(189,232,245,0.1)",
+                    borderRadius: 8,
+                    padding: "20px",
+                    textAlign: "center",
+                    color: "#4988C4",
+                    fontSize: 12,
+                    border: "1px dashed rgba(73,136,196,0.2)",
+                  }}
+                >
                   No materials added yet.
                 </div>
               ) : (
                 <>
                   {/* Desktop table */}
-                  <div style={{ border: "1px solid rgba(73,136,196,0.2)", borderRadius: 10, overflow: "hidden" }}>
+                  <div
+                    style={{
+                      border: "1px solid rgba(73,136,196,0.2)",
+                      borderRadius: 10,
+                      overflow: "hidden",
+                    }}
+                  >
                     <div className="mat-table-scroll">
                       <table className="mat-table">
-                        <thead><tr style={{ background: "rgba(189,232,245,0.2)" }}>
-                          {["Material", "Qty", "Est. Cost", ""].map((h, i) => (
-                            <th key={i} className="mat-th">{h}</th>
-                          ))}
-                        </tr></thead>
+                        <thead>
+                          <tr style={{ background: "rgba(189,232,245,0.2)" }}>
+                            {["Material", "Qty", "Est. Cost", ""]?.map(
+                              (h, i) => (
+                                <th key={i} className="mat-th">
+                                  {h}
+                                </th>
+                              ),
+                            )}
+                          </tr>
+                        </thead>
                         <tbody>
-                          {form.materials.map((m, i) => (
-                            <tr key={i} style={{ borderTop: "1px solid rgba(73,136,196,0.1)" }}>
-                              <td className="mat-td" style={{ color: "#0F2854" }}>{m.name}</td>
-                              <td className="mat-td" style={{ color: "#4988C4" }}>{m.qty}</td>
-                              <td className="mat-td" style={{ color: "#34C759", fontWeight: 700 }}>${m.cost}</td>
+                          {form.materials?.map((m, i) => (
+                            <tr
+                              key={i}
+                              style={{
+                                borderTop: "1px solid rgba(73,136,196,0.1)",
+                              }}
+                            >
+                              <td
+                                className="mat-td"
+                                style={{ color: "#0F2854" }}
+                              >
+                                {m.name}
+                              </td>
+                              <td
+                                className="mat-td"
+                                style={{ color: "#4988C4" }}
+                              >
+                                {m.qty}
+                              </td>
+                              <td
+                                className="mat-td"
+                                style={{ color: "#34C759", fontWeight: 700 }}
+                              >
+                                ${m.cost}
+                              </td>
                               <td className="mat-td">
-                                <button onClick={() => removeMaterial(i)} style={{ background: "none", border: "none", color: "#FF3B30", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                                <button
+                                  onClick={() => removeMaterial(i)}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: "#FF3B30",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                  }}
+                                >
                                   <X size={14} />
                                 </button>
                               </td>
                             </tr>
                           ))}
-                          <tr style={{ borderTop: "2px solid rgba(73,136,196,0.15)", background: "rgba(189,232,245,0.1)" }}>
-                            <td colSpan={2} className="mat-td" style={{ color: "#0F2854", fontWeight: 700, fontSize: 12 }}>TOTAL ESTIMATED COST</td>
-                            <td className="mat-td" style={{ color: "#0F2854", fontWeight: 800 }}>
-                              ${form.materials.reduce((s, m) => s + (parseFloat(m.cost) || 0), 0).toFixed(2)}
+                          <tr
+                            style={{
+                              borderTop: "2px solid rgba(73,136,196,0.15)",
+                              background: "rgba(189,232,245,0.1)",
+                            }}
+                          >
+                            <td
+                              colSpan={2}
+                              className="mat-td"
+                              style={{
+                                color: "#0F2854",
+                                fontWeight: 700,
+                                fontSize: 12,
+                              }}
+                            >
+                              TOTAL ESTIMATED COST
+                            </td>
+                            <td
+                              className="mat-td"
+                              style={{ color: "#0F2854", fontWeight: 800 }}
+                            >
+                              $
+                              {form.materials
+                                .reduce(
+                                  (s, m) => s + (parseFloat(m.cost) || 0),
+                                  0,
+                                )
+                                .toFixed(2)}
                             </td>
                             <td />
                           </tr>
@@ -517,24 +1118,57 @@ export default function LogComplaintPage() {
 
                     {/* Mobile material cards */}
                     <div className="mat-mob-cards">
-                      {form.materials.map((m, i) => (
+                      {form.materials?.map((m, i) => (
                         <div key={i} className="mat-mob-card">
                           <div>
                             <div className="mat-mob-name">{m.name}</div>
                             <div className="mat-mob-meta">
                               <span>Qty: {m.qty}</span>
-                              <span style={{ color: "#34C759", fontWeight: 700 }}>${m.cost}</span>
+                              <span
+                                style={{ color: "#34C759", fontWeight: 700 }}
+                              >
+                                ${m.cost}
+                              </span>
                             </div>
                           </div>
-                          <button onClick={() => removeMaterial(i)} style={{ background: "none", border: "none", color: "#FF3B30", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                          <button
+                            onClick={() => removeMaterial(i)}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "#FF3B30",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                            }}
+                          >
                             <X size={15} />
                           </button>
                         </div>
                       ))}
-                      <div style={{ padding: "10px 12px", background: "rgba(189,232,245,0.1)", borderRadius: 8, display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ color: "#0F2854", fontWeight: 700, fontSize: 12 }}>TOTAL</span>
+                      <div
+                        style={{
+                          padding: "10px 12px",
+                          background: "rgba(189,232,245,0.1)",
+                          borderRadius: 8,
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span
+                          style={{
+                            color: "#0F2854",
+                            fontWeight: 700,
+                            fontSize: 12,
+                          }}
+                        >
+                          TOTAL
+                        </span>
                         <span style={{ color: "#0F2854", fontWeight: 800 }}>
-                          ${form.materials.reduce((s, m) => s + (parseFloat(m.cost) || 0), 0).toFixed(2)}
+                          $
+                          {form.materials
+                            .reduce((s, m) => s + (parseFloat(m.cost) || 0), 0)
+                            .toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -543,12 +1177,33 @@ export default function LogComplaintPage() {
               )}
 
               {submitError && (
-                <div style={{ background: "rgba(255,59,48,0.06)", border: "1px solid rgba(255,59,48,0.2)", borderRadius: 8, padding: "10px 14px", color: "#FF3B30", fontSize: 12, marginBottom: 10 }}>
+                <div
+                  style={{
+                    background: "rgba(255,59,48,0.06)",
+                    border: "1px solid rgba(255,59,48,0.2)",
+                    borderRadius: 8,
+                    padding: "10px 14px",
+                    color: "#FF3B30",
+                    fontSize: 12,
+                    marginBottom: 10,
+                  }}
+                >
                   ⚠ {submitError}
                 </div>
               )}
-              <button onClick={handleSubmit} disabled={loading} className="btn-submit">
-                {loading ? <Loader2 size={15} style={{ animation: "spin 0.8s linear infinite" }} /> : <Send size={15} />}
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="btn-submit"
+              >
+                {loading ? (
+                  <Loader2
+                    size={15}
+                    style={{ animation: "spin 0.8s linear infinite" }}
+                  />
+                ) : (
+                  <Send size={15} />
+                )}
                 {loading ? "Submitting…" : "Submit Complaint"}
               </button>
             </div>
@@ -557,20 +1212,22 @@ export default function LogComplaintPage() {
           {/* ── Nav Buttons ── */}
           <div className="nav-row">
             <button
-              onClick={() => setStep(s => Math.max(1, s - 1))}
+              onClick={() => setStep((s) => Math.max(1, s - 1))}
               className="btn-back"
               style={{ visibility: step === 1 ? "hidden" : "visible" }}
             >
               <ChevronLeft size={14} /> Back
             </button>
             {step < 4 && (
-              <button onClick={() => setStep(s => Math.min(4, s + 1))} className="btn-next">
+              <button
+                onClick={() => setStep((s) => Math.min(4, s + 1))}
+                className="btn-next"
+              >
                 Continue <ChevronRight size={14} />
               </button>
             )}
           </div>
         </div>
-
       </div>
     </>
   );

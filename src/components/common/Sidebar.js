@@ -61,7 +61,7 @@ function Sidebar({
 
       {/* Navigation */}
       <nav className="flex-1 p-2 space-y-1">
-        {navigation.map((item) => {
+        {navigation?.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.label;
 
