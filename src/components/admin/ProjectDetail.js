@@ -31,7 +31,7 @@ import {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL || "https://api-synergy.nexcorealliance.com/api/v1";
 
 const getToken = () =>
   typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
