@@ -82,8 +82,8 @@ function normalise(rec) {
   const statusRaw = rec.status || "absent";
   const statusMap = { present:"Present", late:"Late", absent:"Absent", "half-day":"Half Day", "on-leave":"On Leave" };
   return {
-    _id:            rec._id,
-    uid:            rec._id ?? `absent-${user._id ?? user.email}`,
+   _id: rec._id ? String(rec._id) : null,  // ← add String() cast
+  uid: rec._id ?? `absent-${user._id ?? user.email}`,
     name:           user.name  || user.email || "Unknown",
     email:          user.email || "",
     role:           fmtRole(user.role),
@@ -110,9 +110,9 @@ const STATUS_CONFIG = {
   "On Leave": { cls:"bg-sky-50 text-sky-700 border border-sky-200",             icon:Clock        },
 };
 const APPROVAL_CONFIG = {
-  pending:  { cls:"bg-amber-50 text-amber-600 border border-amber-200",   icon:"⏳", label:"Pending"  },
-  approved: { cls:"bg-emerald-50 text-emerald-700 border border-emerald-200", icon:"✅", label:"Approved" },
-  rejected: { cls:"bg-red-50 text-red-600 border border-red-200",         icon:"❌", label:"Rejected" },
+  pending:  { cls:"bg-amber-50 text-amber-600 border border-amber-200",    label:"Pending"  },
+  approved: { cls:"bg-emerald-50 text-emerald-700 border border-emerald-200", label:"Approved" },
+  rejected: { cls:"bg-red-50 text-red-600 border border-red-200",label:"Rejected" },
 };
 const DEPT_COLORS = {
   QC:"bg-blue-50 text-blue-600", Engineering:"bg-amber-50 text-amber-700",
@@ -368,7 +368,7 @@ function AttendanceCard({ record, selected, onToggle, showCheckbox }) {
           <p className="font-semibold text-gray-700">{record.duration}</p>
         </div>
       </div>
-      {record.notes && <p className="text-xs text-gray-400 italic truncate">📝 {record.notes}</p>}
+      {record.notes && <p className="text-xs text-gray-400 italic truncate"> {record.notes}</p>}
     </div>
   );
 }
@@ -456,41 +456,55 @@ export default function AttendanceAdmin() {
   useEffect(()=>{ setPage(1); }, [search,filterDept,filterStat,filterAppr,activeTab]);
 
   // ── Selection helpers ──────────────────────────────────────────────────────
-  const toggleOne = id => setSelectedIds(prev => {
+  const toggleOne = id => {
+  if (!id) return; // ← guard: don't select absent/null-id records
+  setSelectedIds(prev => {
     const n = new Set(prev);
     n.has(id) ? n.delete(id) : n.add(id);
     return n;
   });
+};
   const toggleAll = () => {
-    if (selectedIds.size === paginated.length) setSelectedIds(new Set());
-    else setSelectedIds(new Set(paginated.map(r=>r._id).filter(Boolean)));
-  };
+  const validIds = paginated.map(r => r._id).filter(Boolean);
+  const allValidSelected = validIds.length > 0 && validIds.every(id => selectedIds.has(id));
+  if (allValidSelected) setSelectedIds(new Set());
+  else setSelectedIds(new Set(validIds));
+};
   const allSelected  = paginated.length>0 && paginated.every(r=>selectedIds.has(r._id));
   const someSelected = paginated.some(r=>selectedIds.has(r._id));
   const selectedArr  = [...selectedIds].filter(Boolean);
 
   // ── Approval actions ───────────────────────────────────────────────────────
-  const handleApprove = async () => {
-    setActionLoading(true);
-    try {
-      const res = await api.approveBulk(filterDate||todayISO(), selectedArr.length?selectedArr:null);
-      showToast(`${res.approvedCount||selectedArr.length} records approved ✅`,"success");
-      setSelectedIds(new Set());
-      loadAll();
-    } catch(err) { showToast(err.message); }
-    finally { setActionLoading(false); }
-  };
-  const handleReject = async (reason) => {
-    setActionLoading(true);
-    try {
-      const res = await api.rejectBulk(filterDate||todayISO(), selectedArr.length?selectedArr:null, reason||"Rejected by admin");
-      showToast(`${res.rejectedCount||selectedArr.length} records rejected`,"info");
-      setSelectedIds(new Set());
-      setRejectModal(false);
-      loadAll();
-    } catch(err) { showToast(err.message); }
-    finally { setActionLoading(false); }
-  };
+ const handleApprove = async () => {
+  if (!selectedArr.length) {
+    showToast("Please select records to approve", "error");
+    return;
+  }
+  setActionLoading(true);
+  try {
+    const res = await api.approveBulk(filterDate || todayISO(), selectedArr);
+    showToast(`${res.approvedCount || selectedArr.length} records approved`, "success");
+    setSelectedIds(new Set());
+    loadAll();
+  } catch (err) { showToast(err.message); }
+  finally { setActionLoading(false); }
+};
+ const handleReject = async (reason) => {
+  if (!selectedArr.length) {
+    showToast("Please select records to reject", "error");
+    setRejectModal(false);
+    return;
+  }
+  setActionLoading(true);
+  try {
+    const res = await api.rejectBulk(filterDate || todayISO(), selectedArr, reason || "Rejected by admin");
+    showToast(`${res.rejectedCount || selectedArr.length} records rejected`, "info");
+    setSelectedIds(new Set());
+    setRejectModal(false);
+    loadAll();
+  } catch (err) { showToast(err.message); }
+  finally { setActionLoading(false); }
+};
 
   // ── Export ─────────────────────────────────────────────────────────────────
   const handleExport = (mode, from, to) => {
@@ -571,7 +585,7 @@ showToast(`Exported ${toExport.length} records`, "success");
             className={`px-2.5 sm:px-3 py-2 rounded-xl text-xs font-bold border transition-colors disabled:opacity-40 ${
               showAll ? "bg-extra-darkblue text-white border-extra-darkblue" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
             }`}>
-            {showAll ? "📅 Today" : "📋 All"}
+            {showAll ? "Today" : "All"}
           </button>
           {/* Export */}
           <button onClick={()=>setExportModal(true)}
@@ -667,14 +681,14 @@ showToast(`Exported ${toExport.length} records`, "success");
               disabled={actionLoading}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold disabled:opacity-40 active:scale-95 transition-all">
               {actionLoading ? <RefreshCw size={12} className="animate-spin"/> : <ThumbsUp size={12}/>}
-              {selectedArr.length>0 ? `Approve (${selectedArr.length})` : "Approve All Pending"}
+              {selectedArr.length>0 ? `Approve (${selectedArr.length})` : "Select to Approve"}
             </button>
             <button
               onClick={()=>setRejectModal(true)}
               disabled={actionLoading}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold disabled:opacity-40 active:scale-95 transition-all">
               <ThumbsDown size={12}/>
-              {selectedArr.length>0 ? `Reject (${selectedArr.length})` : "Reject Selected"}
+              {selectedArr.length>0 ? `Reject (${selectedArr.length})` : "Select to Reject"}
             </button>
           </div>
         </div>

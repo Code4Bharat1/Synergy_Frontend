@@ -18,8 +18,8 @@ const authHeaders = () => ({
 
 const API_ROOT = API_BASE.replace(/\/api\/v1\/?$/, "");
 
-// const OFFICE_COORDS = { lat: 19.07285143363228, lng: 72.88041850211928 };
-const OFFICE_COORDS = { lat: 19.091400, lng: 72.887484 };
+const OFFICE_COORDS = { lat: 19.07285143363228, lng: 72.88041850211928 };
+// const OFFICE_COORDS = { lat: 19.091400, lng: 72.887484 };
 const ALLOWED_RADIUS_METERS = 200;
 
 function getDistanceMeters(lat1, lng1, lat2, lng2) {

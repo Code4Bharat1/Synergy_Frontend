@@ -68,7 +68,7 @@ const ROLE_NAVIGATION = {
     {
       label: "Worker attendance",
       icon: CalendarCheck,
-      href: "/attendance/records",
+      href: "/allAttendance",
     },
   ],
   engineer: [
