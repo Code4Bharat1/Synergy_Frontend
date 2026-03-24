@@ -46,7 +46,11 @@ const ROLE_NAVIGATION = {
     { label: "Projects", icon: FolderKanban, href: "/admin/project" },
     { label: "Role Assignment", icon: ShieldCheck, href: "/admin/role" },
     { label: "Document Control", icon: FileText, href: "/admin/document" },
-    { label: "Staff Attendance", icon: CalendarCheck, href: "/admin/attendance" },
+    {
+      label: "Staff Attendance",
+      icon: CalendarCheck,
+      href: "/admin/attendance",
+    },
     {
       label: "Worker attendance",
       icon: CalendarCheck,
@@ -247,7 +251,6 @@ const ROLE_NAVIGATION = {
 };
 
 export default function SynergyDashboardLayout({ children }) {
-
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -276,7 +279,7 @@ export default function SynergyDashboardLayout({ children }) {
       }
 
       const navigation = ROLE_NAVIGATION[user.role] || [];
-      const allowedPaths = navigation.map((item) => item.href);
+      const allowedPaths = navigation?.map((item) => item.href);
 
       const isAllowed = allowedPaths.some((path) => pathname.startsWith(path));
 

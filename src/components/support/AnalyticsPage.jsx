@@ -1,15 +1,23 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  TrendingUp, Layers, HardHat, RefreshCw,
-  Clock, Zap, BarChart2, AlertTriangle, Loader2,
+  TrendingUp,
+  Layers,
+  HardHat,
+  RefreshCw,
+  Clock,
+  Zap,
+  BarChart2,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { PageHeader } from "./shared";
 import axiosInstance from "../../lib/axios";
 
-const getToken = () => typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+const getToken = () =>
+  typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 const authCfg = () => ({ headers: { Authorization: `Bearer ${getToken()}` } });
-const daysSince = d => Math.floor((Date.now() - new Date(d)) / 86400000);
+const daysSince = (d) => Math.floor((Date.now() - new Date(d)) / 86400000);
 
 /* ─────────────────────────────────────────────────────────────────────────────
    STATIC fallback data (used when no real data available)
@@ -313,12 +321,21 @@ const RWD = `
 function SeverityBadge({ level }) {
   const c = SEVERITY_STYLES[level] || SEVERITY_STYLES.Low;
   return (
-    <span style={{
-      background: c.bg, color: c.text,
-      padding: "2px 10px", borderRadius: 99,
-      fontSize: 11, fontWeight: 700, letterSpacing: 0.4,
-      display: "inline-block", whiteSpace: "nowrap",
-    }}>{level}</span>
+    <span
+      style={{
+        background: c.bg,
+        color: c.text,
+        padding: "2px 10px",
+        borderRadius: 99,
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: 0.4,
+        display: "inline-block",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {level}
+    </span>
   );
 }
 
@@ -332,20 +349,30 @@ function SectionTitle({ icon: Icon, title }) {
 }
 
 function HBar({ label, value, max, color }) {
-  const pct = ((typeof value === "string" ? parseFloat(value) : value) / (max || 1)) * 100;
+  const pct =
+    ((typeof value === "string" ? parseFloat(value) : value) / (max || 1)) *
+    100;
   const gradient =
-    color === "#FF3B30" ? "linear-gradient(90deg,#FF3B30,#FF6B6B)" :
-      color === "#FF9500" ? "linear-gradient(90deg,#FF9500,#FFBB55)" :
-        color === "#34C759" ? "linear-gradient(90deg,#34C759,#5FD77A)" :
-          "linear-gradient(90deg,#0F2854,#4988C4)";
+    color === "#FF3B30"
+      ? "linear-gradient(90deg,#FF3B30,#FF6B6B)"
+      : color === "#FF9500"
+        ? "linear-gradient(90deg,#FF9500,#FFBB55)"
+        : color === "#34C759"
+          ? "linear-gradient(90deg,#34C759,#5FD77A)"
+          : "linear-gradient(90deg,#0F2854,#4988C4)";
   return (
     <div className="an-hbar">
       <div className="an-hbar-row">
         <span className="an-hbar-label">{label}</span>
-        <span className="an-hbar-val" style={{ color: color || "#0F2854" }}>{value}</span>
+        <span className="an-hbar-val" style={{ color: color || "#0F2854" }}>
+          {value}
+        </span>
       </div>
       <div className="an-hbar-track">
-        <div className="an-hbar-fill" style={{ width: `${pct}%`, background: gradient }} />
+        <div
+          className="an-hbar-fill"
+          style={{ width: `${pct}%`, background: gradient }}
+        />
       </div>
     </div>
   );
@@ -365,8 +392,10 @@ const cardStyle = {
    PAGE
 ───────────────────────────────────────────────────────────────────────────── */
 export default function AnalyticsPage() {
-  const batchColor = r => r > 60 ? "#FF3B30" : r > 40 ? "#FF9500" : "#34C759";
-  const contractorColor = r => r > 10 ? "#FF3B30" : r > 7 ? "#FF9500" : "#34C759";
+  const batchColor = (r) =>
+    r > 60 ? "#FF3B30" : r > 40 ? "#FF9500" : "#34C759";
+  const contractorColor = (r) =>
+    r > 10 ? "#FF3B30" : r > 7 ? "#FF9500" : "#34C759";
 
   // ── Live data from backend ──────────────────────────────────────────
   const [complaints, setComplaints] = useState([]);
@@ -376,33 +405,61 @@ export default function AnalyticsPage() {
     try {
       const r = await axiosInstance.get("/complaints", authCfg());
       setComplaints(Array.isArray(r.data) ? r.data : r.data.data || []);
-    } catch { /* use fallback static data */ }
+    } catch {
+      /* use fallback static data */
+    }
     setDataReady(true);
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // ── Derived stats ─────────────────────────────────────────────────
-  const open = complaints.filter(c => c.status === "open").length;
-  const inProgress = complaints.filter(c => c.status === "in-progress").length;
-  const resolved = complaints.filter(c => c.status === "resolved" || c.status === "closed").length;
-  const critical = complaints.filter(c => c.priority === "critical").length;
+  const open = complaints.filter((c) => c.status === "open").length;
+  const inProgress = complaints.filter(
+    (c) => c.status === "in-progress",
+  ).length;
+  const resolved = complaints.filter(
+    (c) => c.status === "resolved" || c.status === "closed",
+  ).length;
+  const critical = complaints.filter((c) => c.priority === "critical").length;
   const avgDays = complaints.length
-    ? (complaints.reduce((s, c) => s + daysSince(c.createdAt), 0) / complaints.length).toFixed(1)
+    ? (
+        complaints.reduce((s, c) => s + daysSince(c.createdAt), 0) /
+        complaints.length
+      ).toFixed(1)
     : "—";
 
   // By-project chart data from real complaints
   const byProjectMap = {};
-  complaints.forEach(c => {
+  complaints.forEach((c) => {
     const name = c.project?.name || "Unassigned";
     byProjectMap[name] = (byProjectMap[name] || 0) + 1;
   });
-  const byProject = Object.keys(byProjectMap).length > 0
-    ? Object.entries(byProjectMap).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([label, count]) => ({ label, count }))
-    : FALLBACK_BY_PROJECT;
+  const byProject =
+    Object.keys(byProjectMap).length > 0
+      ? Object.entries(byProjectMap)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          ?.map(([label, count]) => ({ label, count }))
+      : FALLBACK_BY_PROJECT;
 
   // Monthly Resolution Analytics (Real Data)
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   const resolutionMap = {};
   // Initialize last 12 months with 0
   for (let i = 11; i >= 0; i--) {
@@ -411,7 +468,7 @@ export default function AnalyticsPage() {
     resolutionMap[monthNames[d.getMonth()]] = 0;
   }
 
-  complaints.forEach(c => {
+  complaints.forEach((c) => {
     if (c.status === "resolved" || c.status === "closed") {
       const d = new Date(c.updatedAt || c.createdAt);
       const m = monthNames[d.getMonth()];
@@ -424,21 +481,62 @@ export default function AnalyticsPage() {
   const maxResolved = Math.max(...monthlyResolved, 10); // min 10 for scale
 
   // By-priority
-  const byPriority = ["critical", "high", "medium", "low"].map(p => ({
-    item: p.charAt(0).toUpperCase() + p.slice(1),
-    count: complaints.filter(c => c.priority === p).length,
-    severity: p.charAt(0).toUpperCase() + p.slice(1),
-  })).filter(x => x.count > 0);
+  const byPriority = ["critical", "high", "medium", "low"]
+    ?.map((p) => ({
+      item: p.charAt(0).toUpperCase() + p.slice(1),
+      count: complaints.filter((c) => c.priority === p).length,
+      severity: p.charAt(0).toUpperCase() + p.slice(1),
+    }))
+    .filter((x) => x.count > 0);
 
-  const projMax = Math.max(...byProject.map(d => d.count), 5);
+  const projMax = Math.max(...byProject?.map((d) => d.count), 5);
 
   const kpis = [
-    { label: "Active Complaints", value: dataReady ? (open + inProgress) : "–", sub: "Currently in system", color: "#FF3B30", icon: Clock },
-    { label: "Resolved Total", value: dataReady ? resolved : "–", sub: "All time resolved", color: "#34C759", icon: Zap },
-    { label: "Critical Priority", value: dataReady ? critical : "–", sub: "Requires attention", color: "#FF3B30", icon: AlertTriangle },
-    { label: "Completion Rate", value: dataReady && complaints.length ? Math.round((resolved / complaints.length) * 100) + "%" : "—", sub: "Lifetime resolution", color: "#4988C4", icon: TrendingUp },
-    { label: "Total Received", value: dataReady ? complaints.length : "–", sub: "All complaints", color: "#1C4D8D", icon: BarChart2 },
-    { label: "Avg Resolution", value: dataReady ? avgDays + "d" : "–", sub: "System average", color: "#9747FF", icon: RefreshCw },
+    {
+      label: "Active Complaints",
+      value: dataReady ? open + inProgress : "–",
+      sub: "Currently in system",
+      color: "#FF3B30",
+      icon: Clock,
+    },
+    {
+      label: "Resolved Total",
+      value: dataReady ? resolved : "–",
+      sub: "All time resolved",
+      color: "#34C759",
+      icon: Zap,
+    },
+    {
+      label: "Critical Priority",
+      value: dataReady ? critical : "–",
+      sub: "Requires attention",
+      color: "#FF3B30",
+      icon: AlertTriangle,
+    },
+    {
+      label: "Completion Rate",
+      value:
+        dataReady && complaints.length
+          ? Math.round((resolved / complaints.length) * 100) + "%"
+          : "—",
+      sub: "Lifetime resolution",
+      color: "#4988C4",
+      icon: TrendingUp,
+    },
+    {
+      label: "Total Received",
+      value: dataReady ? complaints.length : "–",
+      sub: "All complaints",
+      color: "#1C4D8D",
+      icon: BarChart2,
+    },
+    {
+      label: "Avg Resolution",
+      value: dataReady ? avgDays + "d" : "–",
+      sub: "System average",
+      color: "#9747FF",
+      icon: RefreshCw,
+    },
   ];
 
   const batchFailure = [
@@ -453,11 +551,14 @@ export default function AnalyticsPage() {
     { name: "SlideWorks Co.", rate: 5.2 },
     { name: "AquaForm Ltd.", rate: 3.1 },
   ];
-  const byItem = byPriority.length > 0 ? byPriority : [
-    { item: "Funnel Ride X2", count: 7, severity: "Critical" },
-    { item: "Waterslide Alpha", count: 5, severity: "Critical" },
-    { item: "Master Blaster", count: 4, severity: "High" },
-  ];
+  const byItem =
+    byPriority.length > 0
+      ? byPriority
+      : [
+          { item: "Funnel Ride X2", count: 7, severity: "Critical" },
+          { item: "Waterslide Alpha", count: 5, severity: "Critical" },
+          { item: "Master Blaster", count: 4, severity: "High" },
+        ];
 
   return (
     <>
@@ -474,7 +575,7 @@ export default function AnalyticsPage() {
 
       {/* ════════════ KPI STRIP ════════════ */}
       <div className="an-kpi">
-        {kpis.map((k, i) => (
+        {kpis?.map((k, i) => (
           <div
             key={i}
             className="an-kpi-card"
@@ -490,9 +591,11 @@ export default function AnalyticsPage() {
                 color: "#0F2854",
                 fontSize: "clamp(20px, 4vw, 26px)",
                 fontWeight: 800,
-                margin: 0
+                margin: 0,
               }}
-            >{k.value}</div>
+            >
+              {k.value}
+            </div>
             <div className="an-kpi-sub">{k.sub}</div>
           </div>
         ))}
@@ -502,25 +605,32 @@ export default function AnalyticsPage() {
       <div className="an-spark-card">
         <SectionTitle icon={TrendingUp} title="Monthly Resolved Complaints" />
         <div className="an-spark">
-          {monthlyResolved.map((v, i) => {
+          {monthlyResolved?.map((v, i) => {
             const h = (v / maxResolved) * 100;
             const isLast = i === monthlyResolved.length - 1;
             return (
               <div key={i} className="an-spark-col">
                 <span
                   className="an-spark-num"
-                  style={{ color: isLast ? "#0F2854" : "#4988C4", fontWeight: isLast ? 800 : 400 }}
-                >{v}</span>
-                <div style={{
-                  width: "100%",
-                  height: `${h}%`,
-                  minHeight: 4,
-                  borderRadius: "4px 4px 0 0",
-                  background: isLast
-                    ? "linear-gradient(180deg,#0F2854,#1C4D8D)"
-                    : "linear-gradient(180deg,#4988C4,#BDE8F5)",
-                  transition: "height 0.5s",
-                }} />
+                  style={{
+                    color: isLast ? "#0F2854" : "#4988C4",
+                    fontWeight: isLast ? 800 : 400,
+                  }}
+                >
+                  {v}
+                </span>
+                <div
+                  style={{
+                    width: "100%",
+                    height: `${h}%`,
+                    minHeight: 4,
+                    borderRadius: "4px 4px 0 0",
+                    background: isLast
+                      ? "linear-gradient(180deg,#0F2854,#1C4D8D)"
+                      : "linear-gradient(180deg,#4988C4,#BDE8F5)",
+                    transition: "height 0.5s",
+                  }}
+                />
                 <span className="an-spark-mo">{months[i]}</span>
               </div>
             );
@@ -530,11 +640,10 @@ export default function AnalyticsPage() {
 
       {/* ════════════ CHART ROW 1: By Project + Batch Failure ════════════ */}
       <div className="an-charts">
-
         {/* Complaints by Project */}
         <div className="an-chart-card">
           <SectionTitle icon={BarChart2} title="Complaints by Project" />
-          {byProject.map((d, i) => (
+          {byProject?.map((d, i) => (
             <HBar key={i} label={d.label} value={d.count} max={projMax} />
           ))}
         </div>
@@ -542,7 +651,7 @@ export default function AnalyticsPage() {
         {/* Batch Failure % */}
         <div className="an-chart-card">
           <SectionTitle icon={Layers} title="Batch Failure %" />
-          {batchFailure.map((d, i) => (
+          {batchFailure?.map((d, i) => (
             <HBar
               key={i}
               label={d.batch}
@@ -552,9 +661,30 @@ export default function AnalyticsPage() {
             />
           ))}
           <div className="an-legend">
-            {[["Critical >60%", "#FF3B30"], ["High 40–60%", "#FF9500"], ["Low <40%", "#34C759"]].map(([lbl, col]) => (
-              <div key={lbl} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "#4988C4" }}>
-                <div style={{ width: 8, height: 8, borderRadius: 2, background: col, flexShrink: 0 }} />
+            {[
+              ["Critical >60%", "#FF3B30"],
+              ["High 40–60%", "#FF9500"],
+              ["Low <40%", "#34C759"],
+            ]?.map(([lbl, col]) => (
+              <div
+                key={lbl}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 10,
+                  color: "#4988C4",
+                }}
+              >
+                <div
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 2,
+                    background: col,
+                    flexShrink: 0,
+                  }}
+                />
                 {lbl}
               </div>
             ))}
@@ -564,12 +694,18 @@ export default function AnalyticsPage() {
 
       {/* ════════════ CHART ROW 2: Items + Contractor ════════════ */}
       <div className="an-charts">
-
         {/* Complaints by Item */}
         <div className="an-item-card">
           <div className="an-item-header">
             <BarChart2 size={14} color="#4988C4" />
-            <span style={{ color: "#0F2854", fontWeight: 700, fontSize: 14, fontFamily: "'Syne',sans-serif" }}>
+            <span
+              style={{
+                color: "#0F2854",
+                fontWeight: 700,
+                fontSize: 14,
+                fontFamily: "'Syne',sans-serif",
+              }}
+            >
               Complaints by Item
             </span>
           </div>
@@ -579,17 +715,34 @@ export default function AnalyticsPage() {
             <table className="an-tbl">
               <thead>
                 <tr style={{ background: "rgba(189,232,245,0.2)" }}>
-                  {["Item", "Count", "Top Severity"].map(h => (
-                    <th key={h} className="an-th">{h}</th>
+                  {["Item", "Count", "Top Severity"]?.map((h) => (
+                    <th key={h} className="an-th">
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {byItem.map((b, i) => (
-                  <tr key={i} style={{ borderTop: "1px solid rgba(73,136,196,0.08)" }}>
-                    <td className="an-td" style={{ color: "#0F2854", fontSize: 12 }}>{b.item}</td>
-                    <td className="an-td" style={{ color: "#1C4D8D", fontWeight: 800 }}>{b.count}</td>
-                    <td className="an-td"><SeverityBadge level={b.severity} /></td>
+                {byItem?.map((b, i) => (
+                  <tr
+                    key={i}
+                    style={{ borderTop: "1px solid rgba(73,136,196,0.08)" }}
+                  >
+                    <td
+                      className="an-td"
+                      style={{ color: "#0F2854", fontSize: 12 }}
+                    >
+                      {b.item}
+                    </td>
+                    <td
+                      className="an-td"
+                      style={{ color: "#1C4D8D", fontWeight: 800 }}
+                    >
+                      {b.count}
+                    </td>
+                    <td className="an-td">
+                      <SeverityBadge level={b.severity} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -598,7 +751,7 @@ export default function AnalyticsPage() {
 
           {/* ── Mobile cards ── */}
           <div className="an-mob-cards">
-            {byItem.map((b, i) => (
+            {byItem?.map((b, i) => (
               <div key={i} className="an-mc">
                 <span className="an-mc-name">{b.item}</span>
                 <div className="an-mc-right">
@@ -614,31 +767,51 @@ export default function AnalyticsPage() {
         <div className="an-chart-card">
           <SectionTitle icon={HardHat} title="Contractor Defect Rate" />
 
-          {contractors.map((c, i) => {
+          {contractors?.map((c, i) => {
             const col = contractorColor(c.rate);
             return (
               <div key={i} className="an-ctr-row">
                 <div>
-                  <div style={{ color: "#0F2854", fontSize: 13, fontWeight: 600 }}>{c.name}</div>
-                  <div style={{ color: "#4988C4", fontSize: 10, marginTop: 2 }}>Defect rate</div>
+                  <div
+                    style={{ color: "#0F2854", fontSize: 13, fontWeight: 600 }}
+                  >
+                    {c.name}
+                  </div>
+                  <div style={{ color: "#4988C4", fontSize: 10, marginTop: 2 }}>
+                    Defect rate
+                  </div>
                 </div>
                 <div className="an-ctr-bar-wrap">
-                  <div style={{
-                    width: 72, height: 6,
-                    background: "rgba(73,136,196,0.12)",
-                    borderRadius: 99, overflow: "hidden",
-                    flexShrink: 0,
-                  }}>
-                    <div style={{
-                      height: "100%",
-                      width: `${(c.rate / 15) * 100}%`,
-                      background: col, borderRadius: 99,
-                    }} />
+                  <div
+                    style={{
+                      width: 72,
+                      height: 6,
+                      background: "rgba(73,136,196,0.12)",
+                      borderRadius: 99,
+                      overflow: "hidden",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${(c.rate / 15) * 100}%`,
+                        background: col,
+                        borderRadius: 99,
+                      }}
+                    />
                   </div>
-                  <span style={{
-                    color: col, fontSize: 13, fontWeight: 800,
-                    minWidth: 40, textAlign: "right",
-                  }}>{c.rate}%</span>
+                  <span
+                    style={{
+                      color: col,
+                      fontSize: 13,
+                      fontWeight: 800,
+                      minWidth: 40,
+                      textAlign: "right",
+                    }}
+                  >
+                    {c.rate}%
+                  </span>
                 </div>
               </div>
             );
@@ -657,16 +830,17 @@ export default function AnalyticsPage() {
                 ["Same Item", "8", "#FF9500"],
                 ["Same Batch", "5", "#FF9500"],
                 ["Same Client", "3", "#4988C4"],
-              ].map(([k, v, col]) => (
+              ]?.map(([k, v, col]) => (
                 <div key={k} className="an-freq-cell">
-                  <div className="an-freq-val" style={{ color: col }}>{v}</div>
+                  <div className="an-freq-val" style={{ color: col }}>
+                    {v}
+                  </div>
                   <div className="an-freq-lbl">{k}</div>
                 </div>
               ))}
             </div>
           </div>
         </div>
-
       </div>
     </>
   );

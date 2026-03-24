@@ -52,7 +52,7 @@ function DetailWithLinks({ text }) {
   const parts = text.split(urlRegex);
   return (
     <p className="text-sm text-gray-600 leading-relaxed break-words">
-      {parts.map((part, i) =>
+      {parts?.map((part, i) =>
         urlRegex.test(part) ? (
           <Link key={i} href={part} target="_blank" rel="noopener noreferrer"
             className="text-blue-500 underline hover:text-blue-700 transition-colors break-all">
@@ -119,7 +119,7 @@ function DetailModal({ item, onClose }) {
         const obj = JSON.parse(item.detail.replace("Details: ", ""));
         return (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {Object.entries(obj).map(([k, v]) => (
+            {Object.entries(obj)?.map(([k, v]) => (
               <div key={k} className="bg-gray-50 p-3 rounded-xl border border-gray-100">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">
                   {k.replace(/([A-Z])/g, ' $1').trim()}
@@ -333,7 +333,7 @@ export default function Approvals() {
       const approvals = Array.isArray(appRes) ? appRes : appRes.approvals || [];
       const expenses = Array.isArray(expRes) ? expRes : expRes.expenses || [];
 
-      const mappedDocs = docs.map(d => ({
+      const mappedDocs = docs?.map(d => ({
         id: d._id,
         source: "documents",
         type: "Document Review",
@@ -349,7 +349,7 @@ export default function Approvals() {
         url: d.url ? (d.url.startsWith("http") ? d.url : `${FILE_BASE}${d.url}`) : "",
       }));
 
-      const mappedApps = approvals.map(a => {
+      const mappedApps = approvals?.map(a => {
         let detailString = "";
         try { detailString = `Details: ${JSON.stringify(a.details)}`; } catch(e) {}
 
@@ -369,7 +369,7 @@ export default function Approvals() {
         };
       });
 
-      const mappedExps = expenses.map(e => ({
+      const mappedExps = expenses?.map(e => ({
         id: e._id,
         source: "expenses",
         type: "Expense Approval",
@@ -423,7 +423,7 @@ export default function Approvals() {
       }
 
       await apiFetch(endpoint, { method, body: JSON.stringify(payload) });
-      setItems(p => p.map(i => i.id === item.id ? { ...i, status: "Approved" } : i));
+      setItems(p => p?.map(i => i.id === item.id ? { ...i, status: "Approved" } : i));
       showToast("Request approved successfully");
     } catch (err) {
       console.error("Error approving:", err);
@@ -454,7 +454,7 @@ export default function Approvals() {
       }
 
       await apiFetch(endpoint, { method, body: JSON.stringify(payload) });
-      setItems(p => p.map(i => i.id === rejecting.id ? { ...i, status: "Rejected" } : i));
+      setItems(p => p?.map(i => i.id === rejecting.id ? { ...i, status: "Rejected" } : i));
       setRejecting(null);
       showToast("Request rejected successfully");
     } catch (err) {
@@ -508,7 +508,7 @@ export default function Approvals() {
             onChange={(e) => setFilter(e.target.value)}
             className="w-full text-sm border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-extra-darkblue transition-all text-extra-darkblue font-bold bg-white shadow-sm"
           >
-            {ALL_TYPES.map(f => (
+            {ALL_TYPES?.map(f => (
               <option key={f} value={f}>{f === "All" ? "Filter by Category" : f}</option>
             ))}
           </select>
@@ -516,7 +516,7 @@ export default function Approvals() {
 
         {/* Desktop scrollable filter */}
         <div className="hidden sm:flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
-          {ALL_TYPES.map(f => (
+          {ALL_TYPES?.map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={`px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0
                 ${filter === f
@@ -535,7 +535,7 @@ export default function Approvals() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(item => (
+          {filtered?.map(item => (
             <ApprovalCard
               key={item.id}
               item={item}

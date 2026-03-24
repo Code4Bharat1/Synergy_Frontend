@@ -2,15 +2,33 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
-  Search, X, Filter, Calendar, User, MapPin, Package,
-  Hash, ChevronRight, Clock, AlertCircle, Loader2,
+  Search,
+  X,
+  Filter,
+  Calendar,
+  User,
+  MapPin,
+  Package,
+  Hash,
+  ChevronRight,
+  Clock,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
-import { SeverityBadge, StatusBadge, PageHeader, Card, inputStyle, labelStyle } from "./shared";
+import {
+  SeverityBadge,
+  StatusBadge,
+  PageHeader,
+  Card,
+  inputStyle,
+  labelStyle,
+} from "./shared";
 import axiosInstance from "../../lib/axios";
 
-const getToken = () => typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+const getToken = () =>
+  typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 const authCfg = () => ({ headers: { Authorization: `Bearer ${getToken()}` } });
-const daysSince = d => Math.floor((Date.now() - new Date(d)) / 86400000);
+const daysSince = (d) => Math.floor((Date.now() - new Date(d)) / 86400000);
 
 // ── Inline fallbacks if shared isn't wired up yet ─────────────────────────────
 function SeverityBadgeFallback({ level }) {
@@ -22,51 +40,179 @@ function SeverityBadgeFallback({ level }) {
   };
   const c = map[level] || map.Low;
   return (
-    <span style={{
-      background: c.bg, color: c.text,
-      padding: "2px 10px", borderRadius: 99,
-      fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
-      display: "inline-block", whiteSpace: "nowrap",
-    }}>{level}</span>
+    <span
+      style={{
+        background: c.bg,
+        color: c.text,
+        padding: "2px 10px",
+        borderRadius: 99,
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: 0.5,
+        display: "inline-block",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {level}
+    </span>
   );
 }
 
 function StatusBadgeFallback({ status }) {
   const map = {
-    "Open": { bg: "rgba(255,59,48,0.12)", border: "#FF3B30", text: "#FF3B30" },
-    "Under Review": { bg: "rgba(255,149,0,0.12)", border: "#FF9500", text: "#FF9500" },
-    "Resolved": { bg: "rgba(52,199,89,0.12)", border: "#34C759", text: "#34C759" },
+    Open: { bg: "rgba(255,59,48,0.12)", border: "#FF3B30", text: "#FF3B30" },
+    "Under Review": {
+      bg: "rgba(255,149,0,0.12)",
+      border: "#FF9500",
+      text: "#FF9500",
+    },
+    Resolved: {
+      bg: "rgba(52,199,89,0.12)",
+      border: "#34C759",
+      text: "#34C759",
+    },
   };
   const c = map[status] || map["Open"];
   return (
-    <span style={{
-      background: c.bg, border: `1px solid ${c.border}`, color: c.text,
-      padding: "2px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
-      display: "inline-block", whiteSpace: "nowrap",
-    }}>{status}</span>
+    <span
+      style={{
+        background: c.bg,
+        border: `1px solid ${c.border}`,
+        color: c.text,
+        padding: "2px 10px",
+        borderRadius: 99,
+        fontSize: 11,
+        fontWeight: 600,
+        display: "inline-block",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {status}
+    </span>
   );
 }
 
-const SB = typeof SeverityBadge !== "undefined" ? SeverityBadge : SeverityBadgeFallback;
-const STB = typeof StatusBadge !== "undefined" ? StatusBadge : StatusBadgeFallback;
+const SB =
+  typeof SeverityBadge !== "undefined" ? SeverityBadge : SeverityBadgeFallback;
+const STB =
+  typeof StatusBadge !== "undefined" ? StatusBadge : StatusBadgeFallback;
 
 // ── Mock data fallback ────────────────────────────────────────────────────────
-const _mockComplaints = (typeof mockComplaints !== "undefined" ? mockComplaints : [
-  { id: "CMP-001", projectNo: "PRJ-2401", item: "Waterslide Alpha", severity: "Critical", status: "Open", daysOpen: 14, client: "AquaPark Dubai", location: "Dubai" },
-  { id: "CMP-002", projectNo: "PRJ-2389", item: "Wave Pool Panel B", severity: "High", status: "Under Review", daysOpen: 7, client: "Blue Lagoon Resort", location: "Maldives" },
-  { id: "CMP-003", projectNo: "PRJ-2401", item: "Lazy River Flume", severity: "Medium", status: "Resolved", daysOpen: 3, client: "AquaPark Dubai", location: "Dubai" },
-  { id: "CMP-004", projectNo: "PRJ-2376", item: "Speed Slide Pro", severity: "Low", status: "Open", daysOpen: 2, client: "SunSplash Inc.", location: "Florida" },
-  { id: "CMP-005", projectNo: "PRJ-2412", item: "Funnel Ride X2", severity: "Critical", status: "Under Review", daysOpen: 21, client: "Ocean World", location: "Singapore" },
-  { id: "CMP-006", projectNo: "PRJ-2398", item: "Body Slide 360", severity: "High", status: "Open", daysOpen: 9, client: "Aqua Universe", location: "Spain" },
-  { id: "CMP-007", projectNo: "PRJ-2389", item: "Speed Slide Mini", severity: "Medium", status: "Resolved", daysOpen: 5, client: "Blue Lagoon Resort", location: "Maldives" },
-  { id: "CMP-008", projectNo: "PRJ-2412", item: "Master Blaster", severity: "High", status: "Open", daysOpen: 11, client: "Ocean World", location: "Singapore" },
-]);
+const _mockComplaints =
+  typeof mockComplaints !== "undefined"
+    ? mockComplaints
+    : [
+        {
+          id: "CMP-001",
+          projectNo: "PRJ-2401",
+          item: "Waterslide Alpha",
+          severity: "Critical",
+          status: "Open",
+          daysOpen: 14,
+          client: "AquaPark Dubai",
+          location: "Dubai",
+        },
+        {
+          id: "CMP-002",
+          projectNo: "PRJ-2389",
+          item: "Wave Pool Panel B",
+          severity: "High",
+          status: "Under Review",
+          daysOpen: 7,
+          client: "Blue Lagoon Resort",
+          location: "Maldives",
+        },
+        {
+          id: "CMP-003",
+          projectNo: "PRJ-2401",
+          item: "Lazy River Flume",
+          severity: "Medium",
+          status: "Resolved",
+          daysOpen: 3,
+          client: "AquaPark Dubai",
+          location: "Dubai",
+        },
+        {
+          id: "CMP-004",
+          projectNo: "PRJ-2376",
+          item: "Speed Slide Pro",
+          severity: "Low",
+          status: "Open",
+          daysOpen: 2,
+          client: "SunSplash Inc.",
+          location: "Florida",
+        },
+        {
+          id: "CMP-005",
+          projectNo: "PRJ-2412",
+          item: "Funnel Ride X2",
+          severity: "Critical",
+          status: "Under Review",
+          daysOpen: 21,
+          client: "Ocean World",
+          location: "Singapore",
+        },
+        {
+          id: "CMP-006",
+          projectNo: "PRJ-2398",
+          item: "Body Slide 360",
+          severity: "High",
+          status: "Open",
+          daysOpen: 9,
+          client: "Aqua Universe",
+          location: "Spain",
+        },
+        {
+          id: "CMP-007",
+          projectNo: "PRJ-2389",
+          item: "Speed Slide Mini",
+          severity: "Medium",
+          status: "Resolved",
+          daysOpen: 5,
+          client: "Blue Lagoon Resort",
+          location: "Maldives",
+        },
+        {
+          id: "CMP-008",
+          projectNo: "PRJ-2412",
+          item: "Master Blaster",
+          severity: "High",
+          status: "Open",
+          daysOpen: 11,
+          client: "Ocean World",
+          location: "Singapore",
+        },
+      ];
 
 const FIELDS = [
-  { label: "COMPLAINT TITLE", key: "title", placeholder: "Search title…", icon: Hash, type: "text" },
-  { label: "PROJECT NAME", key: "project", placeholder: "Project name…", icon: Package, type: "text" },
-  { label: "DATE FROM", key: "dateFrom", placeholder: "", icon: Calendar, type: "date" },
-  { label: "DATE TO", key: "dateTo", placeholder: "", icon: Calendar, type: "date" },
+  {
+    label: "COMPLAINT TITLE",
+    key: "title",
+    placeholder: "Search title…",
+    icon: Hash,
+    type: "text",
+  },
+  {
+    label: "PROJECT NAME",
+    key: "project",
+    placeholder: "Project name…",
+    icon: Package,
+    type: "text",
+  },
+  {
+    label: "DATE FROM",
+    key: "dateFrom",
+    placeholder: "",
+    icon: Calendar,
+    type: "date",
+  },
+  {
+    label: "DATE TO",
+    key: "dateTo",
+    placeholder: "",
+    icon: Calendar,
+    type: "date",
+  },
 ];
 const EMPTY = { title: "", project: "", status: "", dateFrom: "", dateTo: "" };
 
@@ -76,24 +222,37 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const set = (key, val) => setFilters(prev => ({ ...prev, [key]: val }));
+  const set = (key, val) => setFilters((prev) => ({ ...prev, [key]: val }));
 
   const fetchComplaints = useCallback(async () => {
     try {
-      setLoading(true); setError(null);
+      setLoading(true);
+      setError(null);
       const r = await axiosInstance.get("/complaints", authCfg());
       setComplaints(Array.isArray(r.data) ? r.data : r.data.data || []);
-    } catch (e) { setError("Failed to load complaints."); } finally { setLoading(false); }
+    } catch (e) {
+      setError("Failed to load complaints.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { fetchComplaints(); }, [fetchComplaints]);
+  useEffect(() => {
+    fetchComplaints();
+  }, [fetchComplaints]);
 
-  const filtered = complaints.filter(c =>
-    (!filters.title || c.title?.toLowerCase().includes(filters.title.toLowerCase())) &&
-    (!filters.project || c.project?.name?.toLowerCase().includes(filters.project.toLowerCase())) &&
-    (!filters.status || c.status === filters.status) &&
-    (!filters.dateFrom || new Date(c.createdAt) >= new Date(filters.dateFrom)) &&
-    (!filters.dateTo || new Date(c.createdAt) <= new Date(filters.dateTo))
+  const filtered = complaints.filter(
+    (c) =>
+      (!filters.title ||
+        c.title?.toLowerCase().includes(filters.title.toLowerCase())) &&
+      (!filters.project ||
+        c.project?.name
+          ?.toLowerCase()
+          .includes(filters.project.toLowerCase())) &&
+      (!filters.status || c.status === filters.status) &&
+      (!filters.dateFrom ||
+        new Date(c.createdAt) >= new Date(filters.dateFrom)) &&
+      (!filters.dateTo || new Date(c.createdAt) <= new Date(filters.dateTo)),
   );
 
   const hasFilters = Object.values(filters).some(Boolean);
@@ -271,13 +430,28 @@ export default function SearchPage() {
       `}</style>
 
       <div className="sp-wrapper">
-
         {/* ── Page Header ── */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ color: "#4988C4", fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>
+          <div
+            style={{
+              color: "#4988C4",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: 2,
+              textTransform: "uppercase",
+              marginBottom: 4,
+            }}
+          >
             Historical Records
           </div>
-          <h1 style={{ color: "#0F2854", fontSize: "clamp(20px, 4vw, 26px)", fontWeight: 800, margin: 0 }}>
+          <h1
+            style={{
+              color: "#0F2854",
+              fontSize: "clamp(20px, 4vw, 26px)",
+              fontWeight: 800,
+              margin: 0,
+            }}
+          >
             Complaint History
           </h1>
           <p style={{ color: "#4988C4", fontSize: 13, margin: "4px 0 0" }}>
@@ -287,23 +461,35 @@ export default function SearchPage() {
 
         {/* ── Filter Card ── */}
         <div className="sp-card" style={{ padding: "22px" }}>
-          <div style={{ color: "#0F2854", fontWeight: 700, fontSize: 14, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              color: "#0F2854",
+              fontWeight: 700,
+              fontSize: 14,
+              marginBottom: 16,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
             <Filter size={16} color="#4988C4" />
             Filter Complaints
           </div>
 
           <div className="filter-grid">
-            {FIELDS.map(({ label, key, placeholder, icon: Icon, type }) => (
+            {FIELDS?.map(({ label, key, placeholder, icon: Icon, type }) => (
               <div key={key}>
                 <label className="sp-label">{label}</label>
                 <div className="input-wrap">
-                  <span className="input-icon"><Icon size={14} /></span>
+                  <span className="input-icon">
+                    <Icon size={14} />
+                  </span>
                   <input
                     className="sp-input"
                     type={type}
                     placeholder={placeholder}
                     value={filters[key]}
-                    onChange={e => set(key, e.target.value)}
+                    onChange={(e) => set(key, e.target.value)}
                   />
                 </div>
               </div>
@@ -315,12 +501,14 @@ export default function SearchPage() {
             <div className="status-select-wrap">
               <label className="sp-label">STATUS</label>
               <div className="input-wrap">
-                <span className="input-icon"><AlertCircle size={14} /></span>
+                <span className="input-icon">
+                  <AlertCircle size={14} />
+                </span>
                 <select
                   className="sp-input"
                   style={{ cursor: "pointer", appearance: "none" }}
                   value={filters.status}
-                  onChange={e => set("status", e.target.value)}
+                  onChange={(e) => set("status", e.target.value)}
                 >
                   <option value="">All Statuses</option>
                   <option>Open</option>
@@ -356,23 +544,35 @@ export default function SearchPage() {
 
         {/* ── Results ── */}
         <div className="sp-card" style={{ overflow: "hidden" }}>
-
           {/* Results header */}
-          <div style={{
-            padding: "14px 22px",
-            borderBottom: "1px solid rgba(73,136,196,0.1)",
-            background: "rgba(189,232,245,0.08)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 8,
-          }}>
-            <span style={{ color: "#0F2854", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+          <div
+            style={{
+              padding: "14px 22px",
+              borderBottom: "1px solid rgba(73,136,196,0.1)",
+              background: "rgba(189,232,245,0.08)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 8,
+            }}
+          >
+            <span
+              style={{
+                color: "#0F2854",
+                fontWeight: 700,
+                fontSize: 13,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
               <Search size={14} color="#4988C4" />
               {filtered.length} result{filtered.length !== 1 ? "s" : ""} found
             </span>
-            <span style={{ color: "#4988C4", fontSize: 11 }}>Click View to open complaint detail</span>
+            <span style={{ color: "#4988C4", fontSize: 11 }}>
+              Click View to open complaint detail
+            </span>
           </div>
 
           {/* ── Desktop Table ── */}
@@ -380,62 +580,201 @@ export default function SearchPage() {
             <table className="results-table">
               <thead>
                 <tr style={{ background: "rgba(189,232,245,0.2)" }}>
-                  {["Complaint ID", "Project No.", "Item", "Client", "Severity", "Status", "Days Open", "Action"].map(h => (
-                    <th key={h} className="rt-th">{h.toUpperCase()}</th>
+                  {[
+                    "Complaint ID",
+                    "Project No.",
+                    "Item",
+                    "Client",
+                    "Severity",
+                    "Status",
+                    "Days Open",
+                    "Action",
+                  ]?.map((h) => (
+                    <th key={h} className="rt-th">
+                      {h.toUpperCase()}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={8} style={{ padding: "32px", textAlign: "center", color: "#4988C4", fontSize: 13 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Loader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} /> Loading complaints…</div>
-                  </td></tr>
-                ) : error ? (
-                  <tr><td colSpan={8} style={{ padding: "20px", textAlign: "center", color: "#FF3B30", fontSize: 13 }}>⚠ {error}</td></tr>
-                ) : filtered.length === 0 ? (
-                  <tr><td colSpan={8} style={{ padding: "32px", textAlign: "center", color: "#4988C4", fontSize: 13 }}>No complaints match your filters.</td></tr>
-                ) : filtered.map((c, i) => (
-                  <tr key={c._id} style={{ borderTop: "1px solid rgba(73,136,196,0.08)", background: i % 2 === 0 ? "#fff" : "rgba(189,232,245,0.03)" }}>
-                    <td className="rt-td" style={{ color: "#1C4D8D", fontWeight: 700 }}>{c._id?.slice(-6).toUpperCase()}</td>
-                    <td className="rt-td" style={{ color: "#0F2854" }}>{c.project?.name || "—"}</td>
-                    <td className="rt-td" style={{ color: "#0F2854", maxWidth: 200, wordBreak: "break-word" }}>{c.title}</td>
-                    <td className="rt-td" style={{ color: "#4988C4", fontSize: 12 }}>{c.loggedBy?.name || "—"}</td>
-                    <td className="rt-td"><SeverityBadge level={c.priority} /></td>
-                    <td className="rt-td"><StatusBadge status={c.status} /></td>
-                    <td className="rt-td" style={{ color: daysSince(c.createdAt) > 10 ? "#FF3B30" : "#34C759", fontWeight: 700 }}>{daysSince(c.createdAt)}d</td>
-                    <td className="rt-td">
-                      <Link href={`/support/detail?id=${c._id}`}>
-                        <span style={{ background: "#0F2854", color: "#BDE8F5", padding: "5px 14px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>View <ChevronRight size={11} /></span>
-                      </Link>
+                  <tr>
+                    <td
+                      colSpan={8}
+                      style={{
+                        padding: "32px",
+                        textAlign: "center",
+                        color: "#4988C4",
+                        fontSize: 13,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <Loader2
+                          size={14}
+                          style={{ animation: "spin 0.8s linear infinite" }}
+                        />{" "}
+                        Loading complaints…
+                      </div>
                     </td>
                   </tr>
-                ))}
+                ) : error ? (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      style={{
+                        padding: "20px",
+                        textAlign: "center",
+                        color: "#FF3B30",
+                        fontSize: 13,
+                      }}
+                    >
+                      ⚠ {error}
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      style={{
+                        padding: "32px",
+                        textAlign: "center",
+                        color: "#4988C4",
+                        fontSize: 13,
+                      }}
+                    >
+                      No complaints match your filters.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered?.map((c, i) => (
+                    <tr
+                      key={c._id}
+                      style={{
+                        borderTop: "1px solid rgba(73,136,196,0.08)",
+                        background:
+                          i % 2 === 0 ? "#fff" : "rgba(189,232,245,0.03)",
+                      }}
+                    >
+                      <td
+                        className="rt-td"
+                        style={{ color: "#1C4D8D", fontWeight: 700 }}
+                      >
+                        {c._id?.slice(-6).toUpperCase()}
+                      </td>
+                      <td className="rt-td" style={{ color: "#0F2854" }}>
+                        {c.project?.name || "—"}
+                      </td>
+                      <td
+                        className="rt-td"
+                        style={{
+                          color: "#0F2854",
+                          maxWidth: 200,
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {c.title}
+                      </td>
+                      <td
+                        className="rt-td"
+                        style={{ color: "#4988C4", fontSize: 12 }}
+                      >
+                        {c.loggedBy?.name || "—"}
+                      </td>
+                      <td className="rt-td">
+                        <SeverityBadge level={c.priority} />
+                      </td>
+                      <td className="rt-td">
+                        <StatusBadge status={c.status} />
+                      </td>
+                      <td
+                        className="rt-td"
+                        style={{
+                          color:
+                            daysSince(c.createdAt) > 10 ? "#FF3B30" : "#34C759",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {daysSince(c.createdAt)}d
+                      </td>
+                      <td className="rt-td">
+                        <Link href={`/support/detail?id=${c._id}`}>
+                          <span
+                            style={{
+                              background: "#0F2854",
+                              color: "#BDE8F5",
+                              padding: "5px 14px",
+                              borderRadius: 6,
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            View <ChevronRight size={11} />
+                          </span>
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
           <div className="results-cards">
-            {filtered.map(c => (
+            {filtered?.map((c) => (
               <div key={c._id} className="rc-card">
                 <div className="rc-top">
-                  <span className="rc-id"><Hash size={12} /> {c._id?.slice(-6).toUpperCase()}</span>
-                  <span style={{ color: daysSince(c.createdAt) > 10 ? "#FF3B30" : "#34C759", fontWeight: 700, fontSize: 12, display: "flex", alignItems: "center", gap: 3 }}>
+                  <span className="rc-id">
+                    <Hash size={12} /> {c._id?.slice(-6).toUpperCase()}
+                  </span>
+                  <span
+                    style={{
+                      color:
+                        daysSince(c.createdAt) > 10 ? "#FF3B30" : "#34C759",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 3,
+                    }}
+                  >
                     <Clock size={12} /> {daysSince(c.createdAt)}d open
                   </span>
                 </div>
                 <div className="rc-item">{c.title}</div>
                 <div className="rc-meta">
-                  <span className="rc-meta-item"><User size={11} /> {c.loggedBy?.name || "Support"}</span>
-                  <span className="rc-meta-item"><Package size={11} /> {c.project?.name || "—"}</span>
+                  <span className="rc-meta-item">
+                    <User size={11} /> {c.loggedBy?.name || "Support"}
+                  </span>
+                  <span className="rc-meta-item">
+                    <Package size={11} /> {c.project?.name || "—"}
+                  </span>
                 </div>
                 <div className="rc-bottom">
-                  <div className="rc-badges"><SeverityBadge level={c.priority} /><StatusBadge status={c.status} /></div>
-                  <Link href={`/support/detail?id=${c._id}`} className="rc-view-btn">View <ChevronRight size={12} /></Link>
+                  <div className="rc-badges">
+                    <SeverityBadge level={c.priority} />
+                    <StatusBadge status={c.status} />
+                  </div>
+                  <Link
+                    href={`/support/detail?id=${c._id}`}
+                    className="rc-view-btn"
+                  >
+                    View <ChevronRight size={12} />
+                  </Link>
                 </div>
               </div>
             ))}
           </div>
-
         </div>
       </div>
     </>

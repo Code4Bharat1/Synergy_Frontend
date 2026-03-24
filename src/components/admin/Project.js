@@ -1,10 +1,26 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Edit2, X, CheckCircle2, MapPin, Calendar, User, RefreshCw, Loader, Phone, FileText, Users, Briefcase, Eye } from "lucide-react";
+import {
+  Plus,
+  Edit2,
+  X,
+  CheckCircle2,
+  MapPin,
+  Calendar,
+  User,
+  RefreshCw,
+  Loader,
+  Phone,
+  FileText,
+  Users,
+  Briefcase,
+  Eye,
+} from "lucide-react";
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 const getToken = () =>
   typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
@@ -20,11 +36,13 @@ const api = {
     const res = await fetch(`${API_BASE}/projects`, { headers: authHeaders() });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to load projects");
-    return Array.isArray(data) ? data : (data.projects || []);
+    return Array.isArray(data) ? data : data.projects || [];
   },
   async createProject(body) {
     const res = await fetch(`${API_BASE}/projects`, {
-      method: "POST", headers: authHeaders(), body: JSON.stringify(body),
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to create project");
@@ -32,7 +50,9 @@ const api = {
   },
   async updateProject(id, body) {
     const res = await fetch(`${API_BASE}/projects/${id}`, {
-      method: "PUT", headers: authHeaders(), body: JSON.stringify(body),
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to update project");
@@ -40,59 +60,73 @@ const api = {
   },
   async deleteProject(id) {
     const res = await fetch(`${API_BASE}/projects/${id}`, {
-      method: "DELETE", headers: authHeaders(),
+      method: "DELETE",
+      headers: authHeaders(),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to delete project");
   },
   async getUsers() {
-    const res = await fetch(`${API_BASE}/admin/users`, { headers: authHeaders() });
+    const res = await fetch(`${API_BASE}/admin/users`, {
+      headers: authHeaders(),
+    });
     if (!res.ok) return [];
     const data = await res.json();
-    return Array.isArray(data) ? data : (data.users || []);
+    return Array.isArray(data) ? data : data.users || [];
   },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const STATUS_OPTIONS = ["initiated", "in-progress", "installation", "testing", "completed", "on-hold"];
+const STATUS_OPTIONS = [
+  "initiated",
+  "in-progress",
+  "installation",
+  "testing",
+  "completed",
+  "on-hold",
+];
 
 const STATUS_STYLE = {
-  "initiated": "bg-gray-50 text-gray-500",
+  initiated: "bg-gray-50 text-gray-500",
   "in-progress": "bg-green-50 text-green-600",
-  "installation": "bg-blue-50 text-blue-600",
-  "testing": "bg-purple-50 text-purple-600",
-  "completed": "bg-emerald-50 text-emerald-600",
+  installation: "bg-blue-50 text-blue-600",
+  testing: "bg-purple-50 text-purple-600",
+  completed: "bg-emerald-50 text-emerald-600",
   "on-hold": "bg-amber-50 text-amber-600",
 };
 
 const STATUS_PROGRESS = {
-  "initiated": 5,
+  initiated: 5,
   "in-progress": 40,
-  "installation": 65,
-  "testing": 80,
-  "completed": 100,
+  installation: 65,
+  testing: 80,
+  completed: 100,
   "on-hold": 30,
 };
 
 const formatStatus = (s) =>
-  s ? s.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "—";
+  s ? s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—";
 
 const formatDate = (d) => {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(d).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 };
 
 const resolveName = (field, users) => {
   if (!field) return null;
   if (typeof field === "object") return field.name || field.email || null;
-  const found = users.find(u => u._id === field);
-  return found ? (found.name || found.email) : null;
+  const found = users.find((u) => u._id === field);
+  return found ? found.name || found.email : null;
 };
 
 const resolveNames = (arr, users) => {
   if (!Array.isArray(arr) || arr.length === 0) return null;
   return arr
-    .map(item => resolveName(item, users))
+    ?.map((item) => resolveName(item, users))
     .filter(Boolean)
     .join(", ");
 };
@@ -101,11 +135,19 @@ const resolveNames = (arr, users) => {
 function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 z-10 max-h-[90dvh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-extra-darkblue">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <X size={18} />
+          </button>
         </div>
         {children}
       </div>
@@ -116,13 +158,16 @@ function Modal({ title, onClose, children }) {
 function Field({ label, children }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{label}</label>
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+        {label}
+      </label>
       {children}
     </div>
   );
 }
 
-const inputCls = "w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:border-blue-400 transition-colors text-gray-800 placeholder-gray-300";
+const inputCls =
+  "w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:border-blue-400 transition-colors text-gray-800 placeholder-gray-300";
 
 // ── Empty form state ──────────────────────────────────────────────────────────
 const EMPTY_FORM = {
@@ -136,7 +181,7 @@ const EMPTY_FORM = {
   description: "",
   assignedMarketingExecutive: "",
   assignedInstallationIncharge: "",
-  assignedEngineers: [],   // array of _id strings
+  assignedEngineers: [], // array of _id strings
 };
 
 const projectToForm = (p) => ({
@@ -153,31 +198,37 @@ const projectToForm = (p) => ({
   assignedInstallationIncharge:
     p.assignedInstallationIncharge?._id || p.assignedInstallationIncharge || "",
   assignedEngineers: Array.isArray(p.assignedEngineers)
-    ? p.assignedEngineers.map(e => e._id || e)
+    ? p.assignedEngineers?.map((e) => e._id || e)
     : [],
 });
 const STATUS_PHASE = {
-  "initiated":    "Site Preparation",
-  "in-progress":  "Wiring & Plumbing",
-  "installation": "Installation",
-  "testing":      "Final Testing",
-  "completed":    "Completed",
-  "on-hold":      "Site Preparation",
+  initiated: "Site Preparation",
+  "in-progress": "Wiring & Plumbing",
+  installation: "Installation",
+  testing: "Final Testing",
+  completed: "Completed",
+  "on-hold": "Site Preparation",
 };
 const toPayload = (f) => ({
   name: f.name.trim(),
   clientName: f.clientName.trim(),
   status: f.status,
   progress: STATUS_PROGRESS[f.status] ?? 0,
-   phase: STATUS_PHASE[f.status],
+  phase: STATUS_PHASE[f.status],
   ...(f.clientContact.trim() && { clientContact: f.clientContact.trim() }),
   ...(f.location.trim() && { location: f.location.trim() }),
   ...(f.description.trim() && { description: f.description.trim() }),
   ...(f.startDate && { startDate: f.startDate }),
   ...(f.endDate && { endDate: f.endDate }),
-  ...(f.assignedMarketingExecutive && { assignedMarketingExecutive: f.assignedMarketingExecutive }),
-  ...(f.assignedInstallationIncharge && { assignedInstallationIncharge: f.assignedInstallationIncharge }),
-  ...(f.assignedEngineers.length > 0 && { assignedEngineers: f.assignedEngineers }),
+  ...(f.assignedMarketingExecutive && {
+    assignedMarketingExecutive: f.assignedMarketingExecutive,
+  }),
+  ...(f.assignedInstallationIncharge && {
+    assignedInstallationIncharge: f.assignedInstallationIncharge,
+  }),
+  ...(f.assignedEngineers.length > 0 && {
+    assignedEngineers: f.assignedEngineers,
+  }),
 });
 
 // ── FormFields — defined OUTSIDE the main component to prevent remounting ─────
@@ -186,17 +237,17 @@ const toPayload = (f) => ({
 // function, React treated it as a new component type on every render and
 // unmounted+remounted it (and its inputs) after each keystroke.
 function FormFields({ form, setForm, users }) {
-  const set = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const marketingExecs = users.filter(u => u.role === "marketingExecutive");
-  const incharges = users.filter(u => u.role === "installationIncharge");
-  const engineers = users.filter(u => u.role === "engineer");
+  const marketingExecs = users.filter((u) => u.role === "marketingExecutive");
+  const incharges = users.filter((u) => u.role === "installationIncharge");
+  const engineers = users.filter((u) => u.role === "engineer");
 
   const toggleEngineer = (id) => {
-    setForm(f => ({
+    setForm((f) => ({
       ...f,
       assignedEngineers: f.assignedEngineers.includes(id)
-        ? f.assignedEngineers.filter(e => e !== id)
+        ? f.assignedEngineers.filter((e) => e !== id)
         : [...f.assignedEngineers, id],
     }));
   };
@@ -205,7 +256,9 @@ function FormFields({ form, setForm, users }) {
     <>
       {/* ── Section: Project Info ── */}
       <div className="pb-1 border-b border-gray-100">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Project Info</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+          Project Info
+        </p>
       </div>
 
       <Field label="Project Name *">
@@ -257,7 +310,9 @@ function FormFields({ form, setForm, users }) {
 
       {/* ── Section: Schedule & Status ── */}
       <div className="pb-1 border-b border-gray-100 pt-1">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Schedule & Status</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+          Schedule & Status
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -280,16 +335,24 @@ function FormFields({ form, setForm, users }) {
       </div>
 
       <Field label="Status">
-        <select className={inputCls} value={form.status} onChange={set("status")}>
-          {STATUS_OPTIONS.map(s => (
-            <option key={s} value={s}>{formatStatus(s)}</option>
+        <select
+          className={inputCls}
+          value={form.status}
+          onChange={set("status")}
+        >
+          {STATUS_OPTIONS?.map((s) => (
+            <option key={s} value={s}>
+              {formatStatus(s)}
+            </option>
           ))}
         </select>
       </Field>
 
       {/* ── Section: Team Assignment ── */}
       <div className="pb-1 border-b border-gray-100 pt-1">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Team Assignment</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+          Team Assignment
+        </p>
       </div>
 
       <Field label="Marketing Executive">
@@ -299,8 +362,10 @@ function FormFields({ form, setForm, users }) {
           onChange={set("assignedMarketingExecutive")}
         >
           <option value="">— None —</option>
-          {marketingExecs.map(u => (
-            <option key={u._id} value={u._id}>{u.name || u.email}</option>
+          {marketingExecs?.map((u) => (
+            <option key={u._id} value={u._id}>
+              {u.name || u.email}
+            </option>
           ))}
         </select>
       </Field>
@@ -312,18 +377,22 @@ function FormFields({ form, setForm, users }) {
           onChange={set("assignedInstallationIncharge")}
         >
           <option value="">— None —</option>
-          {incharges.map(u => (
-            <option key={u._id} value={u._id}>{u.name || u.email}</option>
+          {incharges?.map((u) => (
+            <option key={u._id} value={u._id}>
+              {u.name || u.email}
+            </option>
           ))}
         </select>
       </Field>
 
-      <Field label={`Engineers${form.assignedEngineers.length > 0 ? ` (${form.assignedEngineers.length} selected)` : ""}`}>
+      <Field
+        label={`Engineers${form.assignedEngineers.length > 0 ? ` (${form.assignedEngineers.length} selected)` : ""}`}
+      >
         {engineers.length === 0 ? (
           <p className="text-xs text-gray-400 py-2">No engineers found.</p>
         ) : (
           <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-40 overflow-y-auto">
-            {engineers.map(u => {
+            {engineers?.map((u) => {
               const checked = form.assignedEngineers.includes(u._id);
               return (
                 <label
@@ -331,14 +400,28 @@ function FormFields({ form, setForm, users }) {
                   onClick={() => toggleEngineer(u._id)}
                   className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${checked ? "bg-blue-50" : "hover:bg-gray-50"}`}
                 >
-                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${checked ? "bg-blue-600 border-blue-600" : "border-gray-300"}`}>
+                  <div
+                    className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${checked ? "bg-blue-600 border-blue-600" : "border-gray-300"}`}
+                  >
                     {checked && (
-                      <svg viewBox="0 0 10 8" fill="none" className="w-2.5 h-2.5">
-                        <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <svg
+                        viewBox="0 0 10 8"
+                        fill="none"
+                        className="w-2.5 h-2.5"
+                      >
+                        <path
+                          d="M1 4l3 3 5-6"
+                          stroke="white"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     )}
                   </div>
-                  <span className="text-sm text-gray-700">{u.name || u.email}</span>
+                  <span className="text-sm text-gray-700">
+                    {u.name || u.email}
+                  </span>
                 </label>
               );
             })}
@@ -355,7 +438,7 @@ export default function ProjectManagement() {
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [fetching, setFetching] = useState(true);
-  const [modal, setModal] = useState(null);   // null | "create" | "edit"
+  const [modal, setModal] = useState(null); // null | "create" | "edit"
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -382,11 +465,17 @@ export default function ProjectManagement() {
 
   useEffect(() => {
     loadProjects();
-    api.getUsers().then(setUsers).catch(() => { });
+    api
+      .getUsers()
+      .then(setUsers)
+      .catch(() => {});
   }, [loadProjects]);
 
   // ── Create ────────────────────────────────────────────────────────────────
-  const openCreate = () => { setForm(EMPTY_FORM); setModal("create"); };
+  const openCreate = () => {
+    setForm(EMPTY_FORM);
+    setModal("create");
+  };
 
   const handleCreate = async () => {
     if (!form.name.trim() || !form.clientName.trim()) {
@@ -396,7 +485,7 @@ export default function ProjectManagement() {
     setSaving(true);
     try {
       const project = await api.createProject(toPayload(form));
-      setProjects(prev => [project, ...prev]);
+      setProjects((prev) => [project, ...prev]);
       setModal(null);
       showToast("Project created");
     } catch (err) {
@@ -407,7 +496,11 @@ export default function ProjectManagement() {
   };
 
   // ── Edit ──────────────────────────────────────────────────────────────────
-  const openEdit = (p) => { setSelected(p); setForm(projectToForm(p)); setModal("edit"); };
+  const openEdit = (p) => {
+    setSelected(p);
+    setForm(projectToForm(p));
+    setModal("edit");
+  };
 
   const handleEdit = async () => {
     if (!form.name.trim() || !form.clientName.trim()) {
@@ -417,7 +510,9 @@ export default function ProjectManagement() {
     setSaving(true);
     try {
       const updated = await api.updateProject(selected._id, toPayload(form));
-      setProjects(prev => prev.map(p => p._id === updated._id ? updated : p));
+      setProjects((prev) =>
+        prev?.map((p) => (p._id === updated._id ? updated : p)),
+      );
       setModal(null);
       showToast("Project updated");
     } catch (err) {
@@ -433,7 +528,7 @@ export default function ProjectManagement() {
     setDeleting(id);
     try {
       await api.deleteProject(id);
-      setProjects(prev => prev.filter(p => p._id !== id));
+      setProjects((prev) => prev.filter((p) => p._id !== id));
       setModal(null);
       showToast("Project deleted");
     } catch (err) {
@@ -446,11 +541,17 @@ export default function ProjectManagement() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
-
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-lg ${toast.type === "error" ? "bg-red-500" : "bg-blue-900"}`}>
-          <CheckCircle2 size={15} className={toast.type === "error" ? "text-red-200" : "text-green-400"} />
+        <div
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-lg ${toast.type === "error" ? "bg-red-500" : "bg-blue-900"}`}
+        >
+          <CheckCircle2
+            size={15}
+            className={
+              toast.type === "error" ? "text-red-200" : "text-green-400"
+            }
+          />
           {toast.msg}
         </div>
       )}
@@ -497,9 +598,13 @@ export default function ProjectManagement() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-bold text-extra-darkblue">Project Management</h2>
+          <h2 className="text-lg font-bold text-extra-darkblue">
+            Project Management
+          </h2>
           <p className="text-sm text-gray-400 mt-0.5">
-            {fetching ? "Loading…" : `${projects.length} project${projects.length !== 1 ? "s" : ""}`}
+            {fetching
+              ? "Loading…"
+              : `${projects.length} project${projects.length !== 1 ? "s" : ""}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -523,8 +628,11 @@ export default function ProjectManagement() {
       {/* Loading skeleton */}
       {fetching && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-3 animate-pulse">
+          {[1, 2, 3, 4]?.map((i) => (
+            <div
+              key={i}
+              className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-3 animate-pulse"
+            >
               <div className="h-4 bg-gray-100 rounded w-2/3" />
               <div className="h-3 bg-gray-100 rounded w-1/3" />
               <div className="h-2 bg-gray-100 rounded w-full mt-4" />
@@ -538,34 +646,51 @@ export default function ProjectManagement() {
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center">
           <p className="text-2xl mb-2">📋</p>
           <p className="text-sm font-semibold text-gray-500">No projects yet</p>
-          <p className="text-xs text-gray-400 mt-1">Click "Create Project" to get started.</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Click "Create Project" to get started.
+          </p>
         </div>
       )}
 
       {/* Project Cards */}
       {!fetching && projects.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {projects.map(p => {
+          {projects?.map((p) => {
             const progress = STATUS_PROGRESS[p.status] ?? 0;
-            const inchargeName = resolveName(p.assignedInstallationIncharge, users);
-            const mktExecName = resolveName(p.assignedMarketingExecutive, users);
+            const inchargeName = resolveName(
+              p.assignedInstallationIncharge,
+              users,
+            );
+            const mktExecName = resolveName(
+              p.assignedMarketingExecutive,
+              users,
+            );
             const engNames = resolveNames(p.assignedEngineers, users);
 
             return (
-              <div key={p._id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:border-blue-200 transition-colors">
+              <div
+                key={p._id}
+                className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:border-blue-200 transition-colors"
+              >
                 <div className="p-5">
                   {/* Title + status */}
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
                       <h3 className="text-sm font-bold text-extra-darkblue">
-                        {p.projectId && <span className="text-blue-600 mr-1.5">{p.projectId}</span>}
+                        {p.projectId && (
+                          <span className="text-blue-600 mr-1.5">
+                            {p.projectId}
+                          </span>
+                        )}
                         {p.name}
                       </h3>
                       <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
                         <MapPin size={11} /> {p.location || p.clientName}
                       </div>
                     </div>
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${STATUS_STYLE[p.status] || "bg-gray-50 text-gray-500"}`}>
+                    <span
+                      className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${STATUS_STYLE[p.status] || "bg-gray-50 text-gray-500"}`}
+                    >
                       {formatStatus(p.status)}
                     </span>
                   </div>
@@ -574,7 +699,9 @@ export default function ProjectManagement() {
                   <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4">
                     <div className="flex items-center gap-1.5 text-xs text-gray-500 col-span-2">
                       <Briefcase size={11} className="text-blue-500 shrink-0" />
-                      <span className="font-medium truncate">{p.clientName}</span>
+                      <span className="font-medium truncate">
+                        {p.clientName}
+                      </span>
                       {p.clientContact && (
                         <span className="text-gray-400 flex items-center gap-1 ml-1">
                           <Phone size={10} /> {p.clientContact}
@@ -583,7 +710,9 @@ export default function ProjectManagement() {
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-gray-500">
                       <User size={11} className="text-blue-500 shrink-0" />
-                      <span className="truncate">{inchargeName || "No Incharge"}</span>
+                      <span className="truncate">
+                        {inchargeName || "No Incharge"}
+                      </span>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-gray-500">
                       <Calendar size={11} className="text-blue-500 shrink-0" />
@@ -591,7 +720,10 @@ export default function ProjectManagement() {
                     </div>
                     {mktExecName && (
                       <div className="flex items-center gap-1.5 text-xs text-gray-500 col-span-2">
-                        <Briefcase size={11} className="text-blue-500 shrink-0" />
+                        <Briefcase
+                          size={11}
+                          className="text-blue-500 shrink-0"
+                        />
                         <span className="truncate">Mktg: {mktExecName}</span>
                       </div>
                     )}
@@ -612,7 +744,10 @@ export default function ProjectManagement() {
                   {/* Description preview */}
                   {p.description && (
                     <p className="text-xs text-gray-400 mb-3 line-clamp-2 leading-relaxed">
-                      <FileText size={10} className="inline mr-1 text-gray-300" />
+                      <FileText
+                        size={10}
+                        className="inline mr-1 text-gray-300"
+                      />
                       {p.description}
                     </p>
                   )}
@@ -621,7 +756,9 @@ export default function ProjectManagement() {
                   <div>
                     <div className="flex items-center justify-between text-xs mb-1.5">
                       <span className="text-gray-400">Progress</span>
-                      <span className="font-bold text-blue-600">{progress}%</span>
+                      <span className="font-bold text-blue-600">
+                        {progress}%
+                      </span>
                     </div>
                     <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                       <div

@@ -10,8 +10,10 @@ import {
 } from "lucide-react";
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
-const getToken = () => typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const getToken = () =>
+  typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 const authHeaders = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${getToken()}`,
@@ -20,44 +22,56 @@ const PAGE_SIZE = 25;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function localDateStr(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 function fmtDate(iso) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 function fmtTime(iso) {
   if (!iso) return "—";
-  const d = new Date(iso), h = d.getHours(), m = d.getMinutes();
-  return `${h%12||12}:${String(m).padStart(2,"0")} ${h>=12?"PM":"AM"}`;
+  const d = new Date(iso),
+    h = d.getHours(),
+    m = d.getMinutes();
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
 }
 function fmtDuration(inIso, outIso) {
   if (!inIso || !outIso) return "—";
   const mins = Math.round((new Date(outIso) - new Date(inIso)) / 60000);
   if (mins <= 0) return "—";
-  return `${Math.floor(mins/60)}h ${mins%60}m`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
 }
 function toLocalHHMM(iso) {
   if (!iso) return "";
   const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 const LATE_AFTER = { h:9, m:30 };
 function calcStatus(inHHMM, outHHMM) {
   if (!inHHMM) return "absent";
-  const [inH,inM] = inHHMM.split(":").map(Number);
-  const isLate = inH > LATE_AFTER.h || (inH === LATE_AFTER.h && inM > LATE_AFTER.m);
+  const [inH, inM] = inHHMM.split(":")?.map(Number);
+  const isLate =
+    inH > LATE_AFTER.h || (inH === LATE_AFTER.h && inM > LATE_AFTER.m);
   if (!outHHMM) return isLate ? "late" : "present";
-  const [outH,outM] = outHHMM.split(":").map(Number);
-  const mins = (outH*60+outM)-(inH*60+inM);
+  const [outH, outM] = outHHMM.split(":")?.map(Number);
+  const mins = outH * 60 + outM - (inH * 60 + inM);
   if (mins < 240) return "half-day";
   return isLate ? "late" : "present";
 }
 function getEngineerName(rec) {
-  return rec.assignment?.engineer?.name || rec.markedBy?.name || rec.markedBy?.email || "Unknown Engineer";
+  return (
+    rec.assignment?.engineer?.name ||
+    rec.markedBy?.name ||
+    rec.markedBy?.email ||
+    "Unknown Engineer"
+  );
 }
 function getProjectName(rec) {
-  if (rec.assignment?.project?.name)  return rec.assignment.project.name;
+  if (rec.assignment?.project?.name) return rec.assignment.project.name;
   if (rec.assignment?.project?.title) return rec.assignment.project.title;
   return null;
 }
@@ -76,21 +90,25 @@ const APPROVAL_CONFIG = {
   rejected: { label:"Rejected", cls:"bg-red-50 text-red-600 border-red-200" },
 };
 const TRADE_COLORS = {
-  mason:"bg-orange-50 text-orange-600 border-orange-100",
-  electrician:"bg-yellow-50 text-yellow-700 border-yellow-100",
-  plumber:"bg-blue-50 text-blue-600 border-blue-100",
-  carpenter:"bg-amber-50 text-amber-700 border-amber-100",
-  welder:"bg-red-50 text-red-600 border-red-100",
-  painter:"bg-pink-50 text-pink-600 border-pink-100",
-  supervisor:"bg-indigo-50 text-indigo-600 border-indigo-100",
-  general:"bg-gray-100 text-gray-500 border-gray-200",
-  other:"bg-gray-100 text-gray-500 border-gray-200",
+  mason: "bg-orange-50 text-orange-600 border-orange-100",
+  electrician: "bg-yellow-50 text-yellow-700 border-yellow-100",
+  plumber: "bg-blue-50 text-blue-600 border-blue-100",
+  carpenter: "bg-amber-50 text-amber-700 border-amber-100",
+  welder: "bg-red-50 text-red-600 border-red-100",
+  painter: "bg-pink-50 text-pink-600 border-pink-100",
+  supervisor: "bg-indigo-50 text-indigo-600 border-indigo-100",
+  general: "bg-gray-100 text-gray-500 border-gray-200",
+  other: "bg-gray-100 text-gray-500 border-gray-200",
 };
 const AVATAR_BG = [
-  "bg-orange-100 text-orange-700","bg-blue-100 text-blue-700",
-  "bg-emerald-100 text-emerald-700","bg-purple-100 text-purple-700",
-  "bg-amber-100 text-amber-700","bg-pink-100 text-pink-700",
-  "bg-teal-100 text-teal-700","bg-indigo-100 text-indigo-700",
+  "bg-orange-100 text-orange-700",
+  "bg-blue-100 text-blue-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-purple-100 text-purple-700",
+  "bg-amber-100 text-amber-700",
+  "bg-pink-100 text-pink-700",
+  "bg-teal-100 text-teal-700",
+  "bg-indigo-100 text-indigo-700",
 ];
 function avatarBg(name="") {
   let n=0; for(let i=0;i<name.length;i++) n+=name.charCodeAt(i);
@@ -110,37 +128,50 @@ function Chip({ label, onRemove, color="bg-[#0f1f3d]/10 text-[#0f1f3d]", capital
 // ── API ───────────────────────────────────────────────────────────────────────
 const api = {
   async getAllRecords(dateFrom, dateTo) {
-    const params = new URLSearchParams({ all:"true" });
+    const params = new URLSearchParams({ all: "true" });
     if (dateFrom) params.set("dateFrom", dateFrom);
-    if (dateTo)   params.set("dateTo",   dateTo);
-    const res  = await fetch(`${API_BASE}/site-attendance/all?${params}`, { headers: authHeaders() });
-    const ct   = res.headers.get("content-type") || "";
-    if (!ct.includes("application/json")) throw new Error("Server error — check API_BASE");
+    if (dateTo) params.set("dateTo", dateTo);
+    const res = await fetch(`${API_BASE}/site-attendance/all?${params}`, {
+      headers: authHeaders(),
+    });
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.includes("application/json"))
+      throw new Error("Server error — check API_BASE");
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to load");
     return data.records || [];
   },
   async patchRecord(id, payload) {
-    const res  = await fetch(`${API_BASE}/site-attendance/${id}`, {
-      method:"PATCH", headers: authHeaders(), body: JSON.stringify(payload),
+    const res = await fetch(`${API_BASE}/site-attendance/${id}`, {
+      method: "PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to update");
     return data.record;
   },
   async approveBulk(date, projectId, recordIds) {
-    const body = recordIds?.length ? { recordIds } : { date, ...(projectId ? { projectId } : {}) };
-    const res  = await fetch(`${API_BASE}/site-attendance/approve-bulk`, {
-      method:"POST", headers: authHeaders(), body: JSON.stringify(body),
+    const body = recordIds?.length
+      ? { recordIds }
+      : { date, ...(projectId ? { projectId } : {}) };
+    const res = await fetch(`${API_BASE}/site-attendance/approve-bulk`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Approval failed");
     return data;
   },
   async rejectBulk(date, projectId, recordIds, reason) {
-    const body = recordIds?.length ? { recordIds, reason } : { date, reason, ...(projectId ? { projectId } : {}) };
-    const res  = await fetch(`${API_BASE}/site-attendance/reject-bulk`, {
-      method:"POST", headers: authHeaders(), body: JSON.stringify(body),
+    const body = recordIds?.length
+      ? { recordIds, reason }
+      : { date, reason, ...(projectId ? { projectId } : {}) };
+    const res = await fetch(`${API_BASE}/site-attendance/reject-bulk`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Rejection failed");
@@ -152,10 +183,20 @@ const api = {
 function Toast({ toast }) {
   if (!toast) return null;
   return (
-    <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-xl max-w-[calc(100vw-2rem)] ${
-      toast.type==="success" ? "bg-emerald-500" : toast.type==="info" ? "bg-blue-500" : "bg-red-500"
-    }`}>
-      {toast.type==="success" ? <CheckCheck size={15}/> : <AlertCircle size={15}/>}
+    <div
+      className={`fixed top-4 right-4 z-50 flex items-center gap-2 text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-xl max-w-[calc(100vw-2rem)] ${
+        toast.type === "success"
+          ? "bg-emerald-500"
+          : toast.type === "info"
+            ? "bg-blue-500"
+            : "bg-red-500"
+      }`}
+    >
+      {toast.type === "success" ? (
+        <CheckCheck size={15} />
+      ) : (
+        <AlertCircle size={15} />
+      )}
       <span className="truncate">{toast.msg}</span>
     </div>
   );
@@ -212,12 +253,15 @@ function InlineEditModal({ rec, onClose, onSaved, showToast }) {
       onSaved(updated);
       showToast("Record updated successfully", "success");
       onClose();
-    } catch(err) { showToast(err.message, "error"); }
-    finally { setSaving(false); }
+    } catch (err) {
+      showToast(err.message, "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const worker   = rec.worker || {};
-  const trade    = worker.trade || "general";
+  const worker = rec.worker || {};
+  const trade = worker.trade || "general";
   const tradeCls = TRADE_COLORS[trade] || TRADE_COLORS.general;
 
   return (
@@ -226,7 +270,9 @@ function InlineEditModal({ rec, onClose, onSaved, showToast }) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${avatarBg(worker.name)}`}>
+            <div
+              className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${avatarBg(worker.name)}`}
+            >
               {worker.name?.charAt(0)?.toUpperCase() || "?"}
             </div>
             <div className="min-w-0">
@@ -242,7 +288,12 @@ function InlineEditModal({ rec, onClose, onSaved, showToast }) {
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 shrink-0"><X size={15}/></button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 shrink-0"
+          >
+            <X size={15} />
+          </button>
         </div>
 
         {/* Approved lock notice */}
@@ -267,7 +318,9 @@ function InlineEditModal({ rec, onClose, onSaved, showToast }) {
         {/* Form */}
         <div className={`p-5 space-y-4 ${isApproved ? "opacity-50 pointer-events-none select-none" : ""}`}>
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">Status</label>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
+              Status
+            </label>
             <div className="flex flex-wrap gap-1.5">
               {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
                 <button key={val} onClick={() => setStatus(val)} disabled={isApproved}
@@ -309,8 +362,17 @@ function InlineEditModal({ rec, onClose, onSaved, showToast }) {
 }
 
 // ── Confirm Modal ─────────────────────────────────────────────────────────────
-function ConfirmModal({ action, count, date, projectId, selectedIds, onClose, onDone, showToast }) {
-  const [reason,  setReason]  = useState("");
+function ConfirmModal({
+  action,
+  count,
+  date,
+  projectId,
+  selectedIds,
+  onClose,
+  onDone,
+  showToast,
+}) {
+  const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const isApprove = action === "approve";
 
@@ -321,12 +383,21 @@ function ConfirmModal({ action, count, date, projectId, selectedIds, onClose, on
         const res = await api.approveBulk(date, projectId, selectedIds);
         showToast(`${res.approvedCount} records approved `, "success");
       } else {
-        const res = await api.rejectBulk(date, projectId, selectedIds, reason || "Rejected by admin");
+        const res = await api.rejectBulk(
+          date,
+          projectId,
+          selectedIds,
+          reason || "Rejected by admin",
+        );
         showToast(`${res.rejectedCount} records rejected`, "info");
       }
-      onDone(); onClose();
-    } catch(err) { showToast(err.message, "error"); }
-    finally { setLoading(false); }
+      onDone();
+      onClose();
+    } catch (err) {
+      showToast(err.message, "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -334,22 +405,38 @@ function ConfirmModal({ action, count, date, projectId, selectedIds, onClose, on
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isApprove ? "bg-emerald-50" : "bg-red-50"}`}>
-              {isApprove ? <ThumbsUp size={15} className="text-emerald-500"/> : <ThumbsDown size={15} className="text-red-500"/>}
+            <div
+              className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isApprove ? "bg-emerald-50" : "bg-red-50"}`}
+            >
+              {isApprove ? (
+                <ThumbsUp size={15} className="text-emerald-500" />
+              ) : (
+                <ThumbsDown size={15} className="text-red-500" />
+              )}
             </div>
             <div>
               <h3 className="text-sm font-bold text-[#0f1f3d]">{isApprove ? "Approve Attendance" : "Reject Attendance"}</h3>
               <p className="text-xs text-gray-400">{selectedIds?.length ? `${selectedIds.length} selected records` : `${count} pending records`}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={15}/></button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"
+          >
+            <X size={15} />
+          </button>
         </div>
         <div className="p-5 space-y-3">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${isApprove ? "bg-emerald-50 border-emerald-100" : "bg-red-50 border-red-100"}`}>
+          <div
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${isApprove ? "bg-emerald-50 border-emerald-100" : "bg-red-50 border-red-100"}`}
+          >
             <span className="text-2xl">{isApprove ? "✅" : "❌"}</span>
             <div>
-              <p className={`text-sm font-bold ${isApprove ? "text-emerald-700" : "text-red-600"}`}>
-                {count} record{count!==1?"s":""} will be {isApprove ? "approved" : "rejected"}
+              <p
+                className={`text-sm font-bold ${isApprove ? "text-emerald-700" : "text-red-600"}`}
+              >
+                {count} record{count !== 1 ? "s" : ""} will be{" "}
+                {isApprove ? "approved" : "rejected"}
               </p>
               <p className="text-xs text-gray-400 mt-0.5">
                 {isApprove ? "Approved records will be locked from editing." : "Engineer will need to resubmit after corrections."}
@@ -358,11 +445,17 @@ function ConfirmModal({ action, count, date, projectId, selectedIds, onClose, on
           </div>
           {!isApprove && (
             <div>
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Reason (optional)</label>
-              <textarea value={reason} onChange={e => setReason(e.target.value)}
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                Reason (optional)
+              </label>
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
                 placeholder="e.g. Punch times inconsistent, please verify…"
-                rows={3} maxLength={300}
-                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 text-gray-700 placeholder-gray-300 resize-none"/>
+                rows={3}
+                maxLength={300}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 text-gray-700 placeholder-gray-300 resize-none"
+              />
             </div>
           )}
           {isApprove && (
@@ -373,12 +466,34 @@ function ConfirmModal({ action, count, date, projectId, selectedIds, onClose, on
           )}
         </div>
         <div className="flex gap-2 px-5 pb-5">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-colors">Cancel</button>
-          <button onClick={handleConfirm} disabled={loading}
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={loading}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-40 transition-all active:scale-95 ${
-              isApprove ? "bg-emerald-500 hover:bg-emerald-600" : "bg-red-500 hover:bg-red-600"
-            }`}>
-            {loading ? <><RefreshCw size={13} className="animate-spin"/> Processing…</> : isApprove ? <><ThumbsUp size={13}/> Approve</> : <><ThumbsDown size={13}/> Reject</>}
+              isApprove
+                ? "bg-emerald-500 hover:bg-emerald-600"
+                : "bg-red-500 hover:bg-red-600"
+            }`}
+          >
+            {loading ? (
+              <>
+                <RefreshCw size={13} className="animate-spin" /> Processing…
+              </>
+            ) : isApprove ? (
+              <>
+                <ThumbsUp size={13} /> Approve
+              </>
+            ) : (
+              <>
+                <ThumbsDown size={13} /> Reject
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -589,8 +704,8 @@ export default function AdminAttendancePage() {
   const [error,          setError]          = useState("");
   const [toast,          setToast]          = useState(null);
 
-  const [search,         setSearch]         = useState("");
-  const [statusFilter,   setStatusFilter]   = useState("all");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [approvalFilter, setApprovalFilter] = useState("all");
   const [engineerFilter, setEngineerFilter] = useState("all");
   const [tradeFilter,    setTradeFilter]    = useState("all");
@@ -599,7 +714,9 @@ export default function AdminAttendancePage() {
   const [sortState, setSortState] = useState({ key:"date", dir:"desc" });
 
   const [dateFrom, setDateFrom] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate()-6); return localDateStr(d);
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    return localDateStr(d);
   });
   const [dateTo, setDateTo] = useState(localDateStr());
 
@@ -608,13 +725,22 @@ export default function AdminAttendancePage() {
   const [editingRec,    setEditingRec]    = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
 
-  const showToast = (msg, type="error") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); };
+  const showToast = (msg, type = "error") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   const loadRecords = useCallback(async () => {
-    setFetching(true); setError(""); setSelectedIds(new Set());
-    try { setRecords(await api.getAllRecords(dateFrom, dateTo)); }
-    catch(err) { setError(err.message); }
-    finally { setFetching(false); }
+    setFetching(true);
+    setError("");
+    setSelectedIds(new Set());
+    try {
+      setRecords(await api.getAllRecords(dateFrom, dateTo));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setFetching(false);
+    }
   }, [dateFrom, dateTo]);
 
   useEffect(() => { loadRecords(); }, [loadRecords]);
@@ -651,12 +777,16 @@ export default function AdminAttendancePage() {
   );
 
   const stats = {
-    total:    filtered.length,
-    present:  filtered.filter(r => ["present","late","half-day"].includes(r.status)).length,
-    absent:   filtered.filter(r => r.status === "absent").length,
-    pending:  filtered.filter(r => (r.approvalStatus||"pending") === "pending").length,
-    approved: filtered.filter(r => r.approvalStatus === "approved").length,
-    rejected: filtered.filter(r => r.approvalStatus === "rejected").length,
+    total: filtered.length,
+    present: filtered.filter((r) =>
+      ["present", "late", "half-day"].includes(r.status),
+    ).length,
+    absent: filtered.filter((r) => r.status === "absent").length,
+    pending: filtered.filter(
+      (r) => (r.approvalStatus || "pending") === "pending",
+    ).length,
+    approved: filtered.filter((r) => r.approvalStatus === "approved").length,
+    rejected: filtered.filter((r) => r.approvalStatus === "rejected").length,
   };
 
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
@@ -680,7 +810,11 @@ export default function AdminAttendancePage() {
       r.worker?.phone||"", r.worker?.contractor||"", fmtDate(r.date),
       r.status||"", r.approvalStatus||"pending", r.zone||"", r.notes||"",
     ]);
-    const csv = [headers,...rows].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const csv = [headers, ...rows]
+      ?.map((row) =>
+        row?.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","),
+      )
+      .join("\n");
     const a = document.createElement("a");
     const suffix = engineerFilter !== "all" ? `_${engineerFilter.replace(/\s+/g,"_")}` : "";
     a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
@@ -716,8 +850,12 @@ export default function AdminAttendancePage() {
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
               className="bg-transparent outline-none text-blue-700 text-xs font-semibold cursor-pointer w-[92px]"/>
             <span className="text-blue-300 text-xs">→</span>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-              className="bg-transparent outline-none text-blue-700 text-xs font-semibold cursor-pointer w-[92px]"/>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="bg-transparent outline-none text-blue-700 text-xs font-semibold cursor-pointer w-[92px]"
+            />
           </div>
           <button onClick={() => setShowFilters(v => !v)}
             className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${
@@ -845,9 +983,14 @@ export default function AdminAttendancePage() {
 
       {error && (
         <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-center gap-3">
-          <AlertCircle size={16} className="text-red-400 shrink-0"/>
+          <AlertCircle size={16} className="text-red-400 shrink-0" />
           <p className="text-sm text-red-600">{error}</p>
-          <button onClick={loadRecords} className="ml-auto text-xs font-bold text-red-500 hover:underline shrink-0">Retry</button>
+          <button
+            onClick={loadRecords}
+            className="ml-auto text-xs font-bold text-red-500 hover:underline shrink-0"
+          >
+            Retry
+          </button>
         </div>
       )}
 

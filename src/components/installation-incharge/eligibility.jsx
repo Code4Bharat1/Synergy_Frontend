@@ -7,7 +7,14 @@ const CHECKS = [
     key: "material",
     label: "Material Delivered",
     icon: (
-      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <svg
+        width="16"
+        height="16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+      >
         <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
         <path d="M16 3H8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z" />
       </svg>
@@ -17,7 +24,14 @@ const CHECKS = [
     key: "foundation",
     label: "Foundation Completed",
     icon: (
-      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <svg
+        width="16"
+        height="16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+      >
         <rect x="3" y="17" width="18" height="4" rx="1" />
         <path d="M12 3v14M7 8l5-5 5 5" />
       </svg>
@@ -27,7 +41,14 @@ const CHECKS = [
     key: "customer",
     label: "Customer Readiness",
     icon: (
-      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <svg
+        width="16"
+        height="16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+      >
         <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
@@ -38,7 +59,14 @@ const CHECKS = [
     key: "acceptance",
     label: "Client Acceptance",
     icon: (
-      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <svg
+        width="16"
+        height="16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+      >
         <path d="M9 11l3 3L22 4" />
         <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
       </svg>
@@ -49,10 +77,13 @@ const CHECKS = [
 function getEligibilityStatus(checks) {
   const total = CHECKS.length;
   const done = CHECKS.filter((c) => checks[c.key]).length;
-  if (done === total) return { label: "Eligible",     cls: "bg-green-100 text-green-800" };
-  if (done >= 2)      return { label: "In Progress",  cls: "bg-blue-100 text-blue-800"  };
-  if (done === 1)     return { label: "Partial",      cls: "bg-amber-100 text-amber-800" };
-  return               { label: "Not Started",  cls: "bg-gray-100 text-gray-500"   };
+  if (done === total)
+    return { label: "Eligible", cls: "bg-green-100 text-green-800" };
+  if (done >= 2)
+    return { label: "In Progress", cls: "bg-blue-100 text-blue-800" };
+  if (done === 1)
+    return { label: "Partial", cls: "bg-amber-100 text-amber-800" };
+  return { label: "Not Started", cls: "bg-gray-100 text-gray-500" };
 }
 
 function CheckBox({ checked, onChange, disabled }) {
@@ -62,16 +93,23 @@ function CheckBox({ checked, onChange, disabled }) {
       disabled={disabled}
       aria-pressed={checked}
       className={`w-5 h-5 sm:w-6 sm:h-6 rounded-md flex items-center justify-center shrink-0 transition-all duration-200
-        ${disabled
-          ? "bg-gray-100 border-2 border-gray-200 cursor-not-allowed opacity-50"
-          : checked
-            ? "bg-blue-800 border-0 shadow-md shadow-blue-200 cursor-pointer"
-            : "bg-white border-2 border-slate-300 cursor-pointer"
+        ${
+          disabled
+            ? "bg-gray-100 border-2 border-gray-200 cursor-not-allowed opacity-50"
+            : checked
+              ? "bg-blue-800 border-0 shadow-md shadow-blue-200 cursor-pointer"
+              : "bg-white border-2 border-slate-300 cursor-pointer"
         }`}
     >
       {checked && !disabled && (
         <svg width="12" height="12" viewBox="0 0 13 13" fill="none">
-          <path d="M2.5 6.5L5.5 9.5L10.5 4" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M2.5 6.5L5.5 9.5L10.5 4"
+            stroke="white"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       )}
     </button>
@@ -82,46 +120,74 @@ function CheckBox({ checked, onChange, disabled }) {
 function NoEngineerBanner() {
   return (
     <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mt-3">
-      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
-        className="text-amber-500 shrink-0 mt-0.5">
-        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      <svg
+        width="16"
+        height="16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+        className="text-amber-500 shrink-0 mt-0.5"
+      >
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
       </svg>
       <p className="text-xs font-semibold text-amber-700 leading-snug">
-        No engineer assigned — assign an engineer before completing checks or forwarding this project.
+        No engineer assigned — assign an engineer before completing checks or
+        forwarding this project.
       </p>
     </div>
   );
 }
 
-function ProjectCard({ project, pChecks, onToggle, onProceed, proceeding, proceeded }) {
+function ProjectCard({
+  project,
+  pChecks,
+  onToggle,
+  onProceed,
+  proceeding,
+  proceeded,
+}) {
   const isUnassigned = project.engineer === "Unassigned";
-  const doneCount    = CHECKS.filter((c) => pChecks[c.key]).length;
-  const allDone      = doneCount === CHECKS.length;
-  const eligibility  = getEligibilityStatus(pChecks);
-  const progress     = (doneCount / CHECKS.length) * 100;
-  const locked       = isUnassigned || proceeded;
+  const doneCount = CHECKS.filter((c) => pChecks[c.key]).length;
+  const allDone = doneCount === CHECKS.length;
+  const eligibility = getEligibilityStatus(pChecks);
+  const progress = (doneCount / CHECKS.length) * 100;
+  const locked = isUnassigned || proceeded;
 
   return (
-    <div className={`bg-white rounded-2xl border shadow-sm p-4 transition-all
-      ${isUnassigned ? "border-amber-200 bg-amber-50/20" : "border-gray-100"}`}>
+    <div
+      className={`bg-white rounded-2xl border shadow-sm p-4 transition-all
+      ${isUnassigned ? "border-amber-200 bg-amber-50/20" : "border-gray-100"}`}
+    >
       <div className="flex items-start justify-between mb-3">
         <div>
           <p className="text-xs font-bold text-blue-700">{project.id}</p>
-          <p className="font-semibold text-gray-900 text-sm mt-0.5">{project.name}</p>
+          <p className="font-semibold text-gray-900 text-sm mt-0.5">
+            {project.name}
+          </p>
           <p className="text-xs text-gray-400">{project.client}</p>
         </div>
         <div className="flex flex-col items-end gap-1">
           {proceeded ? (
-            <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">✓ Proceeded</span>
+            <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+              ✓ Proceeded
+            </span>
           ) : isUnassigned ? (
-            <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">⚠ No Engineer</span>
+            <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+              ⚠ No Engineer
+            </span>
           ) : (
-            <span className={`${eligibility.cls} text-xs font-semibold px-2.5 py-0.5 rounded-full`}>
+            <span
+              className={`${eligibility.cls} text-xs font-semibold px-2.5 py-0.5 rounded-full`}
+            >
               {eligibility.label}
             </span>
           )}
-          <span className="text-xs text-gray-400">{doneCount}/{CHECKS.length} checks</span>
+          <span className="text-xs text-gray-400">
+            {doneCount}/{CHECKS.length} checks
+          </span>
         </div>
       </div>
 
@@ -133,7 +199,9 @@ function ProjectCard({ project, pChecks, onToggle, onProceed, proceeding, procee
       </div>
 
       <div className="flex items-center gap-3 mb-4 text-xs text-gray-500">
-        <span className={isUnassigned ? "text-amber-600 font-bold" : ""}>{project.engineer}</span>
+        <span className={isUnassigned ? "text-amber-600 font-bold" : ""}>
+          {project.engineer}
+        </span>
         <span className="text-gray-300">·</span>
         <span>{project.submitted}</span>
       </div>
@@ -141,31 +209,44 @@ function ProjectCard({ project, pChecks, onToggle, onProceed, proceeding, procee
       {/* No-engineer warning on card */}
       {isUnassigned && <NoEngineerBanner />}
 
-      <div className={`grid grid-cols-2 gap-2 mb-4 ${isUnassigned ? "mt-3" : ""}`}>
-        {CHECKS.map((c) => (
+      <div
+        className={`grid grid-cols-2 gap-2 mb-4 ${isUnassigned ? "mt-3" : ""}`}
+      >
+        {CHECKS?.map((c) => (
           <div
             key={c.key}
             onClick={() => !locked && onToggle(project.id, c.key)}
             className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all duration-200 text-left
-              ${locked
-                ? "opacity-50 cursor-not-allowed bg-gray-50 border-gray-100"
-                : pChecks[c.key]
-                  ? "bg-blue-50 border-blue-200 cursor-pointer"
-                  : "bg-gray-50 border-gray-100 hover:border-gray-200 cursor-pointer"
+              ${
+                locked
+                  ? "opacity-50 cursor-not-allowed bg-gray-50 border-gray-100"
+                  : pChecks[c.key]
+                    ? "bg-blue-50 border-blue-200 cursor-pointer"
+                    : "bg-gray-50 border-gray-100 hover:border-gray-200 cursor-pointer"
               }`}
           >
-            <CheckBox checked={pChecks[c.key]} onChange={() => {}} disabled={locked} />
+            <CheckBox
+              checked={pChecks[c.key]}
+              onChange={() => {}}
+              disabled={locked}
+            />
             <div className="flex flex-col min-w-0">
-              <span className={`mb-0.5 ${pChecks[c.key] && !locked ? "text-blue-600" : "text-gray-400"}`}>{c.icon}</span>
-              <span className="text-[10px] font-medium text-gray-600 leading-tight">{c.label}</span>
+              <span
+                className={`mb-0.5 ${pChecks[c.key] && !locked ? "text-blue-600" : "text-gray-400"}`}
+              >
+                {c.icon}
+              </span>
+              <span className="text-[10px] font-medium text-gray-600 leading-tight">
+                {c.label}
+              </span>
             </div>
           </div>
         ))}
       </div>
 
       {/* Proceed button */}
-      {!proceeded && (
-        isUnassigned ? (
+      {!proceeded &&
+        (isUnassigned ? (
           <div className="w-full py-2.5 rounded-xl text-xs font-bold text-center bg-gray-100 text-gray-400 cursor-not-allowed border border-dashed border-gray-200">
             Assign an engineer first
           </div>
@@ -179,10 +260,13 @@ function ProjectCard({ project, pChecks, onToggle, onProceed, proceeding, procee
                 : "bg-gray-100 text-gray-400 cursor-not-allowed"
             }`}
           >
-            {proceeding ? "Processing…" : allDone ? "✓ Proceed to Engineer" : `Complete all checks (${doneCount}/4)`}
+            {proceeding
+              ? "Processing…"
+              : allDone
+                ? "✓ Proceed to Engineer"
+                : `Complete all checks (${doneCount}/4)`}
           </button>
-        )
-      )}
+        ))}
 
       {proceeded && (
         <div className="w-full py-2.5 rounded-xl text-sm font-bold text-center bg-green-50 text-green-700 border border-green-200">
@@ -194,15 +278,15 @@ function ProjectCard({ project, pChecks, onToggle, onProceed, proceeding, procee
 }
 
 export default function EligibilityChecklist() {
-  const [projects,   setProjects]   = useState([]);
-  const [checks,     setChecks]     = useState({});
-  const [proceeded,  setProceeded]  = useState({});
+  const [projects, setProjects] = useState([]);
+  const [checks, setChecks] = useState({});
+  const [proceeded, setProceeded] = useState({});
   const [proceeding, setProceeding] = useState(null);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState(null);
-  const [search,     setSearch]     = useState("");
-  const [filter,     setFilter]     = useState("all");
-  const [toast,      setToast]      = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [toast, setToast] = useState(null);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -210,23 +294,34 @@ export default function EligibilityChecklist() {
   };
 
   useEffect(() => {
-    axiosInstance.get("/projects")
+    axiosInstance
+      .get("/projects")
       .then(({ data }) => {
-        const mapped = data.map((p) => ({
-          id:        p._id,
-          name:      p.name,
-          client:    p.clientName,
-          engineer:  p.assignedEngineers?.length > 0 ? p.assignedEngineers[0].name : "Unassigned",
+        const mapped = data?.map((p) => ({
+          id: p._id,
+          name: p.name,
+          client: p.clientName,
+          engineer:
+            p.assignedEngineers?.length > 0
+              ? p.assignedEngineers[0].name
+              : "Unassigned",
           submitted: new Date(p.createdAt).toLocaleDateString("en-GB", {
-            day: "2-digit", month: "short", year: "numeric",
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
           }),
         }));
         setProjects(mapped);
 
-        const savedChecks    = {};
+        const savedChecks = {};
         const savedProceeded = {};
         data.forEach((p) => {
-          savedChecks[p._id]    = p.eligibilityChecks || { material: false, foundation: false, customer: false, acceptance: false };
+          savedChecks[p._id] = p.eligibilityChecks || {
+            material: false,
+            foundation: false,
+            customer: false,
+            acceptance: false,
+          };
           savedProceeded[p._id] = p.eligibilityStatus === "proceeded";
         });
         setChecks(savedChecks);
@@ -237,7 +332,7 @@ export default function EligibilityChecklist() {
   }, []);
 
   const toggle = (projectId, key) => {
-    const project = projects.find(p => p.id === projectId);
+    const project = projects.find((p) => p.id === projectId);
     if (proceeded[projectId] || project?.engineer === "Unassigned") return;
     setChecks((prev) => ({
       ...prev,
@@ -246,14 +341,16 @@ export default function EligibilityChecklist() {
   };
 
   const handleProceed = async (projectId) => {
-    const project = projects.find(p => p.id === projectId);
+    const project = projects.find((p) => p.id === projectId);
     if (project?.engineer === "Unassigned") {
       showToast("Assign an engineer before proceeding.", "error");
       return;
     }
     setProceeding(projectId);
     try {
-      await axiosInstance.patch(`/projects/${projectId}/eligibility`, { checks: checks[projectId] });
+      await axiosInstance.patch(`/projects/${projectId}/eligibility`, {
+        checks: checks[projectId],
+      });
       setProceeded((prev) => ({ ...prev, [projectId]: true }));
       showToast("Project forwarded to engineer successfully!");
     } catch (err) {
@@ -263,10 +360,13 @@ export default function EligibilityChecklist() {
     }
   };
 
-  const unassignedCount      = projects.filter(p => p.engineer === "Unassigned").length;
-  const totalEligible        = projects.filter(p => proceeded[p.id]).length;
+  const unassignedCount = projects.filter(
+    (p) => p.engineer === "Unassigned",
+  ).length;
+  const totalEligible = projects.filter((p) => proceeded[p.id]).length;
   const totalChecksCompleted = projects.reduce(
-    (acc, p) => acc + CHECKS.filter((c) => checks[p.id]?.[c.key]).length, 0
+    (acc, p) => acc + CHECKS.filter((c) => checks[p.id]?.[c.key]).length,
+    0,
   );
 
   const filtered = projects.filter((p) => {
@@ -275,9 +375,9 @@ export default function EligibilityChecklist() {
       p.id.toLowerCase().includes(search.toLowerCase()) ||
       p.client.toLowerCase().includes(search.toLowerCase());
     if (!matchSearch) return false;
-    if (filter === "proceeded")   return proceeded[p.id];
-    if (filter === "incomplete")  return !proceeded[p.id];
-    if (filter === "unassigned")  return p.engineer === "Unassigned";
+    if (filter === "proceeded") return proceeded[p.id];
+    if (filter === "incomplete") return !proceeded[p.id];
+    if (filter === "unassigned") return p.engineer === "Unassigned";
     return true;
   });
 
@@ -296,48 +396,69 @@ export default function EligibilityChecklist() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
-          <p className="text-red-500 font-semibold mb-1">Failed to load projects</p>
+          <p className="text-red-500 font-semibold mb-1">
+            Failed to load projects
+          </p>
           <p className="text-sm text-gray-400">{error}</p>
         </div>
       </div>
     );
   }
 
-  const now = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const now = new Date().toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-blue-950">
-
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-lg transition-all ${
-          toast.type === "error" ? "bg-red-500" : "bg-green-600"
-        }`}>
+        <div
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-lg transition-all ${
+            toast.type === "error" ? "bg-red-500" : "bg-green-600"
+          }`}
+        >
           {toast.type === "error" ? "⚠" : "✓"} {toast.msg}
         </div>
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-
         <div className="mb-6">
-          <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-0.5">{now}</p>
-          <h1 className="text-xl sm:text-2xl font-bold text-blue-950">Eligibility Checklist</h1>
+          <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-0.5">
+            {now}
+          </p>
+          <h1 className="text-xl sm:text-2xl font-bold text-blue-950">
+            Eligibility Checklist
+          </h1>
         </div>
 
         {/* Global unassigned warning */}
         {unassignedCount > 0 && (
           <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 mb-6">
-            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
-              className="text-amber-500 shrink-0 mt-0.5">
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            <svg
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+              className="text-amber-500 shrink-0 mt-0.5"
+            >
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
             <div>
               <p className="text-sm font-bold text-amber-800">
-                {unassignedCount} project{unassignedCount > 1 ? "s" : ""} without an assigned engineer
+                {unassignedCount} project{unassignedCount > 1 ? "s" : ""}{" "}
+                without an assigned engineer
               </p>
               <p className="text-xs text-amber-600 mt-0.5">
-                Eligibility checks and forwarding are locked until an engineer is assigned to each project.
+                Eligibility checks and forwarding are locked until an engineer
+                is assigned to each project.
               </p>
             </div>
           </div>
@@ -346,14 +467,37 @@ export default function EligibilityChecklist() {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
           {[
-            { label: "Total Projects",   value: projects.length,                                               accent: "border-blue-700"   },
-            { label: "Forwarded",        value: totalEligible,                                                 accent: "border-emerald-500" },
-            { label: "Pending",          value: projects.length - totalEligible,                               accent: "border-amber-400"  },
-            { label: "Checks Completed", value: `${totalChecksCompleted} / ${projects.length * CHECKS.length}`, accent: "border-blue-400" },
-          ].map((s) => (
-            <div key={s.label} className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border-t-4 ${s.accent}`}>
-              <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{s.label}</p>
-              <p className="text-3xl sm:text-4xl font-extrabold text-blue-950 leading-none">{s.value}</p>
+            {
+              label: "Total Projects",
+              value: projects.length,
+              accent: "border-blue-700",
+            },
+            {
+              label: "Forwarded",
+              value: totalEligible,
+              accent: "border-emerald-500",
+            },
+            {
+              label: "Pending",
+              value: projects.length - totalEligible,
+              accent: "border-amber-400",
+            },
+            {
+              label: "Checks Completed",
+              value: `${totalChecksCompleted} / ${projects.length * CHECKS.length}`,
+              accent: "border-blue-400",
+            },
+          ]?.map((s) => (
+            <div
+              key={s.label}
+              className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border-t-4 ${s.accent}`}
+            >
+              <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                {s.label}
+              </p>
+              <p className="text-3xl sm:text-4xl font-extrabold text-blue-950 leading-none">
+                {s.value}
+              </p>
             </div>
           ))}
         </div>
@@ -361,8 +505,17 @@ export default function EligibilityChecklist() {
         {/* Search + Filter */}
         <div className="flex flex-col sm:flex-row gap-3 mb-5">
           <div className="relative flex-1">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
             </svg>
             <input
               value={search}
@@ -373,11 +526,14 @@ export default function EligibilityChecklist() {
           </div>
           <div className="flex gap-1 bg-blue-100/60 rounded-xl p-1 w-full sm:w-auto">
             {[
-              { key: "all",        label: "All"        },
-              { key: "proceeded",  label: "Forwarded"  },
-              { key: "incomplete", label: "Pending"    },
-              { key: "unassigned", label: `No Engineer${unassignedCount > 0 ? ` (${unassignedCount})` : ""}` },
-            ].map((f) => (
+              { key: "all", label: "All" },
+              { key: "proceeded", label: "Forwarded" },
+              { key: "incomplete", label: "Pending" },
+              {
+                key: "unassigned",
+                label: `No Engineer${unassignedCount > 0 ? ` (${unassignedCount})` : ""}`,
+              },
+            ]?.map((f) => (
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
@@ -401,68 +557,128 @@ export default function EligibilityChecklist() {
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-gray-100">
-                  <th className="px-4 py-3.5 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Project</th>
-                  <th className="px-4 py-3.5 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Client</th>
-                  <th className="px-4 py-3.5 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Engineer</th>
-                  <th className="px-4 py-3.5 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Submitted</th>
-                  {CHECKS.map((c) => (
-                    <th key={c.key} className="px-3 py-3.5 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider w-24 min-w-[90px]">
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Project
+                  </th>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Client
+                  </th>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Engineer
+                  </th>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Submitted
+                  </th>
+                  {CHECKS?.map((c) => (
+                    <th
+                      key={c.key}
+                      className="px-3 py-3.5 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider w-24 min-w-[90px]"
+                    >
                       <div className="flex flex-col items-center gap-1">
                         <span className="text-blue-400">{c.icon}</span>
                         <span className="leading-tight">{c.label}</span>
                       </div>
                     </th>
                   ))}
-                  <th className="px-4 py-3.5 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3.5 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider">Action</th>
+                  <th className="px-4 py-3.5 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-3.5 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={4 + CHECKS.length + 2} className="py-10 text-center text-sm text-gray-400">
+                    <td
+                      colSpan={4 + CHECKS.length + 2}
+                      className="py-10 text-center text-sm text-gray-400"
+                    >
                       No projects match your search.
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((project, i) => {
-                    const pChecks      = checks[project.id] || {};
-                    const doneCount    = CHECKS.filter((c) => pChecks[c.key]).length;
-                    const allDone      = doneCount === CHECKS.length;
-                    const isProceeded  = proceeded[project.id];
+                  filtered?.map((project, i) => {
+                    const pChecks = checks[project.id] || {};
+                    const doneCount = CHECKS.filter(
+                      (c) => pChecks[c.key],
+                    ).length;
+                    const allDone = doneCount === CHECKS.length;
+                    const isProceeded = proceeded[project.id];
                     const isUnassigned = project.engineer === "Unassigned";
-                    const eligibility  = getEligibilityStatus(pChecks);
-                    const locked       = isUnassigned || isProceeded;
+                    const eligibility = getEligibilityStatus(pChecks);
+                    const locked = isUnassigned || isProceeded;
 
                     return (
-                      <tr key={project.id}
+                      <tr
+                        key={project.id}
                         className={`border-t border-gray-50 transition-colors
-                          ${isUnassigned ? "bg-amber-50/40 hover:bg-amber-50/60" : i % 2 === 1 ? "bg-slate-50/50 hover:bg-blue-50/30" : "hover:bg-blue-50/30"}`}>
+                          ${isUnassigned ? "bg-amber-50/40 hover:bg-amber-50/60" : i % 2 === 1 ? "bg-slate-50/50 hover:bg-blue-50/30" : "hover:bg-blue-50/30"}`}
+                      >
                         <td className="px-4 py-3.5">
-                          <p className="text-gray-800 font-medium text-xs mt-0.5">{project.name}</p>
+                          <p className="text-gray-800 font-medium text-xs mt-0.5">
+                            {project.name}
+                          </p>
                         </td>
-                        <td className="px-4 py-3.5 text-xs text-gray-500">{project.client}</td>
-                        <td className={`px-4 py-3.5 text-xs font-medium ${isUnassigned ? "text-amber-600 font-bold" : "text-gray-600"}`}>
+                        <td className="px-4 py-3.5 text-xs text-gray-500">
+                          {project.client}
+                        </td>
+                        <td
+                          className={`px-4 py-3.5 text-xs font-medium ${isUnassigned ? "text-amber-600 font-bold" : "text-gray-600"}`}
+                        >
                           {isUnassigned ? (
                             <span className="flex items-center gap-1">
-                              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                              <svg
+                                width="12"
+                                height="12"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                <line x1="12" y1="9" x2="12" y2="13" />
+                                <line x1="12" y1="17" x2="12.01" y2="17" />
                               </svg>
                               Unassigned
                             </span>
-                          ) : project.engineer}
+                          ) : (
+                            project.engineer
+                          )}
                         </td>
-                        <td className="px-4 py-3.5 text-xs text-gray-500">{project.submitted}</td>
+                        <td className="px-4 py-3.5 text-xs text-gray-500">
+                          {project.submitted}
+                        </td>
 
                         {/* Checkboxes — locked if unassigned */}
-                        {CHECKS.map((c) => (
-                          <td key={c.key} className="px-3 py-3.5 text-center w-24">
+                        {CHECKS?.map((c) => (
+                          <td
+                            key={c.key}
+                            className="px-3 py-3.5 text-center w-24"
+                          >
                             {isUnassigned ? (
                               <div className="flex justify-center">
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-gray-100 border-2 border-dashed border-gray-200 flex items-center justify-center opacity-40" title="Assign an engineer first">
-                                  <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                                <div
+                                  className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-gray-100 border-2 border-dashed border-gray-200 flex items-center justify-center opacity-40"
+                                  title="Assign an engineer first"
+                                >
+                                  <svg
+                                    width="10"
+                                    height="10"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <rect
+                                      x="3"
+                                      y="11"
+                                      width="18"
+                                      height="11"
+                                      rx="2"
+                                    />
+                                    <path d="M7 11V7a5 5 0 0110 0v4" />
                                   </svg>
                                 </div>
                               </div>
@@ -482,14 +698,24 @@ export default function EligibilityChecklist() {
                         <td className="px-4 py-3.5 text-center">
                           <div className="flex flex-col items-center gap-1">
                             {isProceeded ? (
-                              <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">✓ Forwarded</span>
+                              <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                                ✓ Forwarded
+                              </span>
                             ) : isUnassigned ? (
-                              <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">⚠ No Engineer</span>
+                              <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                                ⚠ No Engineer
+                              </span>
                             ) : (
-                              <span className={`${eligibility.cls} text-xs font-semibold px-2.5 py-0.5 rounded-full`}>{eligibility.label}</span>
+                              <span
+                                className={`${eligibility.cls} text-xs font-semibold px-2.5 py-0.5 rounded-full`}
+                              >
+                                {eligibility.label}
+                              </span>
                             )}
                             {!isUnassigned && (
-                              <span className="text-[11px] text-gray-400">{doneCount}/{CHECKS.length}</span>
+                              <span className="text-[11px] text-gray-400">
+                                {doneCount}/{CHECKS.length}
+                              </span>
                             )}
                           </div>
                         </td>
@@ -497,14 +723,22 @@ export default function EligibilityChecklist() {
                         {/* Action */}
                         <td className="px-4 py-3.5 text-center">
                           {isProceeded ? (
-                            <span className="text-xs text-green-600 font-semibold">Done</span>
+                            <span className="text-xs text-green-600 font-semibold">
+                              Done
+                            </span>
                           ) : isUnassigned ? (
-                            <span className="text-xs text-amber-500 font-semibold">Assign first</span>
+                            <span className="text-xs text-amber-500 font-semibold">
+                              Assign first
+                            </span>
                           ) : (
                             <button
                               onClick={() => handleProceed(project.id)}
                               disabled={!allDone || proceeding === project.id}
-                              title={!allDone ? "Complete all checks first" : "Forward to engineer"}
+                              title={
+                                !allDone
+                                  ? "Complete all checks first"
+                                  : "Forward to engineer"
+                              }
                               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
                                 allDone && proceeding !== project.id
                                   ? "bg-blue-800 text-white hover:bg-blue-900 shadow-sm"
@@ -531,7 +765,7 @@ export default function EligibilityChecklist() {
               No projects match your search.
             </div>
           ) : (
-            filtered.map((project) => (
+            filtered?.map((project) => (
               <ProjectCard
                 key={project.id}
                 project={project}
@@ -546,7 +780,14 @@ export default function EligibilityChecklist() {
         </div>
 
         <p className="mt-6 text-xs text-gray-400 text-right">
-          Data refreshed · {new Date().toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+          Data refreshed ·{" "}
+          {new Date().toLocaleString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
         </p>
       </div>
     </div>

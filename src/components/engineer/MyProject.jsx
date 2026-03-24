@@ -2,24 +2,46 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
-  FolderOpen, AlertTriangle, CheckSquare, ChevronRight,
-  MapPin, Loader2, ArrowLeft, User, Calendar, Package,
-  CheckCircle2, XCircle, Clock, Search, ClipboardList,
-  Edit2, X, Save, Loader, ListTodo, ChevronDown, FileText, Eye, ExternalLink
+  FolderOpen,
+  AlertTriangle,
+  CheckSquare,
+  ChevronRight,
+  MapPin,
+  Loader2,
+  ArrowLeft,
+  User,
+  Calendar,
+  Package,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Search,
+  ClipboardList,
+  Edit2,
+  X,
+  Save,
+  Loader,
+  ListTodo,
+  ChevronDown,
+  FileText,
+  Eye,
+  ExternalLink,
 } from "lucide-react";
 import axiosInstance from "../../lib/axios";
 
 // ── Inline shared components (replaces shared.js imports) ────────────────────
 function StatusPill({ label, color }) {
   const colorMap = {
-    blue:   "bg-blue-50 text-blue-600",
-    green:  "bg-green-50 text-green-600",
+    blue: "bg-blue-50 text-blue-600",
+    green: "bg-green-50 text-green-600",
     orange: "bg-amber-50 text-amber-600",
-    red:    "bg-red-50 text-red-500",
-    gray:   "bg-gray-100 text-gray-500",
+    red: "bg-red-50 text-red-500",
+    gray: "bg-gray-100 text-gray-500",
   };
   return (
-    <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${colorMap[color] || colorMap.blue}`}>
+    <span
+      className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${colorMap[color] || colorMap.blue}`}
+    >
       {label}
     </span>
   );
@@ -38,7 +60,10 @@ function SectionHead({ icon, title }) {
 
 function Card({ children, style }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden" style={style}>
+    <div
+      className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
+      style={style}
+    >
       {children}
     </div>
   );
@@ -47,7 +72,11 @@ function Card({ children, style }) {
 function PageHeader({ eyebrow, title, subtitle }) {
   return (
     <div className="mb-6">
-      {eyebrow && <p className="text-xs font-bold tracking-widest text-blue-500 uppercase mb-1">{eyebrow}</p>}
+      {eyebrow && (
+        <p className="text-xs font-bold tracking-widest text-blue-500 uppercase mb-1">
+          {eyebrow}
+        </p>
+      )}
       <h1 className="text-2xl font-bold text-extra-darkblue">{title}</h1>
       {subtitle && <p className="text-sm text-gray-400 mt-0.5">{subtitle}</p>}
     </div>
@@ -56,18 +85,22 @@ function PageHeader({ eyebrow, title, subtitle }) {
 
 // ── API Helpers ───────────────────────────────────────────────────────────────
 const apiFetch = async (path) => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
   const res = await axiosInstance({
-    method: "GET", url: path,
+    method: "GET",
+    url: path,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   return res.data;
 };
 
 const apiPut = async (path, body) => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
   const res = await axiosInstance({
-    method: "PUT", url: path,
+    method: "PUT",
+    url: path,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     data: body,
   });
@@ -75,9 +108,11 @@ const apiPut = async (path, body) => {
 };
 
 const apiPatch = async (path, body) => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
   const res = await axiosInstance({
-    method: "PATCH", url: path,
+    method: "PATCH",
+    url: path,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     data: body,
   });
@@ -89,7 +124,9 @@ const getCurrentEngineerId = () => {
   try {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     return user._id || user.id || null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 };
 
 const getCurrentEngineerName = () => {
@@ -97,7 +134,9 @@ const getCurrentEngineerName = () => {
   try {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     return user.name || user.fullName || "Engineer";
-  } catch { return "Engineer"; }
+  } catch {
+    return "Engineer";
+  }
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -110,104 +149,145 @@ const isProjectDelayed = (project) => {
 };
 
 const fmtDate = (d) =>
-  d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+  d
+    ? new Date(d).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CHECKS_META = [
-  { key: "material",   label: "Material Delivered"   },
+  { key: "material", label: "Material Delivered" },
   { key: "foundation", label: "Foundation Completed" },
-  { key: "customer",   label: "Customer Readiness"   },
-  { key: "acceptance", label: "Client Acceptance"    },
+  { key: "customer", label: "Customer Readiness" },
+  { key: "acceptance", label: "Client Acceptance" },
 ];
 
 const statusColor = {
-  active: "blue", completed: "green", "on-hold": "orange",
-  initiated: "blue", installation: "blue", testing: "blue", delayed: "red",
+  active: "blue",
+  completed: "green",
+  "on-hold": "orange",
+  initiated: "blue",
+  installation: "blue",
+  testing: "blue",
+  delayed: "red",
   "in-progress": "blue",
 };
 
 const phaseList = [
-  "Site Preparation", "Wiring & Plumbing", "Equipment Setup",
-  "Installation", "Final Testing", "Completed",
+  "Site Preparation",
+  "Wiring & Plumbing",
+  "Equipment Setup",
+  "Installation",
+  "Final Testing",
+  "Completed",
 ];
 
 const phaseHex = {
-  "Site Preparation":  "#4988C4",
+  "Site Preparation": "#4988C4",
   "Wiring & Plumbing": "#FF9500",
-  "Equipment Setup":   "#9B59B6",
-  "Installation":      "#0F2854",
-  "Final Testing":     "#34C759",
-  "Completed":         "#34C759",
+  "Equipment Setup": "#9B59B6",
+  Installation: "#0F2854",
+  "Final Testing": "#34C759",
+  Completed: "#34C759",
 };
 
 const ENGINEER_STATUS_OPTIONS = [
-  { value: "initiated",    label: "Initiated"    },
-  { value: "in-progress",  label: "In Progress"  },
+  { value: "initiated", label: "Initiated" },
+  { value: "in-progress", label: "In Progress" },
   { value: "installation", label: "Installation" },
-  { value: "testing",      label: "Testing"      },
-  { value: "completed",    label: "Completed"    },
-  { value: "on-hold",      label: "On Hold"      },
+  { value: "testing", label: "Testing" },
+  { value: "completed", label: "Completed" },
+  { value: "on-hold", label: "On Hold" },
 ];
 
 const STATUS_PHASE = {
-  "initiated":    "Site Preparation",
-  "in-progress":  "Wiring & Plumbing",
-  "installation": "Installation",
-  "testing":      "Final Testing",
-  "completed":    "Completed",
-  "on-hold":      "Site Preparation",
+  initiated: "Site Preparation",
+  "in-progress": "Wiring & Plumbing",
+  installation: "Installation",
+  testing: "Final Testing",
+  completed: "Completed",
+  "on-hold": "Site Preparation",
 };
 
 const STATUS_PROGRESS = {
-  "initiated":    5,
-  "in-progress":  40,
-  "installation": 65,
-  "testing":      80,
-  "completed":    100,
-  "on-hold":      30,
+  initiated: 5,
+  "in-progress": 40,
+  installation: 65,
+  testing: 80,
+  completed: 100,
+  "on-hold": 30,
 };
 
 const PRIORITY_META = {
-  low:      { label: "Low",      color: "#34C759", bg: "rgba(52,199,89,0.1)",    border: "rgba(52,199,89,0.2)"    },
-  medium:   { label: "Medium",   color: "#FF9500", bg: "rgba(255,149,0,0.1)",   border: "rgba(255,149,0,0.2)"   },
-  high:     { label: "High",     color: "#FF3B30", bg: "rgba(255,59,48,0.1)",   border: "rgba(255,59,48,0.2)"   },
-  critical: { label: "Critical", color: "#c0392b", bg: "rgba(192,57,43,0.1)",   border: "rgba(192,57,43,0.2)"   },
+  low: {
+    label: "Low",
+    color: "#34C759",
+    bg: "rgba(52,199,89,0.1)",
+    border: "rgba(52,199,89,0.2)",
+  },
+  medium: {
+    label: "Medium",
+    color: "#FF9500",
+    bg: "rgba(255,149,0,0.1)",
+    border: "rgba(255,149,0,0.2)",
+  },
+  high: {
+    label: "High",
+    color: "#FF3B30",
+    bg: "rgba(255,59,48,0.1)",
+    border: "rgba(255,59,48,0.2)",
+  },
+  critical: {
+    label: "Critical",
+    color: "#c0392b",
+    bg: "rgba(192,57,43,0.1)",
+    border: "rgba(192,57,43,0.2)",
+  },
 };
 
 const FILTER_TABS = [
-  { key: "all",       label: "All"       },
-  { key: "active",    label: "Active"    },
-  { key: "delayed",   label: "Delayed"   },
+  { key: "all", label: "All" },
+  { key: "active", label: "Active" },
+  { key: "delayed", label: "Delayed" },
   { key: "completed", label: "Completed" },
-  { key: "on-hold",   label: "On Hold"   },
+  { key: "on-hold", label: "On Hold" },
 ];
 
 const SORT_OPTIONS = [
-  { value: "name-asc",      label: "Name A–Z"     },
-  { value: "name-desc",     label: "Name Z–A"     },
-  { value: "progress-desc", label: "Progress ↑"   },
-  { value: "progress-asc",  label: "Progress ↓"   },
-  { value: "date-desc",     label: "Newest First" },
-  { value: "date-asc",      label: "Oldest First" },
+  { value: "name-asc", label: "Name A–Z" },
+  { value: "name-desc", label: "Name Z–A" },
+  { value: "progress-desc", label: "Progress ↑" },
+  { value: "progress-asc", label: "Progress ↓" },
+  { value: "date-desc", label: "Newest First" },
+  { value: "date-asc", label: "Oldest First" },
 ];
 
 // ── Edit Project Modal ────────────────────────────────────────────────────────
 function EditProjectModal({ project, onClose, onSaved }) {
   const [status, setStatus] = useState(project.status || "initiated");
-  const [notes,  setNotes]  = useState(project.engineerNotes || "");
+  const [notes, setNotes] = useState(project.engineerNotes || "");
   const [saving, setSaving] = useState(false);
-  const [error,  setError]  = useState("");
+  const [error, setError] = useState("");
 
-  const previewPhase    = STATUS_PHASE[status]    || "Site Preparation";
+  const previewPhase = STATUS_PHASE[status] || "Site Preparation";
   const previewProgress = STATUS_PROGRESS[status] ?? 0;
-  const progressBg      = previewProgress > 80 ? "#34C759" : previewProgress > 50 ? "#4988C4" : "#FF9500";
+  const progressBg =
+    previewProgress > 80
+      ? "#34C759"
+      : previewProgress > 50
+        ? "#4988C4"
+        : "#FF9500";
 
   const handleSave = async () => {
-    setSaving(true); setError("");
+    setSaving(true);
+    setError("");
     try {
       const updated = await apiPut(`/projects/${project._id}`, {
         status,
-        phase:    STATUS_PHASE[status],
+        phase: STATUS_PHASE[status],
         progress: STATUS_PROGRESS[status] ?? 0,
         ...(notes.trim() && { engineerNotes: notes.trim() }),
       });
@@ -229,13 +309,17 @@ function EditProjectModal({ project, onClose, onSaved }) {
       <div
         className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
         style={{ animation: "slideUp 0.25s ease both" }}
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-start justify-between p-6 pb-4">
           <div>
-            <p className="text-xs font-bold tracking-widest text-blue-500 uppercase mb-1">Update Project</p>
-            <h3 className="text-lg font-bold text-extra-darkblue">{project.name}</h3>
+            <p className="text-xs font-bold tracking-widest text-blue-500 uppercase mb-1">
+              Update Project
+            </p>
+            <h3 className="text-lg font-bold text-extra-darkblue">
+              {project.name}
+            </h3>
           </div>
           <button
             onClick={onClose}
@@ -248,31 +332,48 @@ function EditProjectModal({ project, onClose, onSaved }) {
         <div className="px-6 pb-6 space-y-4">
           {/* Info banner */}
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
-            <span className="text-xs text-blue-600">ℹ️ Set the <strong>status</strong> — phase and progress update automatically.</span>
+            <span className="text-xs text-blue-600">
+              ℹ️ Set the <strong>status</strong> — phase and progress update
+              automatically.
+            </span>
           </div>
 
           {/* Status select */}
           <div>
-            <label className="block text-xs font-bold text-gray-400 tracking-widest uppercase mb-2">Status</label>
+            <label className="block text-xs font-bold text-gray-400 tracking-widest uppercase mb-2">
+              Status
+            </label>
             <select
               value={status}
-              onChange={e => setStatus(e.target.value)}
+              onChange={(e) => setStatus(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl border border-blue-100 bg-blue-50/40 text-extra-darkblue text-sm font-medium focus:outline-none focus:border-blue-400 focus:bg-white transition-colors"
             >
-              {ENGINEER_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {ENGINEER_STATUS_OPTIONS?.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
 
           {/* Auto-set preview */}
           <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-2">
-            <p className="text-xs font-bold text-gray-400 tracking-widest uppercase mb-3">Will be set automatically</p>
+            <p className="text-xs font-bold text-gray-400 tracking-widest uppercase mb-3">
+              Will be set automatically
+            </p>
             <div className="flex justify-between items-center">
               <span className="text-xs text-blue-500 font-semibold">Phase</span>
-              <span className="text-xs font-bold text-extra-darkblue">{previewPhase}</span>
+              <span className="text-xs font-bold text-extra-darkblue">
+                {previewPhase}
+              </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs text-blue-500 font-semibold">Progress</span>
-              <span className="text-xs font-bold text-extra-darkblue">{previewProgress}%</span>
+              <span className="text-xs text-blue-500 font-semibold">
+                Progress
+              </span>
+              <span className="text-xs font-bold text-extra-darkblue">
+                {previewProgress}%
+              </span>
             </div>
             <div className="bg-gray-200 rounded-full h-1.5 mt-2">
               <div
@@ -285,19 +386,24 @@ function EditProjectModal({ project, onClose, onSaved }) {
           {/* Notes */}
           <div>
             <label className="block text-xs font-bold text-gray-400 tracking-widest uppercase mb-2">
-              Notes <span className="font-normal normal-case tracking-normal">(optional)</span>
+              Notes{" "}
+              <span className="font-normal normal-case tracking-normal">
+                (optional)
+              </span>
             </label>
             <textarea
               rows={3}
               value={notes}
-              onChange={e => setNotes(e.target.value)}
+              onChange={(e) => setNotes(e.target.value)}
               placeholder="Any site updates, blockers, or observations…"
               className="w-full px-3 py-2.5 rounded-xl border border-blue-100 bg-blue-50/40 text-extra-darkblue text-sm resize-none focus:outline-none focus:border-blue-400 focus:bg-white transition-colors leading-relaxed"
             />
           </div>
 
           {error && (
-            <p className="text-red-500 text-xs font-semibold text-center">⚠ {error}</p>
+            <p className="text-red-500 text-xs font-semibold text-center">
+              ⚠ {error}
+            </p>
           )}
 
           <button
@@ -306,7 +412,15 @@ function EditProjectModal({ project, onClose, onSaved }) {
             className="w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 transition-colors disabled:cursor-not-allowed"
             style={{ background: saving ? "#94aac4" : "#0F2854" }}
           >
-            {saving ? <><Loader size={15} className="animate-spin" /> Saving…</> : <><Save size={15} /> Save Changes</>}
+            {saving ? (
+              <>
+                <Loader size={15} className="animate-spin" /> Saving…
+              </>
+            ) : (
+              <>
+                <Save size={15} /> Save Changes
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -317,40 +431,46 @@ function EditProjectModal({ project, onClose, onSaved }) {
 
 // ── Task Checklist Section (inside ProjectDetail) ─────────────────────────────
 function ProjectTaskChecklist({ projectId, engineerId }) {
-  const [tasks,      setTasks]      = useState([]);
-  const [loading,    setLoading]    = useState(true);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState(null);
-  const [collapsed,  setCollapsed]  = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
-const loadTasks = useCallback(async () => {
-  try {
-    setLoading(true);
+  const loadTasks = useCallback(async () => {
+    try {
+      setLoading(true);
 
-    const res = await apiFetch("/pending/list");
-    const all = Array.isArray(res) ? res : res?.data || [];
+      const res = await apiFetch("/pending/list");
+      const all = Array.isArray(res) ? res : res?.data || [];
 
-    // ✅ ONLY tasks assigned to current engineer
-    const mine = all.filter(t => {
-      const assignedId = t.assignedTo?._id || t.assignedTo;
-      return assignedId === engineerId;
-    });
+      // ✅ ONLY tasks assigned to current engineer
+      const mine = all.filter((t) => {
+        const assignedId = t.assignedTo?._id || t.assignedTo;
+        return assignedId === engineerId;
+      });
 
-    setTasks(mine);
-  } catch (err) {
-    console.error("Task load error:", err);
-  } finally {
-    setLoading(false);
-  }
-}, [engineerId]);
+      setTasks(mine);
+    } catch (err) {
+      console.error("Task load error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [engineerId]);
 
-  useEffect(() => { loadTasks(); }, [loadTasks]);
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
 
   const toggleTask = async (task) => {
     const newStatus = task.status === "completed" ? "pending" : "completed";
     setTogglingId(task._id);
     try {
       await apiPatch(`/pending/update/${task._id}`, { status: newStatus });
-      setTasks(prev => prev.map(t => t._id === task._id ? { ...t, status: newStatus } : t));
+      setTasks((prev) =>
+        prev?.map((t) =>
+          t._id === task._id ? { ...t, status: newStatus } : t,
+        ),
+      );
     } catch (err) {
       console.error("Task toggle error:", err);
     } finally {
@@ -358,9 +478,9 @@ const loadTasks = useCallback(async () => {
     }
   };
 
-  const done    = tasks.filter(t => t.status === "completed").length;
-  const total   = tasks.length;
-  const pct     = total > 0 ? Math.round((done / total) * 100) : 0;
+  const done = tasks.filter((t) => t.status === "completed").length;
+  const total = tasks.length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const allDone = total > 0 && done === total;
 
   if (loading) {
@@ -384,7 +504,9 @@ const loadTasks = useCallback(async () => {
         </div>
         <div className="flex flex-col items-center py-8 gap-2 text-center px-5">
           <ListTodo size={28} strokeWidth={1.5} className="text-gray-200" />
-          <p className="text-xs text-blue-400 m-0">No tasks assigned for this project.</p>
+          <p className="text-xs text-blue-400 m-0">
+            No tasks assigned for this project.
+          </p>
         </div>
       </div>
     );
@@ -395,19 +517,30 @@ const loadTasks = useCallback(async () => {
       {/* Collapsible Header */}
       <div
         className="flex items-center justify-between px-5 py-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors"
-        onClick={() => setCollapsed(c => !c)}
+        onClick={() => setCollapsed((c) => !c)}
       >
         <div className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${allDone ? "bg-green-50" : "bg-extra-darkblue"}`}>
-            <ListTodo size={16} className={allDone ? "text-green-500" : "text-sky-200"} />
+          <div
+            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${allDone ? "bg-green-50" : "bg-extra-darkblue"}`}
+          >
+            <ListTodo
+              size={16}
+              className={allDone ? "text-green-500" : "text-sky-200"}
+            />
           </div>
           <div>
-            <p className="text-sm font-bold text-extra-darkblue m-0">My Tasks</p>
-            <p className="text-xs text-blue-400 m-0">{done}/{total} completed</p>
+            <p className="text-sm font-bold text-extra-darkblue m-0">
+              My Tasks
+            </p>
+            <p className="text-xs text-blue-400 m-0">
+              {done}/{total} completed
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${allDone ? "bg-green-50 text-green-600 border-green-100" : "bg-blue-50 text-blue-500 border-blue-100"}`}>
+          <span
+            className={`text-xs font-bold px-2.5 py-1 rounded-full border ${allDone ? "bg-green-50 text-green-600 border-green-100" : "bg-blue-50 text-blue-500 border-blue-100"}`}
+          >
             {pct}% done
           </span>
           <ChevronDown
@@ -426,18 +559,23 @@ const loadTasks = useCallback(async () => {
               className="h-1 rounded-full transition-all duration-500"
               style={{
                 width: `${pct}%`,
-                background: allDone ? "#34C759" : pct > 60 ? "#4988C4" : "#FF9500",
+                background: allDone
+                  ? "#34C759"
+                  : pct > 60
+                    ? "#4988C4"
+                    : "#FF9500",
               }}
             />
           </div>
 
           {/* Task rows */}
           <div className="divide-y divide-gray-50">
-            {tasks.map(task => {
-              const isDone    = task.status === "completed";
-              const PM        = PRIORITY_META[task.priority] || PRIORITY_META.medium;
-              const toggling  = togglingId === task._id;
-              const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !isDone;
+            {tasks?.map((task) => {
+              const isDone = task.status === "completed";
+              const PM = PRIORITY_META[task.priority] || PRIORITY_META.medium;
+              const toggling = togglingId === task._id;
+              const isOverdue =
+                task.dueDate && new Date(task.dueDate) < new Date() && !isDone;
 
               return (
                 <div
@@ -451,18 +589,25 @@ const loadTasks = useCallback(async () => {
                     disabled={toggling}
                     className="w-5 h-5 rounded-md shrink-0 flex items-center justify-center transition-all"
                     style={{
-                      border:     isDone ? "none" : "2px solid rgba(73,136,196,0.35)",
+                      border: isDone
+                        ? "none"
+                        : "2px solid rgba(73,136,196,0.35)",
                       background: isDone ? "#34C759" : "#fff",
-                      cursor:     toggling ? "wait" : "pointer",
-                      boxShadow:  isDone ? "0 2px 8px rgba(52,199,89,0.3)" : "none",
+                      cursor: toggling ? "wait" : "pointer",
+                      boxShadow: isDone
+                        ? "0 2px 8px rgba(52,199,89,0.3)"
+                        : "none",
                     }}
                   >
-                    {toggling
-                      ? <Loader2 size={10} color={isDone ? "#fff" : "#4988C4"} className="animate-spin" />
-                      : isDone
-                        ? <CheckCircle2 size={12} color="#fff" strokeWidth={3} />
-                        : null
-                    }
+                    {toggling ? (
+                      <Loader2
+                        size={10}
+                        color={isDone ? "#fff" : "#4988C4"}
+                        className="animate-spin"
+                      />
+                    ) : isDone ? (
+                      <CheckCircle2 size={12} color="#fff" strokeWidth={3} />
+                    ) : null}
                   </button>
 
                   {/* Task info */}
@@ -470,7 +615,7 @@ const loadTasks = useCallback(async () => {
                     <p
                       className="text-sm font-semibold m-0 truncate"
                       style={{
-                        color:          isDone ? "rgba(73,136,196,0.4)" : "#0F2854",
+                        color: isDone ? "rgba(73,136,196,0.4)" : "#0F2854",
                         textDecoration: isDone ? "line-through" : "none",
                       }}
                     >
@@ -478,7 +623,9 @@ const loadTasks = useCallback(async () => {
                     </p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       {task.type && (
-                        <span className="text-xs text-gray-400 capitalize">{task.type}</span>
+                        <span className="text-xs text-gray-400 capitalize">
+                          {task.type}
+                        </span>
                       )}
                       {task.raisedBy?.name && (
                         <span className="text-xs text-blue-500 font-semibold flex items-center gap-1">
@@ -486,7 +633,9 @@ const loadTasks = useCallback(async () => {
                         </span>
                       )}
                       {task.dueDate && (
-                        <span className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-500 font-bold" : "text-gray-400"}`}>
+                        <span
+                          className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-500 font-bold" : "text-gray-400"}`}
+                        >
                           <Calendar size={9} />
                           {fmtDate(task.dueDate)}
                           {isOverdue && " · Overdue"}
@@ -500,9 +649,9 @@ const loadTasks = useCallback(async () => {
                     className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0 border"
                     style={{
                       background: PM.bg,
-                      color:      PM.color,
-                      border:     `1px solid ${PM.border}`,
-                      opacity:    isDone ? 0.45 : 1,
+                      color: PM.color,
+                      border: `1px solid ${PM.border}`,
+                      opacity: isDone ? 0.45 : 1,
                     }}
                   >
                     {PM.label}
@@ -515,7 +664,9 @@ const loadTasks = useCallback(async () => {
           {allDone && (
             <div className="mt-3 flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-2.5">
               <CheckCircle2 size={14} className="text-green-500" />
-              <span className="text-xs font-bold text-green-700">All tasks completed — great work! 🎉</span>
+              <span className="text-xs font-bold text-green-700">
+                All tasks completed — great work! 🎉
+              </span>
             </div>
           )}
         </div>
@@ -526,10 +677,10 @@ const loadTasks = useCallback(async () => {
 
 // ── Project Detail View ───────────────────────────────────────────────────────
 function ProjectDetail({ project, onBack, onProjectUpdated }) {
-  const [editOpen,     setEditOpen]     = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [localProject, setLocalProject] = useState(project);
-  const [documents,    setDocuments]    = useState([]);
-  const [docsLoading,  setDocsLoading]  = useState(false);
+  const [documents, setDocuments] = useState([]);
+  const [docsLoading, setDocsLoading] = useState(false);
   const engineerId = getCurrentEngineerId();
 
   useEffect(() => {
@@ -537,8 +688,10 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
       setDocsLoading(true);
       try {
         const data = await apiFetch("/documents");
-        const allDocs = Array.isArray(data) ? data : (data.documents || []);
-        setDocuments(allDocs.filter(d => (d.project?._id || d.project) === project._id));
+        const allDocs = Array.isArray(data) ? data : data.documents || [];
+        setDocuments(
+          allDocs.filter((d) => (d.project?._id || d.project) === project._id),
+        );
       } catch (err) {
         console.error("Failed to load documents", err);
       } finally {
@@ -548,25 +701,32 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
     if (project?._id) fetchDocs();
   }, [project._id]);
 
-  const checks   = localProject.eligibilityChecks || {};
-  const phase    = localProject.phase || "Site Preparation";
+  const checks = localProject.eligibilityChecks || {};
+  const phase = localProject.phase || "Site Preparation";
   const phaseIdx = phaseList.indexOf(phase);
-  const delayed  = isProjectDelayed(localProject);
+  const delayed = isProjectDelayed(localProject);
 
-  const progressBg = delayed ? "#FF3B30"
-    : (localProject.progress || 0) > 80 ? "#34C759"
-    : (localProject.progress || 0) > 50 ? "#4988C4"
-    : "#FF9500";
+  const progressBg = delayed
+    ? "#FF3B30"
+    : (localProject.progress || 0) > 80
+      ? "#34C759"
+      : (localProject.progress || 0) > 50
+        ? "#4988C4"
+        : "#FF9500";
 
   const handleSaved = (updated) => {
-    setLocalProject(prev => ({ ...prev, ...updated }));
+    setLocalProject((prev) => ({ ...prev, ...updated }));
     onProjectUpdated(updated);
   };
 
   return (
     <div>
       {editOpen && (
-        <EditProjectModal project={localProject} onClose={() => setEditOpen(false)} onSaved={handleSaved} />
+        <EditProjectModal
+          project={localProject}
+          onClose={() => setEditOpen(false)}
+          onSaved={handleSaved}
+        />
       )}
 
       {/* Top bar */}
@@ -578,10 +738,14 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
           <ArrowLeft size={14} /> Back
         </button>
         <div>
-          <p className="text-xs font-bold tracking-widest text-blue-500 uppercase mb-0.5">PROJECT DETAIL</p>
+          <p className="text-xs font-bold tracking-widest text-blue-500 uppercase mb-0.5">
+            PROJECT DETAIL
+          </p>
           <h2 className="text-xl font-bold text-extra-darkblue m-0">
             {localProject.projectId && (
-              <span className="text-blue-500 mr-2 pr-2 border-r border-blue-200">{localProject.projectId}</span>
+              <span className="text-blue-500 mr-2 pr-2 border-r border-blue-200">
+                {localProject.projectId}
+              </span>
             )}
             {localProject.name}
           </h2>
@@ -598,12 +762,18 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
           >
             <Edit2 size={13} /> Update Status
           </button>
-          <Link href={`/engineer/issue-log?projectId=${localProject._id}&projectName=${encodeURIComponent(localProject.name)}`} style={{ textDecoration: "none" }}>
+          <Link
+            href={`/engineer/issue-log?projectId=${localProject._id}&projectName=${encodeURIComponent(localProject.name)}`}
+            style={{ textDecoration: "none" }}
+          >
             <button className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 hover:bg-amber-100 transition-colors cursor-pointer">
               <AlertTriangle size={13} /> Log Installation Issue
             </button>
           </Link>
-          <StatusPill label={localProject.status || "active"} color={statusColor[localProject.status] || "blue"} />
+          <StatusPill
+            label={localProject.status || "active"}
+            color={statusColor[localProject.status] || "blue"}
+          />
         </div>
       </div>
 
@@ -612,55 +782,83 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
         <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-2xl px-5 py-3 mb-5">
           <AlertTriangle size={16} className="text-red-500 shrink-0" />
           <div>
-            <p className="text-sm font-bold text-red-500 m-0">Project is delayed</p>
-            {localProject.endDate && new Date(localProject.endDate) < new Date() && (
-              <p className="text-xs text-red-400 mt-0.5 m-0">
-                Deadline was {fmtDate(localProject.endDate)} — please update status or contact your manager.
-              </p>
-            )}
+            <p className="text-sm font-bold text-red-500 m-0">
+              Project is delayed
+            </p>
+            {localProject.endDate &&
+              new Date(localProject.endDate) < new Date() && (
+                <p className="text-xs text-red-400 mt-0.5 m-0">
+                  Deadline was {fmtDate(localProject.endDate)} — please update
+                  status or contact your manager.
+                </p>
+              )}
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5">
-
         {/* LEFT COLUMN */}
         <div className="space-y-5">
-
           {/* Project Information */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
               <div className="w-9 h-9 rounded-xl bg-extra-darkblue flex items-center justify-center shrink-0">
                 <FolderOpen size={16} className="text-sky-200" />
               </div>
-              <h3 className="text-sm font-bold text-extra-darkblue">Project Information</h3>
+              <h3 className="text-sm font-bold text-extra-darkblue">
+                Project Information
+              </h3>
             </div>
             <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
-                { label: "Project ID", value: localProject._id?.slice(-8).toUpperCase() || "—" },
-                { label: "Client",     value: localProject.clientName || "—" },
-                { label: "Location",   value: localProject.location   || "—" },
+                {
+                  label: "Project ID",
+                  value: localProject._id?.slice(-8).toUpperCase() || "—",
+                },
+                { label: "Client", value: localProject.clientName || "—" },
+                { label: "Location", value: localProject.location || "—" },
                 { label: "Start Date", value: fmtDate(localProject.startDate) },
-                { label: "End Date",   value: fmtDate(localProject.endDate), isDelayed: delayed },
-                { label: "Status",     value: (localProject.status || "active").charAt(0).toUpperCase() + (localProject.status || "active").slice(1) },
-              ].map(({ label, value, isDelayed: d }) => (
+                {
+                  label: "End Date",
+                  value: fmtDate(localProject.endDate),
+                  isDelayed: delayed,
+                },
+                {
+                  label: "Status",
+                  value:
+                    (localProject.status || "active").charAt(0).toUpperCase() +
+                    (localProject.status || "active").slice(1),
+                },
+              ]?.map(({ label, value, isDelayed: d }) => (
                 <div key={label}>
-                  <p className="text-xs font-bold tracking-widest text-blue-400 uppercase mb-1">{label}</p>
-                  <p className={`text-sm font-semibold m-0 ${d ? "text-red-500" : "text-extra-darkblue"}`}>
+                  <p className="text-xs font-bold tracking-widest text-blue-400 uppercase mb-1">
+                    {label}
+                  </p>
+                  <p
+                    className={`text-sm font-semibold m-0 ${d ? "text-red-500" : "text-extra-darkblue"}`}
+                  >
                     {value} {d && <span className="text-xs">⚠</span>}
                   </p>
                 </div>
               ))}
               {localProject.description && (
                 <div className="col-span-2">
-                  <p className="text-xs font-bold tracking-widest text-blue-400 uppercase mb-1">DESCRIPTION</p>
-                  <p className="text-sm font-medium m-0 leading-relaxed text-extra-darkblue">{localProject.description}</p>
+                  <p className="text-xs font-bold tracking-widest text-blue-400 uppercase mb-1">
+                    DESCRIPTION
+                  </p>
+                  <p className="text-sm font-medium m-0 leading-relaxed text-extra-darkblue">
+                    {localProject.description}
+                  </p>
                 </div>
               )}
               {localProject.engineerNotes && (
                 <div className="col-span-2">
-                  <p className="text-xs font-bold tracking-widest text-amber-500 uppercase mb-1">ENGINEER NOTES</p>
-                  <p className="text-sm font-medium m-0 leading-relaxed text-extra-darkblue">{localProject.engineerNotes}</p>
+                  <p className="text-xs font-bold tracking-widest text-amber-500 uppercase mb-1">
+                    ENGINEER NOTES
+                  </p>
+                  <p className="text-sm font-medium m-0 leading-relaxed text-extra-darkblue">
+                    {localProject.engineerNotes}
+                  </p>
                 </div>
               )}
             </div>
@@ -672,52 +870,80 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
               <div className="w-9 h-9 rounded-xl bg-extra-darkblue flex items-center justify-center shrink-0">
                 <ClipboardList size={16} className="text-sky-200" />
               </div>
-              <h3 className="text-sm font-bold text-extra-darkblue">Progress &amp; Phase</h3>
+              <h3 className="text-sm font-bold text-extra-darkblue">
+                Progress &amp; Phase
+              </h3>
             </div>
             <div className="p-5">
               <div className="flex justify-between mb-1.5">
                 <span className="text-xs text-blue-400">Overall Progress</span>
-                <span className="text-xs font-bold text-extra-darkblue">{localProject.progress || 0}%</span>
+                <span className="text-xs font-bold text-extra-darkblue">
+                  {localProject.progress || 0}%
+                </span>
               </div>
               <div className="bg-gray-100 rounded-full h-2 mb-5">
                 <div
                   className="h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${localProject.progress || 0}%`, background: progressBg }}
+                  style={{
+                    width: `${localProject.progress || 0}%`,
+                    background: progressBg,
+                  }}
                 />
               </div>
-              <p className="text-xs font-bold tracking-widest text-blue-400 uppercase mb-3">CURRENT PHASE</p>
+              <p className="text-xs font-bold tracking-widest text-blue-400 uppercase mb-3">
+                CURRENT PHASE
+              </p>
               <div className="space-y-2">
-                {phaseList.map((p, i) => {
-                  const done    = i < phaseIdx;
+                {phaseList?.map((p, i) => {
+                  const done = i < phaseIdx;
                   const current = i === phaseIdx;
-                  const hex     = phaseHex[p] || "#4988C4";
+                  const hex = phaseHex[p] || "#4988C4";
                   return (
                     <div
                       key={p}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all"
                       style={{
-                        background:  current ? `${hex}12` : done ? "rgba(52,199,89,0.05)" : "rgba(73,136,196,0.03)",
-                        borderColor: current ? `${hex}40` : done ? "rgba(52,199,89,0.15)" : "rgba(73,136,196,0.08)",
+                        background: current
+                          ? `${hex}12`
+                          : done
+                            ? "rgba(52,199,89,0.05)"
+                            : "rgba(73,136,196,0.03)",
+                        borderColor: current
+                          ? `${hex}40`
+                          : done
+                            ? "rgba(52,199,89,0.15)"
+                            : "rgba(73,136,196,0.08)",
                       }}
                     >
                       <div
                         className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                         style={{
-                          background: current ? hex : done ? "#34C759" : "rgba(73,136,196,0.12)",
-                          color:      (current || done) ? "#fff" : "#4988C4",
+                          background: current
+                            ? hex
+                            : done
+                              ? "#34C759"
+                              : "rgba(73,136,196,0.12)",
+                          color: current || done ? "#fff" : "#4988C4",
                         }}
                       >
                         {done ? "✓" : i + 1}
                       </div>
                       <span
                         className="text-xs"
-                        style={{ color: current ? hex : done ? "#34C759" : "#4988C4", fontWeight: current ? 700 : 500 }}
-                      >{p}</span>
+                        style={{
+                          color: current ? hex : done ? "#34C759" : "#4988C4",
+                          fontWeight: current ? 700 : 500,
+                        }}
+                      >
+                        {p}
+                      </span>
                       {current && (
                         <span
                           className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full"
                           style={{ background: `${hex}18`, color: hex }}
-                        >Current</span>
+                        >
+                          Current
+                        </span>
                       )}
                     </div>
                   );
@@ -735,41 +961,59 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
 
         {/* RIGHT COLUMN */}
         <div className="space-y-5">
-
           {/* Eligibility Checklist */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
               <div className="w-9 h-9 rounded-xl bg-extra-darkblue flex items-center justify-center shrink-0">
                 <CheckSquare size={16} className="text-sky-200" />
               </div>
-              <h3 className="text-sm font-bold text-extra-darkblue">Eligibility Checklist</h3>
+              <h3 className="text-sm font-bold text-extra-darkblue">
+                Eligibility Checklist
+              </h3>
             </div>
             <div className="p-5">
               {localProject.eligibilityStatus === "proceeded" ? (
                 <>
                   <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-2.5 mb-4">
                     <CheckCircle2 size={14} className="text-green-500" />
-                    <span className="text-xs font-bold text-green-700">All checks passed — Approved by admin</span>
+                    <span className="text-xs font-bold text-green-700">
+                      All checks passed — Approved by admin
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {CHECKS_META.map((c) => {
+                    {CHECKS_META?.map((c) => {
                       const passed = checks[c.key];
                       return (
                         <div
                           key={c.key}
                           className="flex items-center gap-2 px-3 py-2.5 rounded-xl border"
                           style={{
-                            background:  passed ? "rgba(52,199,89,0.06)" : "rgba(255,59,48,0.05)",
-                            borderColor: passed ? "rgba(52,199,89,0.2)"  : "rgba(255,59,48,0.15)",
+                            background: passed
+                              ? "rgba(52,199,89,0.06)"
+                              : "rgba(255,59,48,0.05)",
+                            borderColor: passed
+                              ? "rgba(52,199,89,0.2)"
+                              : "rgba(255,59,48,0.15)",
                           }}
                         >
                           <div
                             className="w-5 h-5 rounded-md shrink-0 flex items-center justify-center"
-                            style={{ background: passed ? "#34C759" : "#FF3B30" }}
+                            style={{
+                              background: passed ? "#34C759" : "#FF3B30",
+                            }}
                           >
-                            {passed ? <CheckCircle2 size={12} color="#fff" /> : <XCircle size={12} color="#fff" />}
+                            {passed ? (
+                              <CheckCircle2 size={12} color="#fff" />
+                            ) : (
+                              <XCircle size={12} color="#fff" />
+                            )}
                           </div>
-                          <span className="text-xs font-semibold" style={{ color: passed ? "#1a6b3c" : "#c0392b" }}>{c.label}</span>
+                          <span
+                            className="text-xs font-semibold"
+                            style={{ color: passed ? "#1a6b3c" : "#c0392b" }}
+                          >
+                            {c.label}
+                          </span>
                         </div>
                       );
                     })}
@@ -782,9 +1026,18 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
                 </>
               ) : (
                 <div className="flex flex-col items-center py-8 gap-3 text-center">
-                  <Package size={28} strokeWidth={1.5} className="text-gray-200" />
-                  <p className="text-xs font-semibold text-blue-400 m-0">Eligibility not yet reviewed</p>
-                  <p className="text-xs text-blue-300 m-0">Admin will complete this checklist before installation begins.</p>
+                  <Package
+                    size={28}
+                    strokeWidth={1.5}
+                    className="text-gray-200"
+                  />
+                  <p className="text-xs font-semibold text-blue-400 m-0">
+                    Eligibility not yet reviewed
+                  </p>
+                  <p className="text-xs text-blue-300 m-0">
+                    Admin will complete this checklist before installation
+                    begins.
+                  </p>
                 </div>
               )}
             </div>
@@ -796,48 +1049,83 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
               <div className="w-9 h-9 rounded-xl bg-extra-darkblue flex items-center justify-center shrink-0">
                 <User size={16} className="text-sky-200" />
               </div>
-              <h3 className="text-sm font-bold text-extra-darkblue">Assigned Team</h3>
+              <h3 className="text-sm font-bold text-extra-darkblue">
+                Assigned Team
+              </h3>
             </div>
             <div className="p-5 space-y-2">
-              {(localProject.assignedEngineers || []).map((e) => (
-                <div key={e._id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-blue-50/40 border border-blue-100">
-                  <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold"
-                    style={{ background: "linear-gradient(135deg,#4988C4,#0F2854)" }}>
+              {(localProject.assignedEngineers || [])?.map((e) => (
+                <div
+                  key={e._id}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-blue-50/40 border border-blue-100"
+                >
+                  <div
+                    className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold"
+                    style={{
+                      background: "linear-gradient(135deg,#4988C4,#0F2854)",
+                    }}
+                  >
                     {(e.name || "?").charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-extra-darkblue m-0">{e.name}</p>
+                    <p className="text-xs font-bold text-extra-darkblue m-0">
+                      {e.name}
+                    </p>
                     <p className="text-xs text-blue-400 m-0">Engineer</p>
                   </div>
                 </div>
               ))}
               {localProject.assignedMarketingExecutive && (
                 <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-100">
-                  <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold"
-                    style={{ background: "linear-gradient(135deg,#FF9500,#e67e22)" }}>
-                    {(localProject.assignedMarketingExecutive.name || "?").charAt(0).toUpperCase()}
+                  <div
+                    className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold"
+                    style={{
+                      background: "linear-gradient(135deg,#FF9500,#e67e22)",
+                    }}
+                  >
+                    {(localProject.assignedMarketingExecutive.name || "?")
+                      .charAt(0)
+                      .toUpperCase()}
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-extra-darkblue m-0">{localProject.assignedMarketingExecutive.name}</p>
-                    <p className="text-xs text-amber-500 m-0">Marketing Executive</p>
+                    <p className="text-xs font-bold text-extra-darkblue m-0">
+                      {localProject.assignedMarketingExecutive.name}
+                    </p>
+                    <p className="text-xs text-amber-500 m-0">
+                      Marketing Executive
+                    </p>
                   </div>
                 </div>
               )}
               {localProject.assignedInstallationIncharge && (
                 <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-green-50 border border-green-100">
-                  <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold"
-                    style={{ background: "linear-gradient(135deg,#34C759,#27ae60)" }}>
-                    {(localProject.assignedInstallationIncharge.name || "?").charAt(0).toUpperCase()}
+                  <div
+                    className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold"
+                    style={{
+                      background: "linear-gradient(135deg,#34C759,#27ae60)",
+                    }}
+                  >
+                    {(localProject.assignedInstallationIncharge.name || "?")
+                      .charAt(0)
+                      .toUpperCase()}
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-extra-darkblue m-0">{localProject.assignedInstallationIncharge.name}</p>
-                    <p className="text-xs text-green-500 m-0">Installation Incharge</p>
+                    <p className="text-xs font-bold text-extra-darkblue m-0">
+                      {localProject.assignedInstallationIncharge.name}
+                    </p>
+                    <p className="text-xs text-green-500 m-0">
+                      Installation Incharge
+                    </p>
                   </div>
                 </div>
               )}
-              {(localProject.assignedEngineers || []).length === 0 && !localProject.assignedMarketingExecutive && !localProject.assignedInstallationIncharge && (
-                <p className="text-xs text-blue-300 text-center py-5">No team members assigned yet.</p>
-              )}
+              {(localProject.assignedEngineers || []).length === 0 &&
+                !localProject.assignedMarketingExecutive &&
+                !localProject.assignedInstallationIncharge && (
+                  <p className="text-xs text-blue-300 text-center py-5">
+                    No team members assigned yet.
+                  </p>
+                )}
             </div>
           </div>
 
@@ -847,40 +1135,65 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
               <div className="w-9 h-9 rounded-xl bg-extra-darkblue flex items-center justify-center shrink-0">
                 <FileText size={16} className="text-sky-200" />
               </div>
-              <h3 className="text-sm font-bold text-extra-darkblue">Uploaded Documents</h3>
+              <h3 className="text-sm font-bold text-extra-darkblue">
+                Uploaded Documents
+              </h3>
             </div>
             <div className="p-5">
               {docsLoading ? (
                 <div className="flex items-center justify-center gap-2 py-5 text-gray-400 text-xs">
-                  <Loader size={14} className="animate-spin" /> Loading documents...
+                  <Loader size={14} className="animate-spin" /> Loading
+                  documents...
                 </div>
               ) : documents.length === 0 ? (
-                <p className="text-xs text-blue-300 text-center py-5">No documents uploaded for this project yet.</p>
+                <p className="text-xs text-blue-300 text-center py-5">
+                  No documents uploaded for this project yet.
+                </p>
               ) : (
                 <div className="space-y-2">
-                  {documents.map(doc => (
-                    <div key={doc._id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-blue-50/40 border border-blue-100 justify-between">
+                  {documents?.map((doc) => (
+                    <div
+                      key={doc._id}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-blue-50/40 border border-blue-100 justify-between"
+                    >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center bg-gray-100 text-blue-500">
                           <FileText size={14} />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-extra-darkblue m-0 truncate">{doc.title || doc.name || "Untitled"}</p>
+                          <p className="text-xs font-bold text-extra-darkblue m-0 truncate">
+                            {doc.title || doc.name || "Untitled"}
+                          </p>
                           <p className="text-[10px] text-blue-400 m-0 flex gap-1.5">
-                            <span className="capitalize">{doc.documentType || "Other"}</span>
+                            <span className="capitalize">
+                              {doc.documentType || "Other"}
+                            </span>
                             <span>•</span>
-                            <span>{new Date(doc.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</span>
+                            <span>
+                              {new Date(doc.createdAt).toLocaleDateString(
+                                "en-GB",
+                                { day: "2-digit", month: "short" },
+                              )}
+                            </span>
                           </p>
                         </div>
                       </div>
-                      {doc.url && typeof doc.url === "string" && doc.url.startsWith("http") ? (
-                        <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                      {doc.url &&
+                      typeof doc.url === "string" &&
+                      doc.url.startsWith("http") ? (
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="p-2 rounded-lg bg-gray-100 text-blue-500 hover:bg-blue-100 transition-colors shrink-0"
-                          title="View Document">
+                          title="View Document"
+                        >
                           <Eye size={13} />
                         </a>
                       ) : (
-                        <span className="text-[10px] font-bold text-gray-400 px-2 py-1 bg-gray-100 rounded-lg shrink-0">Pending</span>
+                        <span className="text-[10px] font-bold text-gray-400 px-2 py-1 bg-gray-100 rounded-lg shrink-0">
+                          Pending
+                        </span>
                       )}
                     </div>
                   ))}
@@ -888,7 +1201,6 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
               )}
             </div>
           </div>
-
         </div>
       </div>
     </div>
@@ -897,18 +1209,21 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
 
 // ── Project Card ──────────────────────────────────────────────────────────────
 function ProjectCard({ project, onClick, onEdit, index }) {
-  const delayed    = isProjectDelayed(project);
-  const progressBg = delayed ? "#FF3B30"
-    : (project.progress || 0) > 80 ? "#34C759"
-    : (project.progress || 0) > 50 ? "#4988C4"
-    : "#FF9500";
+  const delayed = isProjectDelayed(project);
+  const progressBg = delayed
+    ? "#FF3B30"
+    : (project.progress || 0) > 80
+      ? "#34C759"
+      : (project.progress || 0) > 50
+        ? "#4988C4"
+        : "#FF9500";
 
   return (
     <div
       className="bg-white rounded-xl border shadow-sm overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
       style={{
-        borderColor:      delayed ? "rgba(255,59,48,0.2)" : "rgba(73,136,196,0.12)",
-        animationDelay:   `${index * 0.04}s`,
+        borderColor: delayed ? "rgba(255,59,48,0.2)" : "rgba(73,136,196,0.12)",
+        animationDelay: `${index * 0.04}s`,
       }}
       onClick={onClick}
     >
@@ -916,8 +1231,12 @@ function ProjectCard({ project, onClick, onEdit, index }) {
       <div
         className="px-5 py-4 border-b"
         style={{
-          background:   delayed ? "rgba(255,59,48,0.03)"  : "rgba(73,136,196,0.03)",
-          borderColor:  delayed ? "rgba(255,59,48,0.1)"   : "rgba(73,136,196,0.08)",
+          background: delayed
+            ? "rgba(255,59,48,0.03)"
+            : "rgba(73,136,196,0.03)",
+          borderColor: delayed
+            ? "rgba(255,59,48,0.1)"
+            : "rgba(73,136,196,0.08)",
         }}
       >
         <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -925,7 +1244,9 @@ function ProjectCard({ project, onClick, onEdit, index }) {
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <h3 className="text-sm font-bold text-extra-darkblue m-0 break-words">
                 {project.projectId && (
-                  <span className="text-blue-500 mr-1.5">{project.projectId}</span>
+                  <span className="text-blue-500 mr-1.5">
+                    {project.projectId}
+                  </span>
                 )}
                 {project.name}
               </h3>
@@ -936,11 +1257,15 @@ function ProjectCard({ project, onClick, onEdit, index }) {
               )}
             </div>
             <div className="flex items-center gap-1 text-xs text-blue-400">
-              <MapPin size={10} className="shrink-0" /> {project.location || "—"}
+              <MapPin size={10} className="shrink-0" />{" "}
+              {project.location || "—"}
             </div>
           </div>
           <div className="shrink-0">
-            <StatusPill label={project.status || "active"} color={statusColor[project.status] || "blue"} />
+            <StatusPill
+              label={project.status || "active"}
+              color={statusColor[project.status] || "blue"}
+            />
           </div>
         </div>
       </div>
@@ -950,15 +1275,29 @@ function ProjectCard({ project, onClick, onEdit, index }) {
         {/* Progress */}
         <div className="mb-4">
           <div className="flex justify-between mb-1.5">
-            <span className="text-xs font-semibold text-blue-400">Progress</span>
-            <span className={`text-xs font-bold ${delayed ? "text-red-500" : "text-extra-darkblue"}`}>
+            <span className="text-xs font-semibold text-blue-400">
+              Progress
+            </span>
+            <span
+              className={`text-xs font-bold ${delayed ? "text-red-500" : "text-extra-darkblue"}`}
+            >
               {project.progress || 0}%
             </span>
           </div>
-          <div className="rounded-full h-1.5" style={{ background: delayed ? "rgba(255,59,48,0.1)" : "rgba(73,136,196,0.12)" }}>
+          <div
+            className="rounded-full h-1.5"
+            style={{
+              background: delayed
+                ? "rgba(255,59,48,0.1)"
+                : "rgba(73,136,196,0.12)",
+            }}
+          >
             <div
               className="h-1.5 rounded-full transition-all duration-500"
-              style={{ width: `${project.progress || 0}%`, background: progressBg }}
+              style={{
+                width: `${project.progress || 0}%`,
+                background: progressBg,
+              }}
             />
           </div>
         </div>
@@ -966,15 +1305,26 @@ function ProjectCard({ project, onClick, onEdit, index }) {
         {/* Info grid */}
         <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 mb-4">
           {[
-            { label: "CLIENT",   value: project.clientName || "—" },
-            { label: "PHASE",    value: project.phase      || "—" },
-            { label: "START",    value: fmtDate(project.startDate) },
-            { label: "DEADLINE", value: fmtDate(project.endDate), isDelayed: delayed },
-          ].map(({ label, value, isDelayed: d }) => (
+            { label: "CLIENT", value: project.clientName || "—" },
+            { label: "PHASE", value: project.phase || "—" },
+            { label: "START", value: fmtDate(project.startDate) },
+            {
+              label: "DEADLINE",
+              value: fmtDate(project.endDate),
+              isDelayed: delayed,
+            },
+          ]?.map(({ label, value, isDelayed: d }) => (
             <div key={label}>
-              <p className={`text-xs font-bold tracking-widest uppercase mb-0.5 ${d ? "text-red-400" : "text-blue-300"}`}>{label}</p>
-              <p className={`text-xs font-semibold m-0 truncate flex items-center gap-1 ${d ? "text-red-500" : "text-extra-darkblue"}`}>
-                {d && <Calendar size={10} />}{value}
+              <p
+                className={`text-xs font-bold tracking-widest uppercase mb-0.5 ${d ? "text-red-400" : "text-blue-300"}`}
+              >
+                {label}
+              </p>
+              <p
+                className={`text-xs font-semibold m-0 truncate flex items-center gap-1 ${d ? "text-red-500" : "text-extra-darkblue"}`}
+              >
+                {d && <Calendar size={10} />}
+                {value}
               </p>
             </div>
           ))}
@@ -984,19 +1334,23 @@ function ProjectCard({ project, onClick, onEdit, index }) {
         {(project.assignedEngineers || []).length > 0 && (
           <div className="flex items-center gap-2 mb-3">
             <div className="flex">
-              {(project.assignedEngineers || []).slice(0, 4).map((e, i) => (
+              {(project.assignedEngineers || []).slice(0, 4)?.map((e, i) => (
                 <div
                   key={e._id || i}
                   title={e.name}
                   className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white"
-                  style={{ background: "linear-gradient(135deg,#4988C4,#0F2854)", marginLeft: i > 0 ? "-6px" : "0" }}
+                  style={{
+                    background: "linear-gradient(135deg,#4988C4,#0F2854)",
+                    marginLeft: i > 0 ? "-6px" : "0",
+                  }}
                 >
                   {(e.name || "?").charAt(0).toUpperCase()}
                 </div>
               ))}
             </div>
             <span className="text-xs text-blue-400">
-              {(project.assignedEngineers || []).length} engineer{(project.assignedEngineers || []).length !== 1 ? "s" : ""}
+              {(project.assignedEngineers || []).length} engineer
+              {(project.assignedEngineers || []).length !== 1 ? "s" : ""}
             </span>
           </div>
         )}
@@ -1004,17 +1358,31 @@ function ProjectCard({ project, onClick, onEdit, index }) {
         {/* Footer */}
         <div
           className="flex items-center justify-between pt-3 border-t"
-          style={{ borderColor: delayed ? "rgba(255,59,48,0.1)" : "rgba(73,136,196,0.08)" }}
+          style={{
+            borderColor: delayed
+              ? "rgba(255,59,48,0.1)"
+              : "rgba(73,136,196,0.08)",
+          }}
         >
-          <span className={`text-xs font-semibold ${delayed ? "text-red-400" : "text-blue-400"}`}>View full details</span>
+          <span
+            className={`text-xs font-semibold ${delayed ? "text-red-400" : "text-blue-400"}`}
+          >
+            View full details
+          </span>
           <div className="flex items-center gap-2">
             <button
-              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
               className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg border bg-blue-50 border-blue-100 text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
             >
               <Edit2 size={11} /> Edit
             </button>
-            <ChevronRight size={14} className={delayed ? "text-red-400" : "text-blue-400"} />
+            <ChevronRight
+              size={14}
+              className={delayed ? "text-red-400" : "text-blue-400"}
+            />
           </div>
         </div>
       </div>
@@ -1024,24 +1392,28 @@ function ProjectCard({ project, onClick, onEdit, index }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function EngineerMyProjects() {
-  const [projects,        setProjects]        = useState([]);
-  const [loading,         setLoading]         = useState(true);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [editingProject,  setEditingProject]  = useState(null);
-  const [filterTab,       setFilterTab]       = useState("all");
-  const [searchQuery,     setSearchQuery]     = useState("");
-  const [sortBy,          setSortBy]          = useState("name-asc");
-  const [engineerName,    setEngineerName]    = useState("Engineer");
+  const [editingProject, setEditingProject] = useState(null);
+  const [filterTab, setFilterTab] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("name-asc");
+  const [engineerName, setEngineerName] = useState("Engineer");
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const engineerId = getCurrentEngineerId();
       setEngineerName(getCurrentEngineerName());
-      const pData       = await apiFetch("/projects");
+      const pData = await apiFetch("/projects");
       const allProjects = Array.isArray(pData) ? pData : pData.projects || [];
-      const myProjects  = engineerId
-        ? allProjects.filter((p) => (p.assignedEngineers || []).some((e) => (e._id || e) === engineerId))
+      const myProjects = engineerId
+        ? allProjects.filter((p) =>
+            (p.assignedEngineers || []).some(
+              (e) => (e._id || e) === engineerId,
+            ),
+          )
         : allProjects;
       setProjects(myProjects);
     } catch (err) {
@@ -1051,52 +1423,101 @@ export default function EngineerMyProjects() {
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleProjectUpdated = (updated) => {
-    setProjects(prev => prev.map(p => p._id === updated._id ? { ...p, ...updated } : p));
-    if (selectedProject?._id === updated._id) setSelectedProject(prev => ({ ...prev, ...updated }));
+    setProjects((prev) =>
+      prev?.map((p) => (p._id === updated._id ? { ...p, ...updated } : p)),
+    );
+    if (selectedProject?._id === updated._id)
+      setSelectedProject((prev) => ({ ...prev, ...updated }));
   };
 
-  const delayedProjects   = projects.filter((p) => isProjectDelayed(p));
-  const activeProjects    = projects.filter((p) => p.status !== "completed" && !isProjectDelayed(p));
+  const delayedProjects = projects.filter((p) => isProjectDelayed(p));
+  const activeProjects = projects.filter(
+    (p) => p.status !== "completed" && !isProjectDelayed(p),
+  );
   const completedProjects = projects.filter((p) => p.status === "completed");
-  const onHoldProjects    = projects.filter((p) => p.status === "on-hold");
+  const onHoldProjects = projects.filter((p) => p.status === "on-hold");
 
   const tabCounts = {
-    all: projects.length, active: activeProjects.length,
-    delayed: delayedProjects.length, completed: completedProjects.length, "on-hold": onHoldProjects.length,
+    all: projects.length,
+    active: activeProjects.length,
+    delayed: delayedProjects.length,
+    completed: completedProjects.length,
+    "on-hold": onHoldProjects.length,
   };
 
   const STATS = [
-    { label: "Total",     value: projects.length,          color: "#4988C4", bg: "bg-blue-50",   border: "border-blue-100",  ring: "ring-blue-300",  filterKey: "all"       },
-    { label: "Active",    value: activeProjects.length,    color: "#0F2854", bg: "bg-indigo-50", border: "border-indigo-100", ring: "ring-indigo-300", filterKey: "active"    },
-    { label: "Delayed",   value: delayedProjects.length,   color: "#FF3B30", bg: "bg-red-50",    border: "border-red-100",   ring: "ring-red-300",   filterKey: "delayed"   },
-    { label: "Completed", value: completedProjects.length, color: "#34C759", bg: "bg-green-50",  border: "border-green-100", ring: "ring-green-300", filterKey: "completed" },
+    {
+      label: "Total",
+      value: projects.length,
+      color: "#4988C4",
+      bg: "bg-blue-50",
+      border: "border-blue-100",
+      ring: "ring-blue-300",
+      filterKey: "all",
+    },
+    {
+      label: "Active",
+      value: activeProjects.length,
+      color: "#0F2854",
+      bg: "bg-indigo-50",
+      border: "border-indigo-100",
+      ring: "ring-indigo-300",
+      filterKey: "active",
+    },
+    {
+      label: "Delayed",
+      value: delayedProjects.length,
+      color: "#FF3B30",
+      bg: "bg-red-50",
+      border: "border-red-100",
+      ring: "ring-red-300",
+      filterKey: "delayed",
+    },
+    {
+      label: "Completed",
+      value: completedProjects.length,
+      color: "#34C759",
+      bg: "bg-green-50",
+      border: "border-green-100",
+      ring: "ring-green-300",
+      filterKey: "completed",
+    },
   ];
 
   const filtered = (() => {
     let list = [...projects];
-    if (filterTab === "active")    list = [...activeProjects];
-    if (filterTab === "delayed")   list = [...delayedProjects];
+    if (filterTab === "active") list = [...activeProjects];
+    if (filterTab === "delayed") list = [...delayedProjects];
     if (filterTab === "completed") list = [...completedProjects];
-    if (filterTab === "on-hold")   list = [...onHoldProjects];
+    if (filterTab === "on-hold") list = [...onHoldProjects];
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      list = list.filter((p) =>
-        (p.name || "").toLowerCase().includes(q) ||
-        (p.clientName || "").toLowerCase().includes(q) ||
-        (p.location || "").toLowerCase().includes(q) ||
-        (p.phase || "").toLowerCase().includes(q)
+      list = list.filter(
+        (p) =>
+          (p.name || "").toLowerCase().includes(q) ||
+          (p.clientName || "").toLowerCase().includes(q) ||
+          (p.location || "").toLowerCase().includes(q) ||
+          (p.phase || "").toLowerCase().includes(q),
       );
     }
     return [...list].sort((a, b) => {
-      if (sortBy === "name-asc")      return (a.name || "").localeCompare(b.name || "");
-      if (sortBy === "name-desc")     return (b.name || "").localeCompare(a.name || "");
-      if (sortBy === "progress-desc") return (b.progress || 0) - (a.progress || 0);
-      if (sortBy === "progress-asc")  return (a.progress || 0) - (b.progress || 0);
-      if (sortBy === "date-desc")     return new Date(b.startDate || 0) - new Date(a.startDate || 0);
-      if (sortBy === "date-asc")      return new Date(a.startDate || 0) - new Date(b.startDate || 0);
+      if (sortBy === "name-asc")
+        return (a.name || "").localeCompare(b.name || "");
+      if (sortBy === "name-desc")
+        return (b.name || "").localeCompare(a.name || "");
+      if (sortBy === "progress-desc")
+        return (b.progress || 0) - (a.progress || 0);
+      if (sortBy === "progress-asc")
+        return (a.progress || 0) - (b.progress || 0);
+      if (sortBy === "date-desc")
+        return new Date(b.startDate || 0) - new Date(a.startDate || 0);
+      if (sortBy === "date-asc")
+        return new Date(a.startDate || 0) - new Date(b.startDate || 0);
       return 0;
     });
   })();
@@ -1121,21 +1542,26 @@ export default function EngineerMyProjects() {
 
   return (
     <div className="space-y-5">
-
       {editingProject && (
         <EditProjectModal
           project={editingProject}
           onClose={() => setEditingProject(null)}
-          onSaved={(updated) => { handleProjectUpdated(updated); setEditingProject(null); }}
+          onSaved={(updated) => {
+            handleProjectUpdated(updated);
+            setEditingProject(null);
+          }}
         />
       )}
 
       {/* Page Header */}
       <div>
-        <p className="text-xs font-bold tracking-widest text-blue-500 uppercase mb-1">Engineer Panel</p>
+        <p className="text-xs font-bold tracking-widest text-blue-500 uppercase mb-1">
+          Engineer Panel
+        </p>
         <h1 className="text-2xl font-bold text-extra-darkblue">My Projects</h1>
         <p className="text-sm text-gray-400 mt-0.5">
-          {engineerName} · {projects.length} project{projects.length !== 1 ? "s" : ""} assigned to you
+          {engineerName} · {projects.length} project
+          {projects.length !== 1 ? "s" : ""} assigned to you
         </p>
       </div>
 
@@ -1144,7 +1570,8 @@ export default function EngineerMyProjects() {
         <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-2xl px-5 py-3 flex-wrap">
           <AlertTriangle size={15} className="text-red-500 shrink-0" />
           <span className="text-sm font-semibold text-red-500 flex-1 min-w-[160px]">
-            You have <strong>{delayedProjects.length}</strong> delayed project{delayedProjects.length > 1 ? "s" : ""} that need attention.
+            You have <strong>{delayedProjects.length}</strong> delayed project
+            {delayedProjects.length > 1 ? "s" : ""} that need attention.
           </span>
           <button
             onClick={() => setFilterTab("delayed")}
@@ -1157,7 +1584,7 @@ export default function EngineerMyProjects() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {STATS.map((s) => {
+        {STATS?.map((s) => {
           const isActive = filterTab === s.filterKey;
           return (
             <button
@@ -1165,10 +1592,19 @@ export default function EngineerMyProjects() {
               onClick={() => setFilterTab(s.filterKey)}
               className={`rounded-xl px-5 py-4 text-left w-full transition-all duration-150 cursor-pointer border ${s.bg} ${isActive ? `${s.border} ring-2 ${s.ring} shadow-sm` : "border-gray-100 hover:shadow-sm"}`}
             >
-              <p className="text-xs font-bold tracking-widest text-blue-400 uppercase mb-1">{s.label}</p>
-              <p className="text-3xl font-bold m-0" style={{ color: s.color }}>{s.value}</p>
+              <p className="text-xs font-bold tracking-widest text-blue-400 uppercase mb-1">
+                {s.label}
+              </p>
+              <p className="text-3xl font-bold m-0" style={{ color: s.color }}>
+                {s.value}
+              </p>
               {isActive && (
-                <p className="text-xs font-bold mt-1 m-0" style={{ color: s.color }}>● Active filter</p>
+                <p
+                  className="text-xs font-bold mt-1 m-0"
+                  style={{ color: s.color }}
+                >
+                  ● Active filter
+                </p>
               )}
             </button>
           );
@@ -1178,7 +1614,11 @@ export default function EngineerMyProjects() {
       {/* Search + Sort */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1" style={{ minWidth: "200px" }}>
-          <Search size={14} className="absolute pointer-events-none text-blue-400" style={{ left: "12px", top: "50%", transform: "translateY(-50%)" }} />
+          <Search
+            size={14}
+            className="absolute pointer-events-none text-blue-400"
+            style={{ left: "12px", top: "50%", transform: "translateY(-50%)" }}
+          />
           <input
             type="text"
             placeholder="Search by name, client, location, phase…"
@@ -1192,14 +1632,18 @@ export default function EngineerMyProjects() {
           onChange={(e) => setSortBy(e.target.value)}
           className="text-sm px-3 py-2.5 rounded-xl border border-blue-100 bg-blue-50/40 text-extra-darkblue focus:outline-none focus:border-blue-400 focus:bg-white transition-colors cursor-pointer"
         >
-          {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {SORT_OPTIONS?.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </select>
       </div>
 
       {/* Filter tabs */}
       <div className="flex gap-2 flex-wrap">
-        {FILTER_TABS.map((tab) => {
-          const isActive  = filterTab === tab.key;
+        {FILTER_TABS?.map((tab) => {
+          const isActive = filterTab === tab.key;
           const isDelayed = tab.key === "delayed";
           return (
             <button
@@ -1215,14 +1659,19 @@ export default function EngineerMyProjects() {
             >
               {tab.label}
               {tab.key !== "all" && (
-                <span className="ml-1.5 opacity-70">({tabCounts[tab.key]})</span>
+                <span className="ml-1.5 opacity-70">
+                  ({tabCounts[tab.key]})
+                </span>
               )}
             </button>
           );
         })}
         {(searchQuery || filterTab !== "all") && (
           <button
-            onClick={() => { setSearchQuery(""); setFilterTab("all"); }}
+            onClick={() => {
+              setSearchQuery("");
+              setFilterTab("all");
+            }}
             className="text-xs font-bold px-3 py-1.5 rounded-full border border-blue-100 text-blue-400 bg-transparent hover:bg-blue-50 transition-colors cursor-pointer"
           >
             Clear ✕
@@ -1232,12 +1681,13 @@ export default function EngineerMyProjects() {
 
       {/* Results count */}
       <p className="text-xs font-semibold text-blue-300">
-        {filtered.length} project{filtered.length !== 1 ? "s" : ""} found{searchQuery && ` for "${searchQuery}"`}
+        {filtered.length} project{filtered.length !== 1 ? "s" : ""} found
+        {searchQuery && ` for "${searchQuery}"`}
       </p>
 
       {/* Project grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map((project, i) => (
+        {filtered?.map((project, i) => (
           <ProjectCard
             key={project._id}
             project={project}
@@ -1262,7 +1712,10 @@ export default function EngineerMyProjects() {
             </p>
             {(searchQuery || filterTab !== "all") && (
               <button
-                onClick={() => { setSearchQuery(""); setFilterTab("all"); }}
+                onClick={() => {
+                  setSearchQuery("");
+                  setFilterTab("all");
+                }}
                 className="text-xs font-bold underline text-blue-400 bg-transparent border-none cursor-pointer"
               >
                 Clear all filters
