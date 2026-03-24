@@ -385,7 +385,7 @@ export default function Approvals() {
         url: e.receiptUrl ? (e.receiptUrl.startsWith("http") ? e.receiptUrl : `${FILE_BASE}${e.receiptUrl}`) : "",
       }));
 
-      setItems([..?.mappedDocs, ..?.mappedApps, ..?.mappedExps].sort((a,b) => new Date(b.date) - new Date(a.date)));
+      setItems([...mappedDocs, ...mappedApps, ...mappedExps].sort((a,b) => new Date(b.date) - new Date(a.date)));
     } catch (err) {
       console.error(err);
       showToast("Error loading approvals", true);
