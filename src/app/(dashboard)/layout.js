@@ -222,11 +222,6 @@ const ROLE_NAVIGATION = {
       icon: LayoutDashboard,
       label: "Dashboard",
     },
-    // {
-    //   href: "/marketingCoordinator/project-replication",
-    //   icon: Copy,
-    //   label: "Project Replication",
-    // },
     {
       href: "/marketingCoordinator/documents",
       icon: FileText,
@@ -236,6 +231,11 @@ const ROLE_NAVIGATION = {
       href: "/marketingCoordinator/installation-request",
       icon: Send,
       label: "Installation Request",
+    },
+    {
+      href: "/marketingCoordinator/my-expenses",
+      icon: Banknote,
+      label: "My Expenses",
     },
     {
       href: "/marketingCoordinator/attendance",
