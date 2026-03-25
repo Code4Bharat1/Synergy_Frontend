@@ -360,14 +360,14 @@ export default function ProjectDetail({ params }) {
                 {preview.fileName}
               </p>
               <div className="flex items-center gap-2">
-                <a
+                {/* <a
                   href={preview.url}
                   target="_blank"
                   rel="noreferrer"
                   className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-gray-500"
                 >
                   <Download size={16} />
-                </a>
+                </a> */}
                 <button
                   onClick={() => setPreview(null)}
                   className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-gray-500"
@@ -387,12 +387,12 @@ export default function ProjectDetail({ params }) {
                   className="max-w-full max-h-[75vh] object-contain rounded-lg shadow"
                 />
               ) : (
-                <iframe
-                  src={preview.url}
-                  className="w-full rounded-lg shadow bg-white"
-                  style={{ height: "75vh" }}
-                  title={preview.fileName}
-                />
+                <embed
+  src={`${preview.url}#toolbar=0`}
+  type="application/pdf"
+  className="w-full rounded-lg shadow bg-white"
+  style={{ height: "75vh" }}
+/>
               )}
             </div>
           </div>
@@ -708,7 +708,14 @@ export default function ProjectDetail({ params }) {
                 <FileGridCard
                   key={file._id}
                   file={file}
-                  onPreview={() => setPreview(file)}
+                  onPreview={() => {
+                    const isPreviewable = file.fileType === "image" || file.fileType === "pdf" || file.fileName?.toLowerCase().endsWith(".pdf");
+                    if (isPreviewable) {
+                      setPreview(file);
+                    } else {
+                      showToast("Preview not available for this file type. Downloads are disabled.", "error");
+                    }
+                  }}
                   onDelete={() => handleDelete(file._id)}
                 />
               ))}
@@ -719,7 +726,14 @@ export default function ProjectDetail({ params }) {
                 <FileListRow
                   key={file._id}
                   file={file}
-                  onPreview={() => setPreview(file)}
+                  onPreview={() => {
+                    const isPreviewable = file.fileType === "image" || file.fileName?.toLowerCase().endsWith(".pdf");
+                    if (isPreviewable) {
+                      setPreview(file);
+                    } else {
+                      showToast("Preview not available for this file type. Downloads are disabled.", "error");
+                    }
+                  }}
                   onDelete={() => handleDelete(file._id)}
                 />
               ))}
@@ -790,7 +804,7 @@ function FileGridCard({ file, onPreview, onDelete }) {
             <Clock size={9} />
             {formatDateTime(file.createdAt).split(",")[0]}
           </span>
-          <div className="flex items-center gap-1">
+          {/* <div className="flex items-center gap-1">
             <a
               href={file.url}
               target="_blank"
@@ -805,7 +819,7 @@ function FileGridCard({ file, onPreview, onDelete }) {
             >
               <Trash2 size={12} />
             </button>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
@@ -852,7 +866,7 @@ function FileListRow({ file, onPreview, onDelete }) {
         </div>
       </div>
       {/* Actions */}
-      <div className="flex items-center gap-1">
+      {/* <div className="flex items-center gap-1">
         <button
           onClick={onPreview}
           className="p-2 rounded-lg text-gray-300 hover:text-blue-600 hover:bg-blue-50 transition-all"
@@ -873,7 +887,7 @@ function FileListRow({ file, onPreview, onDelete }) {
         >
           <Trash2 size={14} />
         </button>
-      </div>
+      </div> */}
     </div>
   );
 }

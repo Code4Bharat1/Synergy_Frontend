@@ -240,6 +240,11 @@ function EditProjectModal({ project, onClose, onSaved }) {
               className="text-lg font-bold text-extra-darkblue"
               style={{ fontFamily: "'Syne', sans-serif" }}
             >
+              {project.projectId && (
+                <span className="text-blue-500 mr-2 pr-2 border-r border-blue-200">
+                  {project.projectId}
+                </span>
+              )}
               {project.name}
             </h3>
           </div>

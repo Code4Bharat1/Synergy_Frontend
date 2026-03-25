@@ -46,6 +46,12 @@ const apiFetch = async (path) => {
   return res.data;
 };
 
+const isProjectDelayed = (project) => {
+  if (project.status === "completed") return false;
+  if (project.endDate) return new Date(project.endDate) < new Date();
+  return false;
+};
+
 const safeArray = (data, key) => {
   if (Array.isArray(data)) return data;
   if (data && Array.isArray(data[key])) return data[key];
@@ -646,6 +652,8 @@ export default function DirectorDashboard() {
   );
   // documents where status = "pending"
   const pendingDocs = documents.filter((d) => d.status === "pending");
+  // projects that are delayed (automatic calculation)
+  const delayedProjects = projects.filter((p) => isProjectDelayed(p));
   // users where status = "active"
   const activeUsers = users.filter((u) => u.status === "active");
 
@@ -745,6 +753,15 @@ export default function DirectorDashboard() {
           color="bg-emerald-50 text-emerald-600"
           loading={loading}
           href="/director/performance"
+          router={router}
+        />
+        <KPICard
+          label="Delayed Projects"
+          value={delayedProjects.length}
+          icon={AlertTriangle}
+          color="bg-red-50 text-red-600"
+          loading={loading}
+          href="/director/project"
           router={router}
         />
       </div>

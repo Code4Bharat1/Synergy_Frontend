@@ -29,7 +29,7 @@ const apiFetch = async (
   if (body && !isMultipart && typeof body === "string") {
     try {
       data = JSON.parse(body);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   const config = {
@@ -78,6 +78,12 @@ const EMPTY_FORM = {
   assignedMarketingExecutive: "",
   assignedInstallationIncharge: "",
   assignedEngineers: [], // array of IDs
+};
+
+const isProjectDelayed = (project) => {
+  if (project.status === "completed") return false;
+  if (project.endDate) return new Date(project.endDate) < new Date();
+  return false;
 };
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -209,13 +215,13 @@ function ProjectForm({
 
   // Split users by role for targeted dropdowns
   const marketingUsers = users.filter(
-    (u) => u.role === "marketing_executive" || u.role === "admin" || true,
+    (u) => u.role === "marketing_executive" || u.role === "admin",
   );
   const inchargeUsers = users.filter(
-    (u) => u.role === "installation_incharge" || u.role === "admin" || true,
+    (u) => u.role === "installation_incharge" || u.role === "admin",
   );
   const engineerUsers = users.filter(
-    (u) => u.role === "engineer" || u.role === "admin" || true,
+    (u) => u.role === "engineer",
   );
   // ↑ Remove the `|| true` if you want strict role filtering
 
@@ -549,13 +555,12 @@ function ProjectExpensesTab({ projectId }) {
                 </p>
                 <div className="mt-1">
                   <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      exp.status === "Approved"
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${exp.status === "Approved"
                         ? "bg-emerald-50 text-emerald-600"
                         : exp.status === "Rejected"
                           ? "bg-red-50 text-red-600"
                           : "bg-amber-50 text-amber-600"
-                    }`}
+                      }`}
                   >
                     {exp.status}
                   </span>
@@ -986,7 +991,11 @@ export default function ProjectOverview() {
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const filtered =
-    filter === "All" ? projects : projects.filter((p) => p.status === filter);
+    filter === "All"
+      ? projects
+      : filter === "Delayed"
+        ? projects.filter((p) => isProjectDelayed(p))
+        : projects.filter((p) => p.status === filter);
   const statusProgress = {
     initiated: 5,
     "in-progress": 40,
@@ -1133,14 +1142,14 @@ export default function ProjectOverview() {
 
       {/* Filter tabs */}
       <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit overflow-x-auto">
-        {["All", ...Object.keys(STATUS_LABELS)]?.map((f) => (
+        {["All", "Delayed", ...Object.keys(STATUS_LABELS)]?.map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all
               ${filter === f ? "bg-white text-gray-800 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
           >
-            {f === "All" ? "All" : STATUS_LABELS[f]}
+            {f === "All" ? "All" : f === "Delayed" ? "Delayed" : STATUS_LABELS[f]}
           </button>
         ))}
       </div>
@@ -1208,7 +1217,14 @@ export default function ProjectOverview() {
                         {p.location || "No location"} · {p.clientName}
                       </p>
                     </div>
-                    <Badge text={statusLabel} colorClass={statusStyle} />
+                    <div className="flex items-center gap-2">
+                      {isProjectDelayed(p) && (
+                        <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded animate-pulse">
+                          DELAYED
+                        </span>
+                      )}
+                      <Badge text={statusLabel} colorClass={statusStyle} />
+                    </div>
                   </div>
 
                   <div className="space-y-3">

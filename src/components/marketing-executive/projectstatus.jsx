@@ -385,6 +385,9 @@ function DetailPanel({ project, onClose }) {
       <div className="px-6 py-4 flex items-start justify-between gap-3 border-b border-gray-100 bg-gray-50">
         <div>
           <h3 className="text-base font-bold text-extra-darkblue">
+            {project.projectId && (
+              <span className="text-[#4988C4] mr-2">{project.projectId}</span>
+            )}
             {project.name}
           </h3>
           <p className="text-sm mt-0.5 text-gray-400">{project.clientName}</p>
@@ -816,6 +819,9 @@ export default function ProjectStatusTracking() {
                       >
                         <td className="px-5 py-4">
                           <p className="text-sm font-semibold text-extra-darkblue">
+                            {p.projectId && (
+                              <span className="text-[#4988C4] mr-1.5">{p.projectId}</span>
+                            )}
                             {p.name}
                           </p>
                           <p className="text-xs mt-0.5 text-gray-400">

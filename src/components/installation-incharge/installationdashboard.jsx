@@ -110,6 +110,9 @@ function ReviewModal({ project, onClose }) {
               Eligibility Review
             </p>
             <h2 className="text-white text-lg font-bold leading-snug">
+              {project.projectId && (
+                <span className="text-blue-200 mr-2">{project.projectId}</span>
+              )}
               {project.name}
             </h2>
           </div>
@@ -187,8 +190,8 @@ function EligibilityCard({ row, onReview }) {
     <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
       <div className="flex items-start justify-between mb-2">
         <div>
-          <span className="text-xs font-bold text-blue-700">{row.id}</span>
           <p className="font-semibold text-gray-900 text-sm mt-0.5">
+            <span className="text-blue-700 mr-1.5">{row.id}</span>
             {row.name}
           </p>
           <p className="text-xs text-gray-500">{row.client}</p>
@@ -213,8 +216,8 @@ function ProgressCard({ row }) {
     <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
       <div className="flex items-start justify-between mb-1">
         <div>
-          <span className="text-xs font-bold text-blue-700">{row.id}</span>
           <p className="font-semibold text-gray-900 text-sm mt-0.5">
+            <span className="text-blue-700 mr-1.5">{row.id}</span>
             {row.name}
           </p>
         </div>
@@ -293,7 +296,7 @@ export default function Dashboard() {
   const eligibilityRows = projects
     .filter((p) => p.status === "initiated")
     ?.map((p) => ({
-      id: p._id,
+      id: p.projectId || p._id?.slice(-6).toUpperCase() || p._id,
       name: p.name,
       client: p.clientName,
       submitted: new Date(p.createdAt).toLocaleDateString("en-GB", {
@@ -310,7 +313,7 @@ export default function Dashboard() {
       ["in-progress", "installation", "testing"].includes(p.status),
     )
     ?.map((p) => ({
-      id: p._id,
+      id: p.projectId || p._id?.slice(-6).toUpperCase() || p._id,
       name: p.name,
       engineer:
         p.assignedEngineers?.length > 0
@@ -586,6 +589,11 @@ export default function Dashboard() {
                         className={`border-t border-gray-50 hover:bg-blue-50/40 transition-colors ${i % 2 === 1 ? "bg-slate-50/50" : ""}`}
                       >
                         <td className="px-5 py-3.5 font-semibold text-gray-900">
+                          {row.id && (
+                            <span className="text-blue-700 mr-2 cursor-pointer">
+                              {row.id}
+                            </span>
+                          )}
                           {row.name}
                         </td>
                         <td className="px-5 py-3.5 text-gray-500">
@@ -653,6 +661,12 @@ export default function Dashboard() {
                         key={row.id}
                         className={`border-t border-gray-50 hover:bg-blue-50/40 transition-colors ${i % 2 === 1 ? "bg-slate-50/50" : ""}`}
                       >
+                        <td className="px-5 py-3.5 font-semibold text-blue-700">
+                          {row.id}
+                        </td>
+                        <td className="px-5 py-3.5 font-semibold text-gray-900">
+                          {row.name}
+                        </td>
                         <td
                           className={`px-5 py-3.5 ${row.engineer === "Unassigned" ? "text-red-500 font-bold" : "text-gray-600"}`}
                         >

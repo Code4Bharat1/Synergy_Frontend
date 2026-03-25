@@ -618,6 +618,9 @@ export default function EligibilityChecklist() {
                       >
                         <td className="px-4 py-3.5">
                           <p className="text-gray-800 font-medium text-xs mt-0.5">
+                            {project.id && (
+                              <span className="text-blue-700 mr-2">{project.id}</span>
+                            )}
                             {project.name}
                           </p>
                         </td>

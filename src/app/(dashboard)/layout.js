@@ -106,7 +106,7 @@ const ROLE_NAVIGATION = {
     { href: "/support/log", icon: FilePlus, label: "Log Complaint" },
     { href: "/support/detail", icon: FileText, label: "Complaint Detail" },
     { href: "/support/service", icon: Wrench, label: "Service Execution" },
-    { href: "/support/analytics", icon: BarChart2, label: "Analytics" },
+    // { href: "/support/analytics", icon: BarChart2, label: "Analytics" },
     {
       href: "/task-assigned",
       icon: CalendarCheck,
