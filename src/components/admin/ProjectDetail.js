@@ -172,9 +172,12 @@ const isImageFile = (url) => {
 // Automatically strips out "undefined/" corrupted prefixes from previous uploads.
 const getFileUrl = (url) => {
   if (!url) return "";
-  if (url.startsWith("http")) return url;
 
-  const cleanUrl = url.replace(/^undefined\//, "").replace(/^\/+/, "");
+  // Clean corrupt "undefined/" prefixes globally.
+  // E.g. https://api.com/undefined/uploads/ AND undefined/uploads/
+  let cleanUrl = url.replace(/\/undefined\//g, "/").replace(/^undefined\//, "").replace(/^\/+/, "");
+
+  if (cleanUrl.startsWith("http")) return cleanUrl;
 
   // Fallback to ensuring the API absolute base URL prepends the static files
   const base = API_BASE.replace("/api/v1", "");
