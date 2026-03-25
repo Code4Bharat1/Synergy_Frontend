@@ -125,6 +125,11 @@ const ROLE_NAVIGATION = {
       label: "Dashboard",
     },
     {
+      href: "/installationIncharge/installation-requests",
+      icon: Send,
+      label: "Installation Requests",
+    },
+    {
       href: "/installationIncharge/eligibility",
       icon: ClipboardList,
       label: "Eligibility Checklist",

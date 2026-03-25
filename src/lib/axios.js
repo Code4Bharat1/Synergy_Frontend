@@ -38,7 +38,10 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 403 && !originalRequest._retry) {
+    // We MUST check for 401 here, not 403.
+    // 403 means "Forbidden" (you don't have the role permission).
+    // 401 means "Unauthorized" (your token expired).
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       if (isRefreshing) {

@@ -11,6 +11,7 @@ import {
   Clock,
   MapPin,
   Flag,
+  ChevronDown,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -29,61 +30,78 @@ const PRIORITY_OPTS = [
     value: "Low",
     label: "Low",
     color: "text-emerald-600",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/25",
-    dot: "bg-emerald-400",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    dot: "bg-emerald-500",
+    activeBg: "bg-emerald-600",
+    activeText: "text-white",
+    activeBorder: "border-emerald-600",
   },
   {
     value: "Medium",
     label: "Medium",
-    color: "text-orange-500",
-    bg: "bg-orange-500/10",
-    border: "border-orange-500/25",
-    dot: "bg-orange-400",
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    dot: "bg-amber-500",
+    activeBg: "bg-amber-500",
+    activeText: "text-white",
+    activeBorder: "border-amber-500",
   },
   {
     value: "High",
     label: "High",
-    color: "text-red-500",
-    bg: "bg-red-500/10",
-    border: "border-red-500/25",
-    dot: "bg-red-400",
+    color: "text-orange-600",
+    bg: "bg-orange-50",
+    border: "border-orange-200",
+    dot: "bg-orange-500",
+    activeBg: "bg-orange-600",
+    activeText: "text-white",
+    activeBorder: "border-orange-600",
   },
   {
     value: "Critical",
     label: "Critical",
-    color: "text-red-800",
-    bg: "bg-red-900/10",
-    border: "border-red-900/25",
-    dot: "bg-red-800",
+    color: "text-red-600",
+    bg: "bg-red-50",
+    border: "border-red-200",
+    dot: "bg-red-600",
+    activeBg: "bg-red-600",
+    activeText: "text-white",
+    activeBorder: "border-red-600",
   },
 ];
 
 const reqStatusStyle = {
   Sent: {
-    bg: "bg-brand-mid/10",
-    text: "text-brand-mid",
-    border: "border-brand-mid/25",
+    bg: "bg-blue-50",
+    text: "text-blue-700",
+    border: "border-blue-200",
+    dot: "bg-blue-500",
   },
   Accepted: {
-    bg: "bg-emerald-500/10",
-    text: "text-emerald-600",
-    border: "border-emerald-500/25",
+    bg: "bg-emerald-50",
+    text: "text-emerald-700",
+    border: "border-emerald-200",
+    dot: "bg-emerald-500",
   },
   Pending: {
-    bg: "bg-orange-500/10",
-    text: "text-orange-500",
-    border: "border-orange-500/25",
+    bg: "bg-amber-50",
+    text: "text-amber-700",
+    border: "border-amber-200",
+    dot: "bg-amber-500",
   },
   Rejected: {
-    bg: "bg-red-500/10",
-    text: "text-red-500",
-    border: "border-red-500/25",
+    bg: "bg-red-50",
+    text: "text-red-700",
+    border: "border-red-200",
+    dot: "bg-red-500",
   },
   Completed: {
-    bg: "bg-slate-500/10",
-    text: "text-slate-500",
-    border: "border-slate-500/25",
+    bg: "bg-slate-100",
+    text: "text-slate-600",
+    border: "border-slate-200",
+    dot: "bg-slate-400",
   },
 };
 
@@ -98,6 +116,38 @@ const EMPTY_FORM = {
   notifyEmail: true,
   notifyInApp: true,
 };
+
+// ── Reusable field label ────────────────────────────────────────────────
+function FieldLabel({ children, required }) {
+  return (
+    <label className="block text-[11px] font-semibold uppercase tracking-[0.7px] text-slate-500 mb-1.5">
+      {children}
+      {required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+  );
+}
+
+// ── Section card ────────────────────────────────────────────────────────
+function SectionCard({ icon: Icon, title, badge, children }) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/60">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+            <Icon size={13} className="text-white" strokeWidth={2} />
+          </div>
+          <span className="text-[13px] font-semibold text-slate-800 tracking-tight">
+            {title}
+          </span>
+        </div>
+        {badge && (
+          <span className="text-[11px] font-medium text-slate-400">{badge}</span>
+        )}
+      </div>
+      <div className="p-5">{children}</div>
+    </div>
+  );
+}
 
 export default function InstallationRequestPage() {
   const [form, setForm] = useState(EMPTY_FORM);
@@ -120,7 +170,6 @@ export default function InstallationRequestPage() {
     api
       .get("/projects")
       .then((res) => {
-        console.log("projects raw:", res.data); // check shape
         const data = res.data?.data || res.data?.projects || res.data;
         if (Array.isArray(data)) setProjects(data);
       })
@@ -133,7 +182,7 @@ export default function InstallationRequestPage() {
       .get("/admin/incharges")
       .then((res) => {
         if (res.data) setEngineers(res.data);
-      }) // ← was res.data?.data
+      })
       .catch(console.error);
   }, []);
 
@@ -175,9 +224,7 @@ export default function InstallationRequestPage() {
         ...(form.estimatedDays && { duration: Number(form.estimatedDays) }),
         ...(form.message && { message: form.message }),
       };
-
       await api.post("/installation-requests/create", body);
-
       fetchRequests();
       setSubmitted(true);
     } catch (err) {
@@ -192,135 +239,161 @@ export default function InstallationRequestPage() {
   // ── Success screen ────────────────────────────────────────────────────
   if (submitted)
     return (
-      <div className="flex flex-col items-center justify-center py-20 animate-fadeUp">
-        <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center mb-4">
-          <Send size={28} className="text-emerald-500" strokeWidth={1.5} />
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-5">
+          <CheckCircle size={26} className="text-emerald-600" strokeWidth={1.5} />
         </div>
-        <h2 className="font-display text-2xl font-extrabold text-brand-darkest mb-2">
-          Request Sent!
+        <h2 className="text-xl font-semibold text-slate-900 mb-1 tracking-tight">
+          Request Submitted
         </h2>
-        <p className="text-brand-mid text-[14px] mb-6 text-center max-w-sm">
-          Installation request sent to <strong>{form.engineer?.name}</strong>{" "}
-          for <strong>{selectedProject?.name}</strong>.
+        <p className="text-slate-500 text-[13px] mb-7 text-center max-w-xs leading-relaxed">
+          Installation request sent to{" "}
+          <span className="font-semibold text-slate-700">{form.engineer?.name}</span>{" "}
+          for{" "}
+          <span className="font-semibold text-slate-700">{selectedProject?.name}</span>.
         </p>
-        <div className="w-full max-w-sm rounded-2xl bg-white p-5 mb-6 space-y-2">
+
+        {/* Summary table */}
+        <div className="w-full max-w-sm bg-white border border-slate-200 rounded-xl overflow-hidden mb-6">
           {[
             ["Project", selectedProject?.name || "—"],
             ["Engineer", form.engineer?.name || "—"],
             ["Priority", form.priority],
-            ["Requested", form.requestedDate],
-          ]?.map(([k, v]) => (
-            <div key={k} className="flex justify-between text-[13px]">
-              <span className="text-brand-mid">{k}</span>
-              <span className="text-brand-darkest font-bold">{v}</span>
+            ["Requested Date", form.requestedDate],
+          ].map(([k, v], i, arr) => (
+            <div
+              key={k}
+              className={`flex justify-between items-center px-4 py-3 text-[13px] ${
+                i !== arr.length - 1 ? "border-b border-slate-100" : ""
+              }`}
+            >
+              <span className="text-slate-500">{k}</span>
+              <span className="text-slate-800 font-semibold">{v}</span>
             </div>
           ))}
         </div>
+
         <button
           onClick={() => {
             setSubmitted(false);
             setForm(EMPTY_FORM);
           }}
-          className="rounded-xl bg-brand-darkest px-6 py-2.5 text-[13px] font-bold text-brand-light hover:bg-brand-dark transition-colors"
+          className="rounded-lg bg-slate-900 px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-slate-700 transition-colors"
         >
-          Send Another Request
+          New Request
         </button>
       </div>
     );
 
   // ── Main form ─────────────────────────────────────────────────────────
   return (
-    <div className="animate-fadeUp">
-      {/* Header */}
-      <div className="mb-7">
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[2px] text-brand-mid">
-          Marketing
-        </p>
-        <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-brand-darkest">
-          Installation Request
-        </h1>
-        <p className="mt-1 text-[13px] text-brand-mid">
-          Send a formal installation request to the assigned engineer in-charge
-        </p>
+    <div className="max-w-[1200px] mx-auto">
+      {/* ── Page header ── */}
+      <div className="mb-7 flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
+              Marketing
+            </span>
+            <span className="text-slate-200">/</span>
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
+              Installation
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Installation Request
+          </h1>
+          <p className="mt-1 text-[13px] text-slate-500">
+            Send a formal installation request to the assigned engineer in-charge
+          </p>
+        </div>
+
+        {/* Quick stat chips */}
+        <div className="hidden sm:flex items-center gap-2">
+          {[
+            { label: "Total", value: stats.total, color: "text-slate-700" },
+            { label: "Accepted", value: stats.accepted, color: "text-emerald-600" },
+            { label: "Pending", value: stats.pending, color: "text-amber-600" },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-center min-w-[68px]"
+            >
+              <div className={`text-[18px] font-bold ${s.color}`}>{s.value}</div>
+              <div className="text-[10px] text-slate-400 font-medium mt-0.5 uppercase tracking-wide">
+                {s.label}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-5">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-5">
         {/* ── Left: Form ─────────────────────────────────────────────── */}
         <div className="space-y-4">
           {/* Request Details */}
-          <div className="rounded-2xl bg-white shadow-sm p-5">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-brand-darkest to-brand-dark flex items-center justify-center shrink-0">
-                <Send size={14} className="text-brand-light" />
-              </div>
-              <div className="font-display font-bold text-[14px] text-brand-darkest">
-                Request Details
-              </div>
-            </div>
-
+          <SectionCard icon={Send} title="Request Details">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               {/* Project */}
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.5px] text-brand-dark mb-1.5">
-                  Project <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={form.project}
-                  onChange={(e) => upd("project", e.target.value)}
-                  className="w-full bg-slate-50 rounded-xl px-3.5 py-2.5 text-[13px] text-brand-darkest outline-none focus:ring-2 focus:ring-brand-mid/15 transition-all cursor-pointer"
-                >
-                  <option value="">Select project</option>
-                  {projects?.map((p) => (
-                    <option key={p._id} value={p._id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                <FieldLabel required>Project</FieldLabel>
+                <div className="relative">
+                  <select
+                    value={form.project}
+                    onChange={(e) => upd("project", e.target.value)}
+                    className="w-full appearance-none bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-[13px] text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all cursor-pointer pr-9"
+                  >
+                    <option value="">Select project…</option>
+                    {projects?.map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={14}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                  />
+                </div>
               </div>
 
               {/* Requested Date */}
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.5px] text-brand-dark mb-1.5">
-                  Requested Start Date <span className="text-red-500">*</span>
-                </label>
+                <FieldLabel required>Requested Start Date</FieldLabel>
                 <input
                   type="date"
                   value={form.requestedDate}
                   onChange={(e) => upd("requestedDate", e.target.value)}
-                  className="w-full bg-slate-50 rounded-xl px-3.5 py-2.5 text-[13px] text-brand-darkest outline-none focus:ring-2 focus:ring-brand-mid/15 transition-all"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-[13px] text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all"
                 />
               </div>
 
               {/* Duration */}
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.5px] text-brand-dark mb-1.5">
-                  Est. Duration (days)
-                </label>
+                <FieldLabel>Est. Duration (days)</FieldLabel>
                 <input
                   type="number"
                   min={1}
                   value={form.estimatedDays}
                   onChange={(e) => upd("estimatedDays", e.target.value)}
                   placeholder="e.g. 14"
-                  className="w-full bg-slate-50 rounded-xl px-3.5 py-2.5 text-[13px] text-brand-darkest outline-none placeholder-slate-300 focus:ring-2 focus:ring-brand-mid/15 transition-all"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-[13px] text-slate-800 outline-none placeholder-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all"
                 />
               </div>
 
               {/* Priority */}
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.5px] text-brand-dark mb-1.5">
-                  Priority
-                </label>
+                <FieldLabel>Priority Level</FieldLabel>
                 <div className="grid grid-cols-4 gap-1.5">
                   {PRIORITY_OPTS?.map((p) => (
                     <button
                       key={p.value}
                       onClick={() => upd("priority", p.value)}
                       className={[
-                        "rounded-lg py-2 text-[11px] font-bold border transition-all",
+                        "rounded-lg py-2 text-[11px] font-semibold border transition-all",
                         form.priority === p.value
-                          ? `${p.bg} ${p.color}`
-                          : "bg-slate-50 text-brand-mid border-brand-mid/15 hover:bg-brand-mid/8",
+                          ? `${p.activeBg} ${p.activeText} ${p.activeBorder}`
+                          : `bg-white ${p.color} border-slate-200 hover:${p.bg} hover:${p.border}`,
                       ].join(" ")}
                     >
                       {p.label}
@@ -330,132 +403,133 @@ export default function InstallationRequestPage() {
               </div>
             </div>
 
-            {/* Priority banner */}
+            {/* Priority notice */}
             {selectedPriority && form.priority !== "Low" && (
               <div
-                className={`rounded-xl border ${selectedPriority.border} ${selectedPriority.bg} px-3.5 py-2.5 flex items-center gap-2`}
+                className={`rounded-lg border ${selectedPriority.border} ${selectedPriority.bg} px-3.5 py-2.5 flex items-center gap-2.5`}
               >
                 <AlertTriangle size={13} className={selectedPriority.color} />
-                <span
-                  className={`text-[12px] font-semibold ${selectedPriority.color}`}
-                >
+                <span className={`text-[12px] font-medium ${selectedPriority.color}`}>
                   {form.priority === "Critical"
-                    ? "⛔ Critical — Engineer will be notified immediately"
+                    ? "Critical — Engineer will be notified immediately"
                     : form.priority === "High"
-                      ? "⚠ High priority — Prompt response expected"
-                      : "Medium priority — Standard processing"}
+                      ? "High priority — Prompt response expected"
+                      : "Medium priority — Standard processing time applies"}
                 </span>
               </div>
             )}
-          </div>
+          </SectionCard>
 
           {/* Assign Engineer */}
-          <div className="rounded-2xl bg-white shadow-sm p-5">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-brand-darkest to-brand-dark flex items-center justify-center shrink-0">
-                <User size={14} className="text-brand-light" />
-              </div>
-              <div className="font-display font-bold text-[14px] text-brand-darkest">
-                Installation In-charge <span className="text-red-500">*</span>
-              </div>
-            </div>
-
+          <SectionCard
+            icon={User}
+            title="Installation In-charge"
+            badge={engineers.length > 0 ? `${engineers.length} available` : undefined}
+          >
             {engineers.length === 0 ? (
-              <p className="text-brand-mid text-[13px]">Loading engineers…</p>
+              <div className="flex items-center gap-2.5 py-2 text-slate-400 text-[13px]">
+                <span className="w-4 h-4 border-2 border-slate-200 border-t-slate-400 rounded-full animate-spin" />
+                Loading engineers…
+              </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {engineers?.map((eng) => (
-                  <button
-                    key={eng._id}
-                    onClick={() => upd("engineer", eng)}
-                    className={[
-                      "rounded-xl p-3.5 text-left transition-all",
-                      form.engineer?._id === eng._id
-                        ? "border-brand-mid/50 bg-brand-mid/10 ring-2 ring-brand-mid/20"
-                        : "border-brand-mid/15 bg-brand-bg/40 hover:border-brand-mid/30 hover:bg-brand-mid/6",
-                    ].join(" ")}
-                  >
-                    <div className="flex items-center gap-2.5 mb-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {engineers?.map((eng) => {
+                  const isSelected = form.engineer?._id === eng._id;
+                  const initials =
+                    eng.name
+                      ?.split(" ")
+                      ?.map((w) => w[0])
+                      .join("") || "?";
+                  return (
+                    <button
+                      key={eng._id}
+                      onClick={() => upd("engineer", eng)}
+                      className={[
+                        "rounded-xl p-3.5 text-left border transition-all",
+                        isSelected
+                          ? "border-slate-900 bg-slate-900"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",
+                      ].join(" ")}
+                    >
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <div
+                          className={[
+                            "w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0",
+                            isSelected
+                              ? "bg-white/15 text-white"
+                              : "bg-slate-100 text-slate-600",
+                          ].join(" ")}
+                        >
+                          {initials}
+                        </div>
+                        <div className="min-w-0">
+                          <div
+                            className={`text-[12px] font-semibold truncate ${
+                              isSelected ? "text-white" : "text-slate-800"
+                            }`}
+                          >
+                            {eng.name}
+                          </div>
+                          <div
+                            className={`text-[10px] truncate ${
+                              isSelected ? "text-slate-300" : "text-slate-400"
+                            }`}
+                          >
+                            {eng.email}
+                          </div>
+                        </div>
+                      </div>
                       <div
-                        className={[
-                          "w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0",
-                          form.engineer?._id === eng._id
-                            ? "bg-gradient-to-br from-brand-darkest to-brand-dark text-brand-light"
-                            : "bg-brand-mid/15 text-brand-dark",
-                        ].join(" ")}
+                        className={`text-[10px] flex items-center gap-1 ${
+                          isSelected ? "text-slate-300" : "text-slate-400"
+                        }`}
                       >
-                        {eng.name
-                          ?.split(" ")
-                          ?.map((w) => w[0])
-                          .join("") || "?"}
+                        <MapPin size={10} />
+                        {eng.site || eng.department || "—"}
                       </div>
-                      <div className="min-w-0">
-                        <div className="text-brand-darkest text-[12px] font-bold truncate">
-                          {eng.name}
+                      {isSelected && (
+                        <div className="flex items-center gap-1 text-emerald-300 text-[10px] font-semibold mt-2">
+                          <CheckCircle size={10} /> Selected
                         </div>
-                        <div className="text-brand-mid text-[10px]">
-                          {eng.email}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-brand-mid text-[10px] mt-1 flex items-center gap-1">
-                      <MapPin size={12} />
-                      {eng.site || eng.department || "—"}
-                    </div>
-                    {form.engineer?._id === eng._id && (
-                      <div className="flex items-center gap-1 text-emerald-600 text-[10px] font-bold mt-1.5">
-                        <CheckCircle size={10} /> Selected
-                      </div>
-                    )}
-                  </button>
-                ))}
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
-          </div>
+          </SectionCard>
 
           {/* Message */}
-          <div className="rounded-2xl bg-white shadow-sm p-5">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-brand-darkest to-brand-dark flex items-center justify-center shrink-0">
-                <MessageSquare size={14} className="text-brand-light" />
-              </div>
-              <div className="font-display font-bold text-[14px] text-brand-darkest">
-                Request Message
-              </div>
-            </div>
-            <div className="space-y-3">
+          <SectionCard icon={MessageSquare} title="Request Message">
+            <div className="space-y-3.5">
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.5px] text-brand-dark mb-1.5">
-                  Subject <span className="text-red-500">*</span>
-                </label>
+                <FieldLabel required>Subject</FieldLabel>
                 <input
                   value={form.subject}
                   onChange={(e) => upd("subject", e.target.value)}
                   placeholder="e.g. Installation kick-off for Wave Pool — AquaPark Dubai"
-                  className="w-full bg-slate-50 rounded-xl px-3.5 py-2.5 text-[13px] text-brand-darkest outline-none placeholder-slate-300 focus:ring-2 focus:ring-brand-mid/15 transition-all"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-[13px] text-slate-800 outline-none placeholder-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.5px] text-brand-dark mb-1.5">
-                  Message Body
-                </label>
+                <FieldLabel>Message Body</FieldLabel>
                 <textarea
                   rows={5}
                   value={form.message}
                   onChange={(e) => upd("message", e.target.value)}
                   placeholder="Describe scope of work, special conditions, access requirements, materials on-site…"
-                  className="w-full bg-slate-50 rounded-xl px-3.5 py-2.5 text-[13px] text-brand-darkest outline-none resize-none placeholder-slate-300 focus:ring-2 focus:ring-brand-mid/15 transition-all"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-[13px] text-slate-800 outline-none resize-none placeholder-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all"
                 />
               </div>
             </div>
-          </div>
+          </SectionCard>
 
           {/* Notification Preferences */}
-          <div className="rounded-2xl bg-white shadow-sm p-5">
-            <div className="text-brand-darkest font-bold text-[13px] mb-4">
+          <div className="bg-white border border-slate-200 rounded-xl px-5 py-4">
+            <div className="text-[12px] font-semibold uppercase tracking-widest text-slate-400 mb-3">
               Notification Preferences
             </div>
-            <div className="space-y-3">
+            <div className="space-y-0.5">
               {[
                 {
                   key: "notifyEmail",
@@ -470,25 +544,25 @@ export default function InstallationRequestPage() {
               ]?.map((item) => (
                 <div
                   key={item.key}
-                  className="flex items-center justify-between py-2 border-b border-brand-mid/8 last:border-0"
+                  className="flex items-center justify-between py-2.5 border-b border-slate-100 last:border-0"
                 >
                   <div>
-                    <div className="text-brand-darkest text-[13px] font-semibold">
+                    <div className="text-[13px] font-medium text-slate-700">
                       {item.label}
                     </div>
-                    <div className="text-brand-mid text-[11px]">{item.sub}</div>
+                    <div className="text-[11px] text-slate-400">{item.sub}</div>
                   </div>
                   <button
                     onClick={() => upd(item.key, !form[item.key])}
                     className={[
-                      "relative w-10 h-5 rounded-full transition-colors shrink-0",
-                      form[item.key] ? "bg-brand-darkest" : "bg-brand-mid/25",
+                      "relative w-9 h-5 rounded-full transition-colors shrink-0",
+                      form[item.key] ? "bg-slate-900" : "bg-slate-200",
                     ].join(" ")}
                   >
                     <div
                       className={[
                         "absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all shadow-sm",
-                        form[item.key] ? "left-5" : "left-0.5",
+                        form[item.key] ? "left-4" : "left-0.5",
                       ].join(" ")}
                     />
                   </button>
@@ -499,35 +573,43 @@ export default function InstallationRequestPage() {
 
           {/* Error banner */}
           {error && (
-            <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-[13px] text-red-600 font-semibold flex items-center gap-2">
-              <AlertTriangle size={14} /> {error}
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-[13px] text-red-600 font-medium flex items-center gap-2">
+              <AlertTriangle size={14} className="shrink-0" />
+              {error}
             </div>
           )}
 
           {/* Submit bar */}
-          <div className="rounded-2xl bg-gradient-to-br from-brand-bg to-brand-mid/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <div className="text-brand-darkest font-bold text-[14px]">
+              <div className="text-[13px] font-semibold text-slate-800">
                 Send Installation Request
               </div>
-              <div className="text-brand-mid text-[12px] mt-0.5">
-                To: {form.engineer?.name || "no engineer selected"} ·{" "}
-                {selectedProject?.name || "no project"}
+              <div className="text-[12px] text-slate-400 mt-0.5">
+                To:{" "}
+                <span className="text-slate-600">
+                  {form.engineer?.name || "no engineer selected"}
+                </span>{" "}
+                ·{" "}
+                <span className="text-slate-600">
+                  {selectedProject?.name || "no project selected"}
+                </span>
               </div>
             </div>
             <button
               onClick={handleSubmit}
               disabled={!canSubmit || loading}
-              className="rounded-xl bg-gradient-to-br from-brand-dark to-brand-darkest text-brand-light px-5 py-2.5 text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity flex items-center gap-2 shrink-0"
+              className="rounded-lg bg-slate-900 text-white px-5 py-2.5 text-[13px] font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors flex items-center gap-2 shrink-0"
             >
               {loading ? (
                 <>
-                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />{" "}
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Sending…
                 </>
               ) : (
                 <>
-                  <Send size={13} /> Send Request
+                  <Send size={13} />
+                  Send Request
                 </>
               )}
             </button>
@@ -536,19 +618,20 @@ export default function InstallationRequestPage() {
 
         {/* ── Right: Recent Requests ──────────────────────────────────── */}
         <div>
-          <div className="rounded-2xl bg-white shadow-sm p-5 xl:sticky xl:top-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-brand-darkest to-brand-dark flex items-center justify-center shrink-0">
-                <Clock size={14} className="text-brand-light" />
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden xl:sticky xl:top-6">
+            {/* Header */}
+            <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-slate-100 bg-slate-50/60">
+              <div className="w-7 h-7 rounded-lg bg-slate-900 flex items-center justify-center shrink-0">
+                <Clock size={13} className="text-white" strokeWidth={2} />
               </div>
-              <div className="font-display font-bold text-[14px] text-brand-darkest">
+              <span className="text-[13px] font-semibold text-slate-800 tracking-tight">
                 Recent Requests
-              </div>
+              </span>
             </div>
 
-            <div className="space-y-3">
+            <div className="p-4 space-y-2.5">
               {recentRequests.length === 0 ? (
-                <p className="text-brand-mid text-[13px]">No requests yet.</p>
+                <p className="text-slate-400 text-[13px] py-2">No requests yet.</p>
               ) : (
                 recentRequests?.map((req) => {
                   const s = reqStatusStyle[req.status] || reqStatusStyle.Sent;
@@ -562,36 +645,37 @@ export default function InstallationRequestPage() {
                   return (
                     <div
                       key={req._id}
-                      className="rounded-xl bg-brand-bg/50 p-3.5"
+                      className="rounded-lg border border-slate-100 bg-slate-50 p-3.5"
                     >
-                      <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-start justify-between gap-2 mb-2.5">
                         <div>
-                          <span className="text-[10px] font-bold text-brand-dark">
+                          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
                             #{req._id.slice(-6).toUpperCase()}
                           </span>
-                          <div className="text-brand-darkest text-[12px] font-bold mt-0.5">
+                          <div className="text-slate-800 text-[12px] font-semibold mt-0.5">
                             {req.project?.name || "—"}
                           </div>
                         </div>
                         <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.bg} ${s.text} border ${s.border} whitespace-nowrap`}
+                          className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md ${s.bg} ${s.text} border ${s.border} whitespace-nowrap`}
                         >
+                          <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
                           {req.status}
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-brand-mid">
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-400">
                         <span className="flex items-center gap-1">
-                          <User size={12} />
+                          <User size={11} />
                           {req.engineer?.name || "—"}
                         </span>
                         <span className="flex items-center gap-1">
-                          <Calendar size={12} />
+                          <Calendar size={11} />
                           {dateLabel}
                         </span>
                         <span
-                          className={`flex items-center gap-1 font-bold ${p?.color || "text-brand-mid"}`}
+                          className={`flex items-center gap-1 font-semibold ${p?.color || "text-slate-400"}`}
                         >
-                          <Flag size={12} />
+                          <Flag size={11} />
                           {req.priority}
                         </span>
                       </div>
@@ -601,32 +685,19 @@ export default function InstallationRequestPage() {
               )}
             </div>
 
-            {/* Stats */}
-            <div className="mt-5 pt-4 border-t border-brand-mid/10 grid grid-cols-3 gap-2">
+            {/* Stats row */}
+            <div className="border-t border-slate-100 grid grid-cols-3">
               {[
-                {
-                  label: "Total",
-                  value: stats.total,
-                  color: "text-brand-darkest",
-                },
-                {
-                  label: "Accepted",
-                  value: stats.accepted,
-                  color: "text-emerald-600",
-                },
-                {
-                  label: "Pending",
-                  value: stats.pending,
-                  color: "text-orange-500",
-                },
-              ]?.map((s) => (
-                <div key={s.label} className="text-center">
-                  <div
-                    className={`font-display text-xl font-extrabold ${s.color}`}
-                  >
-                    {s.value}
-                  </div>
-                  <div className="text-brand-mid text-[10px] font-semibold mt-0.5">
+                { label: "Total", value: stats.total, color: "text-slate-800" },
+                { label: "Accepted", value: stats.accepted, color: "text-emerald-600" },
+                { label: "Pending", value: stats.pending, color: "text-amber-600" },
+              ]?.map((s, i, arr) => (
+                <div
+                  key={s.label}
+                  className={`py-3.5 text-center ${i !== arr.length - 1 ? "border-r border-slate-100" : ""}`}
+                >
+                  <div className={`text-lg font-bold ${s.color}`}>{s.value}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold mt-0.5 uppercase tracking-wide">
                     {s.label}
                   </div>
                 </div>
