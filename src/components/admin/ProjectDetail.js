@@ -28,6 +28,7 @@ import {
   Shield,
   FolderOpen,
 } from "lucide-react";
+import ProjectAnalytics from "../director/ProjectAnalytics";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const API_BASE =
@@ -534,6 +535,11 @@ export default function ProjectDetail({ params }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Project Live Analytics (Injected) ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <ProjectAnalytics projectId={project._id} project={project} />
       </div>
 
       {/* ── Files Section ── */}
