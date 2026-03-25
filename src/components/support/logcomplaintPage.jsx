@@ -1,1232 +1,820 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  Search,
+  MessageSquare,
+  Plus,
+  Trash2,
+  CheckCircle,
+  Upload,
+  AlertCircle,
   MapPin,
   Package,
   Layers,
   HardHat,
   Palette,
-  FileText,
-  AlignLeft,
-  AlertTriangle,
-  Camera,
-  Video,
-  Plus,
-  X,
-  CheckCircle,
-  ChevronLeft,
-  ChevronRight,
-  Send,
+  FolderOpen,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
-import {
-  mockProjects,
-  PageHeader,
-  Card,
-  inputStyle,
-  labelStyle,
-} from "./shared";
+import { inputStyle, labelStyle, PageHeader, Card } from "./shared";
 import axiosInstance from "../../lib/axios";
 
+// ── UI-only constants (not data) ───────────────────────────────────────────────
+const SEVERITY_OPTS = [
+  { label: "Low",      color: "#34C759", bg: "rgba(52,199,89,0.1)"  },
+  { label: "Medium",   color: "#FF9500", bg: "rgba(255,149,0,0.1)"  },
+  { label: "High",     color: "#FF3B30", bg: "rgba(255,59,48,0.1)"  },
+  { label: "Critical", color: "#9B1C1C", bg: "rgba(155,28,28,0.1)"  },
+];
+
+const sevColorMap = {
+  Low:      "#34C759",
+  Medium:   "#FF9500",
+  High:     "#FF3B30",
+  Critical: "#9B1C1C",
+};
+
+const MATERIAL_UNITS = ["pcs", "kg", "m", "m²", "litre", "set", "lot"];
+
+// ── Auth helpers ───────────────────────────────────────────────────────────────
 const getToken = () =>
   typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 const authCfg = () => ({ headers: { Authorization: `Bearer ${getToken()}` } });
 
-// ── Mock fallback ─────────────────────────────────────────────────────────────
-const _mockProjects =
-  typeof mockProjects !== "undefined"
-    ? mockProjects
-    : [
-        {
-          id: "PRJ-2401",
-          client: "AquaPark Dubai",
-          location: "Dubai",
-          items: ["Waterslide Alpha", "Lazy River Flume", "Body Slide 360"],
-        },
-        {
-          id: "PRJ-2389",
-          client: "Blue Lagoon Resort",
-          location: "Maldives",
-          items: ["Wave Pool Panel B", "Speed Slide Mini"],
-        },
-        {
-          id: "PRJ-2412",
-          client: "Ocean World",
-          location: "Singapore",
-          items: ["Funnel Ride X2", "Master Blaster"],
-        },
-        {
-          id: "PRJ-2376",
-          client: "SunSplash Inc.",
-          location: "Florida",
-          items: ["Speed Slide Pro"],
-        },
-      ];
-
-const STEPS = [
-  "Select Project",
-  "Select Item",
-  "Complaint Details",
-  "Required Materials",
-];
-
-const _inputStyle =
-  typeof inputStyle !== "undefined"
-    ? inputStyle
-    : {
-        width: "100%",
-        boxSizing: "border-box",
-        padding: "9px 12px",
-        border: "1px solid rgba(73,136,196,0.25)",
-        borderRadius: 8,
-        fontSize: 13,
-        color: "#0F2854",
-        background: "#fff",
-        outline: "none",
-        fontFamily: "inherit",
-      };
-const _labelStyle =
-  typeof labelStyle !== "undefined"
-    ? labelStyle
-    : {
-        display: "block",
-        fontSize: 10,
-        fontWeight: 600,
-        letterSpacing: 0.6,
-        color: "#4988C4",
-        marginBottom: 5,
-        textTransform: "uppercase",
-      };
-
-// ── StepBar ───────────────────────────────────────────────────────────────────
-function StepBar({ step }) {
+// ── Local sub-components ───────────────────────────────────────────────────────
+function SectionHead({ icon, title, subtitle }) {
   return (
-    <>
-      <style>{`
-        .stepbar { display: flex; align-items: center; margin-bottom: 28px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
-        .step-label { font-size: 12px; white-space: nowrap; }
-        .step-connector { width: 36px; height: 2px; margin: 0 8px; flex-shrink: 0; transition: background 0.3s; }
-        @media (max-width: 540px) {
-          .step-label { display: none; }
-          .step-connector { width: 20px; margin: 0 4px; }
-          .stepbar { justify-content: center; }
-        }
-      `}</style>
-      <div className="stepbar">
-        {STEPS?.map((label, i) => {
-          const s = i + 1;
-          const done = step > s;
-          const active = step === s;
-          return (
-            <div key={s} style={{ display: "flex", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div
-                  style={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: done || active ? "#0F2854" : "#fff",
-                    border: `2px solid ${done || active ? "#0F2854" : "rgba(73,136,196,0.3)"}`,
-                    color: done || active ? "#BDE8F5" : "#4988C4",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    flexShrink: 0,
-                    transition: "all 0.3s",
-                  }}
-                >
-                  {done ? <CheckCircle size={14} /> : s}
-                </div>
-                <span
-                  className="step-label"
-                  style={{
-                    fontWeight: active ? 700 : 400,
-                    color: active ? "#0F2854" : done ? "#4988C4" : "#9DB5C8",
-                  }}
-                >
-                  {label}
-                </span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div
-                  className="step-connector"
-                  style={{
-                    background: done ? "#0F2854" : "rgba(73,136,196,0.2)",
-                  }}
-                />
-              )}
-            </div>
-          );
-        })}
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+      <div style={{
+        width: 36, height: 36, borderRadius: 10,
+        background: "linear-gradient(135deg, #0F2854, #1C4D8D)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0,
+      }}>
+        {icon}
       </div>
-    </>
-  );
-}
-
-// ── IconInput ─────────────────────────────────────────────────────────────────
-function IconInput({ icon: Icon, ...props }) {
-  return (
-    <div style={{ position: "relative" }}>
-      <span
-        style={{
-          position: "absolute",
-          left: 10,
-          top: "50%",
-          transform: "translateY(-50%)",
-          color: "#4988C4",
-          pointerEvents: "none",
-          display: "flex",
-        }}
-      >
-        <Icon size={13} />
-      </span>
-      <input
-        {...props}
-        style={{ ..._inputStyle, paddingLeft: 30, ...props.style }}
-      />
+      <div>
+        <div style={{ color: "#0F2854", fontWeight: 700, fontSize: 14 }}>{title}</div>
+        {subtitle && <div style={{ color: "#4988C4", fontSize: 11, marginTop: 1 }}>{subtitle}</div>}
+      </div>
     </div>
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
-export default function LogComplaintPage() {
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState({
-    project: null,
-    item: "",
-    batchNo: "BT-2024-117",
-    contractor: "AquaBuild LLC",
-    gelCoat: "GC-003-A",
-    title: "",
-    desc: "",
-    severity: "Medium",
-    materials: [],
-  });
-  const [mat, setMat] = useState({ name: "", qty: "", cost: "" });
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
-  const [projects, setProjects] = useState(_mockProjects);
-  const [searchQ, setSearchQ] = useState("");
+function Label({ children, required }) {
+  return (
+    <label style={labelStyle}>
+      {String(children).toUpperCase()}
+      {required && <span style={{ color: "#FF3B30", marginLeft: 3 }}>*</span>}
+    </label>
+  );
+}
 
+function SubmitBtn({ children, loading, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      style={{
+        background: loading
+          ? "rgba(73,136,196,0.5)"
+          : "linear-gradient(135deg, #1C4D8D, #0F2854)",
+        color: "#fff",
+        border: "none",
+        padding: "12px 28px",
+        borderRadius: 11,
+        fontSize: 13,
+        fontWeight: 700,
+        cursor: loading ? "not-allowed" : "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        boxShadow: "0 4px 16px rgba(15,40,84,0.2)",
+        fontFamily: "'DM Sans', sans-serif",
+      }}
+    >
+      {loading && <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} />}
+      {children}
+    </button>
+  );
+}
+
+// Skeleton pulse for loading states
+function Skeleton({ width = "100%", height = 16, radius = 6 }) {
+  return (
+    <div style={{
+      width, height, borderRadius: radius,
+      background: "linear-gradient(90deg, rgba(73,136,196,0.08) 25%, rgba(73,136,196,0.16) 50%, rgba(73,136,196,0.08) 75%)",
+      backgroundSize: "200% 100%",
+      animation: "shimmer 1.4s infinite",
+    }} />
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
+export default function LogComplaintPage() {
+  const [form, setForm] = useState({
+    project:     null,
+    item:        "",
+    title:       "",
+    description: "",
+    severity:    "Medium",
+    photos:      [],
+  });
+  const [materials,        setMaterials]        = useState([{ id: 1, name: "", qty: "", unit: "pcs", urgent: false }]);
+  const [submitted,        setSubmitted]        = useState(false);
+  const [loading,          setLoading]          = useState(false);
+  const [projectsLoading,  setProjectsLoading]  = useState(true);
+  const [projectsError,    setProjectsError]    = useState(null);
+  const [complaintsLoading,setComplaintsLoading]= useState(true);
+  const [projects,         setProjects]         = useState([]);
+  const [itemDetails,      setItemDetails]      = useState(null);
+  const [itemLoading,      setItemLoading]      = useState(false);
+  const [recentComplaints, setRecentComplaints] = useState([]);
+  const [error,            setError]            = useState(null);
+
+  const upd = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+
+  // ── Fetch projects ─────────────────────────────────────────────────────────
   const fetchProjects = useCallback(async () => {
+    setProjectsLoading(true);
+    setProjectsError(null);
     try {
-      const r = await axiosInstance.get("/projects", authCfg());
-      const data = Array.isArray(r.data) ? r.data : r.data.projects || [];
-      if (data.length > 0)
-        setProjects(
-          data?.map((p) => ({
-            id: p._id,
-            client: p.clientName || p.name,
-            name: p.name,
-            location: p.location || "—",
-            items: p.items || [],
-          })),
-        );
+      const res = await axiosInstance.get("/projects", authCfg());
+      const raw = Array.isArray(res.data) ? res.data : res.data?.projects || [];
+      const completed = raw
+        .filter((p) => p.status === "completed")
+        .map((p) => ({
+          id:       p._id,
+          name:     p.name || p.clientName || "Unnamed Project",
+          client:   p.clientName || p.name || "—",
+          location: p.location || "—",
+          items:    Array.isArray(p.items) ? p.items : [],
+        }));
+      setProjects(completed);
+    } catch (err) {
+      setProjectsError(err.response?.data?.message || "Failed to load projects.");
+      setProjects([]);
+    } finally {
+      setProjectsLoading(false);
+    }
+  }, []);
+
+  // ── Fetch recent complaints ────────────────────────────────────────────────
+  const fetchRecentComplaints = useCallback(async () => {
+    setComplaintsLoading(true);
+    try {
+      const r = await axiosInstance.get("/complaints", authCfg());
+      const data = Array.isArray(r.data) ? r.data : r.data?.complaints || [];
+      setRecentComplaints(data.slice(0, 3));
     } catch {
-      /* keep mock */
+      setRecentComplaints([]);
+    } finally {
+      setComplaintsLoading(false);
+    }
+  }, []);
+
+  // ── Fetch item details when item changes ───────────────────────────────────
+  const fetchItemDetails = useCallback(async (projectId, itemName) => {
+    if (!projectId || !itemName) { setItemDetails(null); return; }
+    setItemLoading(true);
+    try {
+      // Try a dedicated item-details endpoint; fall back gracefully if 404
+      const res = await axiosInstance.get(
+        `/projects/${projectId}/items/${encodeURIComponent(itemName)}`,
+        authCfg(),
+      );
+      setItemDetails(res.data || null);
+    } catch {
+      // Endpoint may not exist — just show nothing rather than crash
+      setItemDetails(null);
+    } finally {
+      setItemLoading(false);
     }
   }, []);
 
   useEffect(() => {
     fetchProjects();
-  }, [fetchProjects]);
+    fetchRecentComplaints();
+  }, [fetchProjects, fetchRecentComplaints]);
 
-  const upd = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+  useEffect(() => {
+    fetchItemDetails(form.project?.id, form.item);
+  }, [form.project?.id, form.item, fetchItemDetails]);
 
-  const addMaterial = () => {
-    if (!mat.name) return;
-    setForm((f) => ({ ...f, materials: [...f.materials, { ...mat }] }));
-    setMat({ name: "", qty: "", cost: "" });
-  };
-  const removeMaterial = (idx) =>
-    setForm((f) => ({
-      ...f,
-      materials: f.materials.filter((_, i) => i !== idx),
+  // ── Material helpers ────────────────────────────────────────────────────────
+  const addMat    = () => setMaterials((m) => [...m, { id: Date.now(), name: "", qty: "", unit: "pcs", urgent: false }]);
+  const removeMat = (id) => setMaterials((m) => m.filter((x) => x.id !== id));
+  const updMat    = (id, key, val) => setMaterials((m) => m.map((x) => (x.id === id ? { ...x, [key]: val } : x)));
+
+  const handlePhoto = (e) => {
+    const files = Array.from(e.target.files).map((f) => ({
+      name: f.name, url: URL.createObjectURL(f), file: f,
     }));
+    setForm((f) => ({ ...f, photos: [...f.photos, ...files] }));
+  };
+  const removePhoto = (name) =>
+    setForm((f) => ({ ...f, photos: f.photos.filter((p) => p.name !== name) }));
 
+  // ── Submit ──────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!form.title.trim())
-      return setSubmitError("Please enter a complaint title.");
+    if (!form.title.trim())       return setError("Please enter a complaint title.");
+    if (!form.description.trim()) return setError("Please enter a description.");
     setLoading(true);
-    setSubmitError(null);
+    setError(null);
     try {
-      await axiosInstance.post(
-        "/complaints",
-        {
-          title: form.title.trim(),
-          description: form.desc.trim() || form.title.trim(),
-          project: form.project?.id || undefined,
-          priority: form.severity.toLowerCase(),
-          status: "open",
+      const formData = new FormData();
+      formData.append("title", form.title.trim());
+      formData.append("description", form.description.trim());
+      formData.append("priority", form.severity.toLowerCase());
+      formData.append("status", "open");
+      if (form.project?.id) formData.append("project", form.project.id);
+      if (form.item) formData.append("item", form.item);
+      
+      const mats = materials.filter((m) => m.name.trim());
+      formData.append("materials", JSON.stringify(mats));
+
+      form.photos.forEach((p) => {
+        if (p.file) formData.append("photos", p.file);
+      });
+
+      await axiosInstance.post("/complaints", formData, {
+        headers: {
+          ...authCfg().headers,
+          "Content-Type": "multipart/form-data",
         },
-        authCfg(),
-      );
+      });
+
+      await fetchRecentComplaints();
       setSubmitted(true);
     } catch (err) {
-      setSubmitError(
-        err.response?.data?.message || "Submission failed. Please retry.",
-      );
+      setError(err.response?.data?.message || "Failed to submit complaint. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const resetAll = () => {
+  const reset = () => {
     setSubmitted(false);
-    setStep(1);
-    setSubmitError(null);
-    setForm({
-      project: null,
-      item: "",
-      batchNo: "BT-2024-117",
-      contractor: "AquaBuild LLC",
-      gelCoat: "GC-003-A",
-      title: "",
-      desc: "",
-      severity: "Medium",
-      materials: [],
-    });
+    setItemDetails(null);
+    setForm({ project: null, item: "", title: "", description: "", severity: "Medium", photos: [] });
+    setMaterials([{ id: 1, name: "", qty: "", unit: "pcs", urgent: false }]);
+    setError(null);
+    fetchRecentComplaints();
   };
 
-  // ── Success screen ────────────────────────────────────────────────────────
+  const selectedSev = SEVERITY_OPTS.find((s) => s.label === form.severity);
+
+  // ── Success screen ──────────────────────────────────────────────────────────
   if (submitted)
     return (
-      <>
-        <style>{`.lc-wrapper{font-family:'DM Sans','Segoe UI',sans-serif;padding:16px;max-width:100%;box-sizing:border-box}`}</style>
-        <div className="lc-wrapper">
-          <div style={{ marginBottom: 24 }}>
-            <div
-              style={{
-                color: "#4988C4",
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: 2,
-                textTransform: "uppercase",
-                marginBottom: 4,
-              }}
-            >
-              New Entry
-            </div>
-            <h1
-              style={{
-                color: "#0F2854",
-                fontSize: "clamp(20px,4vw,26px)",
-                fontWeight: 800,
-                margin: 0,
-              }}
-            >
-              Log New Complaint
-            </h1>
-          </div>
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: 16,
-              border: "1px solid rgba(73,136,196,0.15)",
-              boxShadow: "0 2px 12px rgba(15,40,84,0.06)",
-              padding: "48px 32px",
-              textAlign: "center",
-              maxWidth: 520,
-            }}
-          >
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: "50%",
-                background: "rgba(52,199,89,0.12)",
-                border: "2px solid #34C759",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "0 auto 20px",
-              }}
-            >
-              <CheckCircle size={30} color="#34C759" />
-            </div>
-            <div
-              style={{
-                color: "#0F2854",
-                fontSize: 20,
-                fontWeight: 800,
-                marginBottom: 8,
-              }}
-            >
-              Complaint Submitted!
-            </div>
-            <div style={{ color: "#4988C4", fontSize: 13, marginBottom: 24 }}>
-              <strong>{form.title}</strong> has been logged for review.
-            </div>
-            <button
-              onClick={resetAll}
-              style={{
-                background: "#0F2854",
-                color: "#BDE8F5",
-                border: "none",
-                padding: "10px 24px",
-                borderRadius: 10,
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontFamily: "inherit",
-              }}
-            >
-              <Plus size={14} /> Log Another Complaint
-            </button>
-          </div>
-        </div>
-      </>
+      <div style={{ maxWidth: 480, margin: "80px auto", textAlign: "center", fontFamily: "'DM Sans', sans-serif" }}>
+        <CheckCircle size={56} color="#34C759" strokeWidth={1.5} style={{ marginBottom: 16 }} />
+        <h2 style={{ color: "#0F2854", fontSize: 22, fontWeight: 800, marginBottom: 8 }}>
+          Complaint Logged!
+        </h2>
+        <p style={{ color: "#4988C4", fontSize: 14, marginBottom: 24 }}>
+          <strong>{form.title}</strong> has been submitted to the service team for review.
+        </p>
+        <button
+          onClick={reset}
+          style={{
+            background: "#0F2854", color: "#BDE8F5", border: "none",
+            padding: "10px 22px", borderRadius: 10, fontSize: 13,
+            fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+          }}
+        >
+          Log Another Complaint
+        </button>
+      </div>
     );
 
+  // ── Main render ─────────────────────────────────────────────────────────────
   return (
     <>
       <style>{`
-        .lc-wrapper {
-          font-family: 'DM Sans', 'Segoe UI', sans-serif;
-          padding: 16px;
-          max-width: 100%;
-          box-sizing: border-box;
-        }
-        .lc-card {
-          background: #fff;
-          border-radius: 16px;
-          border: 1px solid rgba(73,136,196,0.15);
-          box-shadow: 0 2px 12px rgba(15,40,84,0.06);
-          padding: 28px;
-          width: 100%;
-          box-sizing: border-box;
+        @keyframes spin    { to { transform: rotate(360deg); } }
+        @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+        .lc-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+        @media (max-width: 860px) { .lc-grid { grid-template-columns: 1fr; } }
+
+        .lc-severity-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-top: 2px; }
+        @media (max-width: 420px) { .lc-severity-row { grid-template-columns: repeat(2,1fr); gap: 8px; } }
+
+        .lc-project-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        @media (max-width: 560px) { .lc-project-grid { grid-template-columns: 1fr; } }
+
+        .lc-item-detail-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+        @media (max-width: 500px) { .lc-item-detail-grid { grid-template-columns: 1fr 1fr; } }
+
+        .lc-mat-row { display: grid; grid-template-columns: 1fr 80px 70px 90px 32px; gap: 10px; align-items: center; }
+        @media (max-width: 560px) {
+          .lc-mat-row { grid-template-columns: 1fr 60px 60px; }
+          .lc-mat-urgent, .lc-mat-del { display: none !important; }
         }
 
-        /* Project grid: 2 cols → 1 col */
-        .project-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-          margin-bottom: 16px;
-        }
-        @media (max-width: 540px) {
-          .project-grid { grid-template-columns: 1fr; }
-          .lc-card { padding: 20px 16px; }
-        }
+        .lc-photo-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-top: 10px; }
+        @media (max-width: 480px) { .lc-photo-grid { grid-template-columns: repeat(3,1fr); } }
 
-        /* Item detail auto-loaded grid */
-        .item-detail-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 14px;
-        }
-        @media (max-width: 540px) {
-          .item-detail-grid { grid-template-columns: 1fr 1fr; }
-        }
+        .lc-card-inner { padding: 26px; }
+        @media (max-width: 480px) { .lc-card-inner { padding: 18px 16px; } }
 
-        /* Upload boxes */
-        .upload-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 14px;
-        }
-        @media (max-width: 480px) {
-          .upload-grid { grid-template-columns: 1fr; }
-        }
-
-        /* Material add row */
-        .mat-add-row {
-          display: grid;
-          grid-template-columns: 1fr 100px 120px auto;
-          gap: 10px;
-          margin-bottom: 14px;
-          align-items: end;
-        }
-        @media (max-width: 600px) {
-          .mat-add-row {
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: auto auto;
-          }
-          .mat-add-btn { grid-column: span 2; }
-        }
-
-        /* Material table → cards on mobile */
-        .mat-table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .mat-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 380px; }
-        .mat-th { padding: 8px 14px; text-align: left; color: #1C4D8D; font-size: 11px; font-weight: 600; }
-        .mat-td { padding: 10px 14px; }
-
-        .mat-mob-cards { display: none; }
-        @media (max-width: 600px) {
-          .mat-table-scroll { display: none; }
-          .mat-mob-cards { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-          .mat-mob-card {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 12px; border-radius: 10px;
-            border: 1px solid rgba(73,136,196,0.12);
-            background: rgba(189,232,245,0.04);
-          }
-          .mat-mob-name { color: #0F2854; font-weight: 600; font-size: 13px; }
-          .mat-mob-meta { color: #4988C4; font-size: 11px; display: flex; gap: 8px; margin-top: 2px; }
-        }
-
-        /* Nav buttons */
-        .nav-row {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 24px;
-          padding-top: 20px;
-          border-top: 1px solid rgba(73,136,196,0.1);
-          gap: 10px;
-        }
-        .btn-back {
-          background: transparent;
-          border: 1px solid rgba(73,136,196,0.3);
-          color: #4988C4;
-          padding: 8px 20px; border-radius: 8px;
-          font-size: 13px; cursor: pointer; font-weight: 600;
-          display: inline-flex; align-items: center; gap: 6px;
-          font-family: inherit;
-        }
-        .btn-next {
-          background: #0F2854; color: #BDE8F5; border: none;
-          padding: 8px 24px; border-radius: 8px;
-          font-size: 13px; cursor: pointer; font-weight: 600;
-          display: inline-flex; align-items: center; gap: 6px;
-          font-family: inherit;
-        }
-        .btn-submit {
-          width: 100%;
-          background: linear-gradient(135deg, #0F2854, #1C4D8D);
-          color: #BDE8F5; border: none;
-          padding: 14px; border-radius: 10px;
-          font-size: 14px; font-weight: 700; cursor: pointer;
-          letter-spacing: 0.5px; margin-top: 22px;
-          display: flex; align-items: center; justify-content: center; gap: 8px;
-          font-family: inherit;
-        }
+        .lc-project-card:hover { border-color: rgba(15,40,84,0.4) !important; background: rgba(15,40,84,0.02) !important; }
       `}</style>
 
-      <div className="lc-wrapper">
-        {/* Header */}
-        <div style={{ marginBottom: 24 }}>
-          <div
-            style={{
-              color: "#4988C4",
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: 2,
-              textTransform: "uppercase",
-              marginBottom: 4,
-            }}
-          >
-            New Entry
-          </div>
-          <h1
-            style={{
-              color: "#0F2854",
-              fontSize: "clamp(20px,4vw,26px)",
-              fontWeight: 800,
-              margin: 0,
-            }}
-          >
-            Log New Complaint
-          </h1>
-          <p style={{ color: "#4988C4", fontSize: 13, margin: "4px 0 0" }}>
-            Follow the steps to register a new complaint
-          </p>
+      <PageHeader
+        eyebrow="New Entry"
+        title="Log New Complaint"
+        subtitle="Report a complaint and list required materials"
+      />
+
+      {/* Global error banner */}
+      {error && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8, marginBottom: 16,
+          background: "rgba(255,59,48,0.06)", border: "1px solid rgba(255,59,48,0.2)",
+          borderRadius: 10, padding: "10px 14px",
+        }}>
+          <AlertCircle size={14} color="#FF3B30" />
+          <span style={{ color: "#FF3B30", fontSize: 13 }}>{error}</span>
+          <button onClick={() => setError(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#FF3B30", fontSize: 18, lineHeight: 1 }}>×</button>
         </div>
+      )}
 
-        <div className="lc-card">
-          <StepBar step={step} />
+      <div className="lc-grid">
 
-          {/* ── Step 1: Select Project ── */}
-          {step === 1 && (
-            <div>
-              <div
-                style={{
-                  color: "#0F2854",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  marginBottom: 20,
-                }}
-              >
-                Step 1 — Select Project
-              </div>
-              <div style={{ marginBottom: 16 }}>
-                <label style={_labelStyle}>
-                  SEARCH BY PROJECT NAME OR NUMBER
-                </label>
-                <IconInput
-                  icon={Search}
-                  placeholder="Type to search…"
-                  value={searchQ}
-                  onChange={(e) => setSearchQ(e.target.value)}
-                />
-              </div>
-              <div className="project-grid">
-                {projects
-                  .filter(
-                    (p) =>
-                      !searchQ ||
-                      (p.client || p.name || "")
-                        .toLowerCase()
-                        .includes(searchQ.toLowerCase()),
-                  )
-                  ?.map((p) => (
-                    <div
-                      key={p.id}
-                      onClick={() => upd("project", p)}
-                      style={{
-                        padding: "14px 16px",
-                        borderRadius: 10,
-                        cursor: "pointer",
-                        border: `2px solid ${form.project?.id === p.id ? "#0F2854" : "rgba(73,136,196,0.2)"}`,
-                        background:
-                          form.project?.id === p.id
-                            ? "rgba(15,40,84,0.04)"
-                            : "#fff",
-                        transition: "all 0.2s",
-                      }}
+        {/* ── LEFT: Main Form ─────────────────────────────────────────────── */}
+        <Card>
+          <div className="lc-card-inner">
+            <SectionHead icon={<MessageSquare size={16} color="#BDE8F5" />} title="Complaint Details" />
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+
+              {/* ── Project selection ── */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <Label>Project</Label>
+                  {!projectsLoading && (
+                    <button
+                      onClick={fetchProjects}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#4988C4", display: "flex", alignItems: "center", gap: 4, fontSize: 11, padding: 0 }}
                     >
-                      <div
-                        style={{
-                          color: "#1C4D8D",
-                          fontWeight: 700,
-                          fontSize: 12,
-                          marginBottom: 2,
-                        }}
-                      >
-                        {String(p.id).slice(-6).toUpperCase()}
-                      </div>
-                      <div
-                        style={{
-                          color: "#0F2854",
-                          fontWeight: 600,
-                          fontSize: 13,
-                        }}
-                      >
-                        {p.name || p.client}
-                      </div>
-                      <div
-                        style={{
-                          color: "#4988C4",
-                          fontSize: 11,
-                          marginTop: 4,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <MapPin size={11} /> {p.location}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-              {form.project && (
-                <div
-                  style={{
-                    background: "rgba(52,199,89,0.08)",
-                    border: "1px solid rgba(52,199,89,0.3)",
-                    borderRadius: 8,
-                    padding: "10px 14px",
-                    fontSize: 12,
-                    color: "#1C4D8D",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  <CheckCircle size={13} color="#34C759" />
-                  Auto-loaded: <strong>{form.project.client}</strong> ·{" "}
-                  {form.project.location} · {form.project.items.length} items
-                  installed
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Step 2: Select Item ── */}
-          {step === 2 && (
-            <div>
-              <div
-                style={{
-                  color: "#0F2854",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  marginBottom: 20,
-                }}
-              >
-                Step 2 — Select Item
-              </div>
-              {!form.project ? (
-                <div
-                  style={{
-                    background: "rgba(255,149,0,0.08)",
-                    border: "1px solid rgba(255,149,0,0.25)",
-                    borderRadius: 8,
-                    padding: "12px 14px",
-                    color: "#FF9500",
-                    fontSize: 13,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  <ChevronLeft size={14} /> Please go back and select a project
-                  first.
-                </div>
-              ) : (
-                <>
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={_labelStyle}>
-                      INSTALLED ITEMS — {form.project.id}
-                    </label>
-                    <div style={{ position: "relative" }}>
-                      <span
-                        style={{
-                          position: "absolute",
-                          left: 10,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          color: "#4988C4",
-                          display: "flex",
-                          pointerEvents: "none",
-                        }}
-                      >
-                        <Package size={13} />
-                      </span>
-                      <select
-                        style={{
-                          ..._inputStyle,
-                          paddingLeft: 30,
-                          cursor: "pointer",
-                          appearance: "none",
-                        }}
-                        value={form.item}
-                        onChange={(e) => upd("item", e.target.value)}
-                      >
-                        <option value="">Choose an item...</option>
-                        {form.project.items?.map((it) => (
-                          <option key={it}>{it}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  {form.item && (
-                    <div
-                      style={{
-                        background: "rgba(189,232,245,0.15)",
-                        border: "1px solid rgba(73,136,196,0.2)",
-                        borderRadius: 10,
-                        padding: "18px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          color: "#0F2854",
-                          fontWeight: 700,
-                          fontSize: 13,
-                          marginBottom: 14,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                        }}
-                      >
-                        <Package size={14} color="#4988C4" /> Item Details
-                        (Auto-loaded)
-                      </div>
-                      <div className="item-detail-grid">
-                        {[
-                          ["Batch Number", form.batchNo, Layers],
-                          ["Contractor Name", form.contractor, HardHat],
-                          ["Gel Coat Batch", form.gelCoat, Palette],
-                        ]?.map(([k, v, Icon]) => (
-                          <div key={k}>
-                            <div
-                              style={{
-                                color: "#4988C4",
-                                fontSize: 10,
-                                fontWeight: 600,
-                                letterSpacing: 0.5,
-                                marginBottom: 4,
-                                textTransform: "uppercase",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 4,
-                              }}
-                            >
-                              <Icon size={10} /> {k}
-                            </div>
-                            <div
-                              style={{
-                                color: "#0F2854",
-                                fontSize: 13,
-                                fontWeight: 700,
-                              }}
-                            >
-                              {v}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                      <RefreshCw size={11} /> Refresh
+                    </button>
                   )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* ── Step 3: Complaint Details ── */}
-          {step === 3 && (
-            <div>
-              <div
-                style={{
-                  color: "#0F2854",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  marginBottom: 20,
-                }}
-              >
-                Step 3 — Complaint Details
-              </div>
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 16 }}
-              >
-                <div>
-                  <label style={_labelStyle}>COMPLAINT TITLE *</label>
-                  <IconInput
-                    icon={FileText}
-                    placeholder="Short description of the issue..."
-                    value={form.title}
-                    onChange={(e) => upd("title", e.target.value)}
-                  />
                 </div>
 
-                <div>
-                  <label style={_labelStyle}>DESCRIPTION *</label>
-                  <div style={{ position: "relative" }}>
-                    <span
+                {/* Loading skeletons */}
+                {projectsLoading && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {[1, 2].map((i) => (
+                      <div key={i} style={{ padding: "14px 16px", borderRadius: 10, border: "2px solid rgba(73,136,196,0.1)" }}>
+                        <Skeleton width="40%" height={11} />
+                        <div style={{ marginTop: 6 }}><Skeleton width="70%" height={13} /></div>
+                        <div style={{ marginTop: 6 }}><Skeleton width="50%" height={11} /></div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* API error */}
+                {!projectsLoading && projectsError && (
+                  <div style={{
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+                    padding: "24px 20px", borderRadius: 12,
+                    border: "2px dashed rgba(255,59,48,0.25)", background: "rgba(255,59,48,0.03)",
+                    textAlign: "center",
+                  }}>
+                    <AlertCircle size={28} color="rgba(255,59,48,0.5)" strokeWidth={1.5} />
+                    <div style={{ color: "#FF3B30", fontWeight: 600, fontSize: 13 }}>Could not load projects</div>
+                    <div style={{ color: "#4988C4", fontSize: 12 }}>{projectsError}</div>
+                    <button
+                      onClick={fetchProjects}
                       style={{
-                        position: "absolute",
-                        left: 10,
-                        top: 12,
-                        color: "#4988C4",
-                        display: "flex",
-                        pointerEvents: "none",
+                        marginTop: 4, background: "#0F2854", color: "#BDE8F5", border: "none",
+                        padding: "8px 18px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                        fontFamily: "'DM Sans', sans-serif",
                       }}
                     >
-                      <AlignLeft size={13} />
-                    </span>
-                    <textarea
-                      style={{
-                        ..._inputStyle,
-                        minHeight: 90,
-                        resize: "vertical",
-                        paddingLeft: 30,
-                      }}
-                      placeholder="Detailed description..."
-                      value={form.desc}
-                      onChange={(e) => upd("desc", e.target.value)}
-                    />
+                      <RefreshCw size={12} /> Try Again
+                    </button>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <label style={_labelStyle}>SEVERITY LEVEL</label>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    {["Low", "Medium", "High", "Critical"]?.map((s) => {
-                      const colors = {
-                        Low: "#34C759",
-                        Medium: "#FFCC00",
-                        High: "#FF9500",
-                        Critical: "#FF3B30",
-                      };
-                      const active = form.severity === s;
-                      return (
-                        <button
-                          key={s}
-                          onClick={() => upd("severity", s)}
-                          style={{
-                            flex: "1 1 60px",
-                            padding: "9px 4px",
-                            borderRadius: 8,
-                            border: `2px solid ${active ? colors[s] : "rgba(73,136,196,0.2)"}`,
-                            background: active ? `${colors[s]}18` : "#fff",
-                            color: active ? colors[s] : "#4988C4",
-                            fontSize: 12,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            transition: "all 0.2s",
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          {s === "Critical" && (
-                            <AlertTriangle
-                              size={10}
-                              style={{ marginRight: 3 }}
-                            />
-                          )}
-                          {s}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="upload-grid">
-                  {[
-                    {
-                      label: "PHOTO UPLOAD *",
-                      accept: "image/*",
-                      Icon: Camera,
-                      hint: "Click to upload photos",
-                      multiple: true,
-                    },
-                    {
-                      label: "VIDEO UPLOAD (OPTIONAL)",
-                      accept: "video/*",
-                      Icon: Video,
-                      hint: "Click to upload video",
-                      multiple: false,
-                    },
-                  ]?.map(({ label, accept, Icon, hint, multiple }) => (
-                    <div key={label}>
-                      <label style={_labelStyle}>{label}</label>
-                      <label
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          border: "2px dashed rgba(73,136,196,0.35)",
-                          borderRadius: 10,
-                          padding: "24px 16px",
-                          color: "#4988C4",
-                          fontSize: 12,
-                          cursor: "pointer",
-                          gap: 8,
-                          background: "rgba(189,232,245,0.05)",
-                          transition: "all 0.2s",
-                        }}
-                      >
-                        <Icon size={28} color="rgba(73,136,196,0.5)" />
-                        <span>{hint}</span>
-                        <input
-                          type="file"
-                          accept={accept}
-                          multiple={multiple}
-                          style={{ display: "none" }}
-                        />
-                      </label>
+                {/* Empty state — loaded but no completed projects */}
+                {!projectsLoading && !projectsError && projects.length === 0 && (
+                  <div style={{
+                    display: "flex", flexDirection: "column", alignItems: "center",
+                    justifyContent: "center", gap: 10, padding: "28px 20px",
+                    borderRadius: 12, border: "2px dashed rgba(73,136,196,0.25)",
+                    background: "rgba(189,232,245,0.05)", textAlign: "center",
+                  }}>
+                    <FolderOpen size={32} color="rgba(73,136,196,0.4)" strokeWidth={1.5} />
+                    <div style={{ color: "#0F2854", fontWeight: 700, fontSize: 14 }}>
+                      No Completed Projects Yet
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+                    <div style={{ color: "#4988C4", fontSize: 12, maxWidth: 280 }}>
+                      Complaints can only be logged against completed projects. Once a project is marked complete it will appear here.
+                    </div>
+                  </div>
+                )}
 
-          {/* ── Step 4: Required Materials ── */}
-          {step === 4 && (
-            <div>
-              <div
-                style={{
-                  color: "#0F2854",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  marginBottom: 20,
-                }}
-              >
-                Step 4 — Required Materials
-              </div>
-
-              {/* Add material row */}
-              <div className="mat-add-row">
-                <div>
-                  <label style={_labelStyle}>MATERIAL NAME</label>
-                  <IconInput
-                    icon={Package}
-                    placeholder="e.g. Gel coat resin"
-                    value={mat.name}
-                    onChange={(e) =>
-                      setMat((m) => ({ ...m, name: e.target.value }))
-                    }
-                  />
-                </div>
-                <div>
-                  <label style={_labelStyle}>QUANTITY</label>
-                  <input
-                    style={_inputStyle}
-                    type="number"
-                    placeholder="0"
-                    value={mat.qty}
-                    onChange={(e) =>
-                      setMat((m) => ({ ...m, qty: e.target.value }))
-                    }
-                  />
-                </div>
-                <div>
-                  <label style={_labelStyle}>EST. COST (USD)</label>
-                  <input
-                    style={_inputStyle}
-                    type="number"
-                    placeholder="0.00"
-                    value={mat.cost}
-                    onChange={(e) =>
-                      setMat((m) => ({ ...m, cost: e.target.value }))
-                    }
-                  />
-                </div>
-                <button
-                  onClick={addMaterial}
-                  className="mat-add-btn"
-                  style={{
-                    background: "#0F2854",
-                    color: "#BDE8F5",
-                    border: "none",
-                    padding: "10px 16px",
-                    borderRadius: 8,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                    fontFamily: "inherit",
-                  }}
-                >
-                  <Plus size={14} /> Add
-                </button>
-              </div>
-
-              {form.materials.length === 0 ? (
-                <div
-                  style={{
-                    background: "rgba(189,232,245,0.1)",
-                    borderRadius: 8,
-                    padding: "20px",
-                    textAlign: "center",
-                    color: "#4988C4",
-                    fontSize: 12,
-                    border: "1px dashed rgba(73,136,196,0.2)",
-                  }}
-                >
-                  No materials added yet.
-                </div>
-              ) : (
-                <>
-                  {/* Desktop table */}
-                  <div
-                    style={{
-                      border: "1px solid rgba(73,136,196,0.2)",
-                      borderRadius: 10,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div className="mat-table-scroll">
-                      <table className="mat-table">
-                        <thead>
-                          <tr style={{ background: "rgba(189,232,245,0.2)" }}>
-                            {["Material", "Qty", "Est. Cost", ""]?.map(
-                              (h, i) => (
-                                <th key={i} className="mat-th">
-                                  {h}
-                                </th>
-                              ),
-                            )}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {form.materials?.map((m, i) => (
-                            <tr
-                              key={i}
-                              style={{
-                                borderTop: "1px solid rgba(73,136,196,0.1)",
-                              }}
-                            >
-                              <td
-                                className="mat-td"
-                                style={{ color: "#0F2854" }}
-                              >
-                                {m.name}
-                              </td>
-                              <td
-                                className="mat-td"
-                                style={{ color: "#4988C4" }}
-                              >
-                                {m.qty}
-                              </td>
-                              <td
-                                className="mat-td"
-                                style={{ color: "#34C759", fontWeight: 700 }}
-                              >
-                                ${m.cost}
-                              </td>
-                              <td className="mat-td">
-                                <button
-                                  onClick={() => removeMaterial(i)}
-                                  style={{
-                                    background: "none",
-                                    border: "none",
-                                    color: "#FF3B30",
-                                    cursor: "pointer",
-                                    display: "flex",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <X size={14} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                          <tr
+                {/* Project cards */}
+                {!projectsLoading && !projectsError && projects.length > 0 && (
+                  <>
+                    <div className="lc-project-grid">
+                      {projects.map((p) => {
+                        const selected = form.project?.id === p.id;
+                        return (
+                          <div
+                            key={p.id}
+                            className="lc-project-card"
+                            onClick={() => { upd("project", p); upd("item", ""); setItemDetails(null); }}
                             style={{
-                              borderTop: "2px solid rgba(73,136,196,0.15)",
-                              background: "rgba(189,232,245,0.1)",
+                              padding: "12px 14px", borderRadius: 10, cursor: "pointer",
+                              border: `2px solid ${selected ? "#0F2854" : "rgba(73,136,196,0.2)"}`,
+                              background: selected ? "rgba(15,40,84,0.04)" : "#fff",
+                              transition: "all 0.2s",
                             }}
                           >
-                            <td
-                              colSpan={2}
-                              className="mat-td"
-                              style={{
-                                color: "#0F2854",
-                                fontWeight: 700,
-                                fontSize: 12,
-                              }}
-                            >
-                              TOTAL ESTIMATED COST
-                            </td>
-                            <td
-                              className="mat-td"
-                              style={{ color: "#0F2854", fontWeight: 800 }}
-                            >
-                              $
-                              {form.materials
-                                .reduce(
-                                  (s, m) => s + (parseFloat(m.cost) || 0),
-                                  0,
-                                )
-                                .toFixed(2)}
-                            </td>
-                            <td />
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Mobile material cards */}
-                    <div className="mat-mob-cards">
-                      {form.materials?.map((m, i) => (
-                        <div key={i} className="mat-mob-card">
-                          <div>
-                            <div className="mat-mob-name">{m.name}</div>
-                            <div className="mat-mob-meta">
-                              <span>Qty: {m.qty}</span>
-                              <span
-                                style={{ color: "#34C759", fontWeight: 700 }}
-                              >
-                                ${m.cost}
-                              </span>
+                            <div style={{ color: "#1C4D8D", fontWeight: 700, fontSize: 11, marginBottom: 2 }}>
+                              {String(p.id).slice(-6).toUpperCase()}
+                            </div>
+                            <div style={{ color: "#0F2854", fontWeight: 600, fontSize: 13 }}>
+                              {p.name}
+                            </div>
+                            <div style={{ color: "#4988C4", fontSize: 11, marginTop: 4, display: "flex", alignItems: "center", gap: 3 }}>
+                              <MapPin size={10} /> {p.location}
                             </div>
                           </div>
-                          <button
-                            onClick={() => removeMaterial(i)}
-                            style={{
-                              background: "none",
-                              border: "none",
-                              color: "#FF3B30",
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                            }}
-                          >
-                            <X size={15} />
-                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {form.project && (
+                      <div style={{
+                        background: "rgba(52,199,89,0.08)", border: "1px solid rgba(52,199,89,0.3)",
+                        borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#1C4D8D",
+                        display: "flex", alignItems: "center", gap: 6,
+                      }}>
+                        <CheckCircle size={13} color="#34C759" />
+                        Selected: <strong>{form.project.name}</strong> · {form.project.location} · {form.project.items.length} items
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* ── Item / Component ── */}
+              <div>
+                <Label>Item / Component</Label>
+                {form.project && form.project.items.length > 0 ? (
+                  <div style={{ position: "relative" }}>
+                    <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#4988C4", display: "flex", pointerEvents: "none" }}>
+                      <Package size={13} />
+                    </span>
+                    <select
+                      style={{ ...inputStyle, paddingLeft: 30, cursor: "pointer", appearance: "none" }}
+                      value={form.item}
+                      onChange={(e) => upd("item", e.target.value)}
+                    >
+                      <option value="">Choose an item…</option>
+                      {form.project.items.map((it) => (
+                        <option key={typeof it === "object" ? it._id || it.name : it}>
+                          {typeof it === "object" ? it.name : it}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <input
+                    style={inputStyle}
+                    placeholder={form.project ? "No items found for this project" : "Select a project first…"}
+                    value={form.item}
+                    disabled={!form.project}
+                    onChange={(e) => upd("item", e.target.value)}
+                  />
+                )}
+              </div>
+
+              {/* ── Item details from API ── */}
+              {form.item && form.project && (
+                <div style={{
+                  background: "rgba(189,232,245,0.15)", border: "1px solid rgba(73,136,196,0.2)",
+                  borderRadius: 10, padding: "16px",
+                }}>
+                  <div style={{ color: "#0F2854", fontWeight: 700, fontSize: 12, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                    <Package size={13} color="#4988C4" />
+                    Item Details
+                    {itemLoading && <Loader2 size={12} color="#4988C4" style={{ animation: "spin 0.7s linear infinite", marginLeft: 4 }} />}
+                  </div>
+
+                  {itemLoading ? (
+                    <div className="lc-item-detail-grid">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i}>
+                          <Skeleton width="60%" height={10} />
+                          <div style={{ marginTop: 5 }}><Skeleton width="80%" height={13} /></div>
                         </div>
                       ))}
-                      <div
+                    </div>
+                  ) : itemDetails ? (
+                    <div className="lc-item-detail-grid">
+                      {[
+                        ["Batch Number",   itemDetails.batchNo   || itemDetails.batch_number || "—", Layers  ],
+                        ["Contractor",     itemDetails.contractor || itemDetails.contractorName || "—", HardHat],
+                        ["Gel Coat Batch", itemDetails.gelCoat    || itemDetails.gel_coat_batch || "—", Palette],
+                      ].map(([k, v, Icon]) => (
+                        <div key={k}>
+                          <div style={{ color: "#4988C4", fontSize: 10, fontWeight: 600, letterSpacing: 0.5, marginBottom: 3, textTransform: "uppercase", display: "flex", alignItems: "center", gap: 3 }}>
+                            <Icon size={10} /> {k}
+                          </div>
+                          <div style={{ color: "#0F2854", fontSize: 13, fontWeight: 700 }}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ color: "#4988C4", fontSize: 12, margin: 0 }}>
+                      No additional details available for this item.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ── Complaint title ── */}
+              <div>
+                <Label required>Complaint Title</Label>
+                <input
+                  style={inputStyle}
+                  placeholder="Brief title for this complaint…"
+                  value={form.title}
+                  onChange={(e) => upd("title", e.target.value)}
+                />
+              </div>
+
+              {/* ── Description ── */}
+              <div>
+                <Label required>Description</Label>
+                <textarea
+                  style={{ ...inputStyle, minHeight: 100, resize: "vertical" }}
+                  placeholder="Describe the complaint in detail — what, where, how it was noticed…"
+                  value={form.description}
+                  onChange={(e) => upd("description", e.target.value)}
+                />
+              </div>
+
+              {/* ── Severity ── */}
+              <div>
+                <Label required>Severity</Label>
+                <div className="lc-severity-row">
+                  {SEVERITY_OPTS.map((s) => (
+                    <button
+                      key={s.label}
+                      onClick={() => upd("severity", s.label)}
+                      style={{
+                        padding: "8px 4px", borderRadius: 8, border: "none", cursor: "pointer",
+                        background: form.severity === s.label ? s.color : s.bg,
+                        color:      form.severity === s.label ? "#fff"   : s.color,
+                        fontSize: 11, fontWeight: 700, transition: "all 0.15s",
+                        fontFamily: "'DM Sans', sans-serif",
+                      }}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Photo Upload ── */}
+              <div>
+                <Label>Photo Evidence</Label>
+                <label style={{
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  justifyContent: "center", border: "2px dashed rgba(73,136,196,0.3)",
+                  borderRadius: 12, padding: "20px", cursor: "pointer",
+                  background: "rgba(189,232,245,0.04)", gap: 6,
+                }}>
+                  <Upload size={22} color="#4988C4" strokeWidth={1.5} />
+                  <span style={{ color: "#1C4D8D", fontSize: 12, fontWeight: 600 }}>Upload Photos / Videos</span>
+                  <span style={{ color: "#4988C4", fontSize: 11 }}>JPG, PNG, MP4 — up to 10 files</span>
+                  <input type="file" accept="image/*,video/*" multiple style={{ display: "none" }} onChange={handlePhoto} />
+                </label>
+                {form.photos.length > 0 && (
+                  <div className="lc-photo-grid">
+                    {form.photos.map((p) => (
+                      <div key={p.name} style={{ position: "relative", borderRadius: 8, overflow: "hidden" }}>
+                        <img src={p.url} alt={p.name} style={{ width: "100%", height: 70, objectFit: "cover" }} />
+                        <button
+                          onClick={() => removePhoto(p.name)}
+                          style={{
+                            position: "absolute", top: 3, right: 3, background: "rgba(0,0,0,0.6)",
+                            border: "none", borderRadius: "50%", width: 18, height: 18,
+                            color: "#fff", cursor: "pointer", fontSize: 10,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}
+                        >✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Required Materials ── */}
+              <div>
+                <Label>Required Materials</Label>
+
+                <div className="lc-mat-row" style={{ marginBottom: 6 }}>
+                  {["Material Name", "Qty", "Unit", "Urgent", ""].map((h) => (
+                    <div key={h} style={{ color: "#4988C4", fontSize: 10, fontWeight: 600, letterSpacing: 0.5 }}>
+                      {h.toUpperCase()}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {materials.map((m) => (
+                    <div key={m.id} className="lc-mat-row">
+                      <input
+                        style={inputStyle}
+                        placeholder="e.g. Gel coat resin"
+                        value={m.name}
+                        onChange={(e) => updMat(m.id, "name", e.target.value)}
+                      />
+                      <input
+                        type="number" min={0} style={inputStyle} placeholder="0"
+                        value={m.qty}
+                        onChange={(e) => updMat(m.id, "qty", e.target.value)}
+                      />
+                      <select
+                        style={{ ...inputStyle, cursor: "pointer" }}
+                        value={m.unit}
+                        onChange={(e) => updMat(m.id, "unit", e.target.value)}
+                      >
+                        {MATERIAL_UNITS.map((u) => <option key={u}>{u}</option>)}
+                      </select>
+                      <button
+                        className="lc-mat-urgent"
+                        onClick={() => updMat(m.id, "urgent", !m.urgent)}
                         style={{
-                          padding: "10px 12px",
-                          background: "rgba(189,232,245,0.1)",
-                          borderRadius: 8,
-                          display: "flex",
-                          justifyContent: "space-between",
+                          padding: "6px", borderRadius: 8, border: "none", cursor: "pointer",
+                          background: m.urgent ? "rgba(255,59,48,0.12)" : "rgba(73,136,196,0.08)",
+                          color: m.urgent ? "#FF3B30" : "#4988C4",
+                          fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', sans-serif",
                         }}
                       >
-                        <span
-                          style={{
-                            color: "#0F2854",
-                            fontWeight: 700,
-                            fontSize: 12,
-                          }}
+                        {m.urgent ? "🔴 Urgent" : "Set Urgent"}
+                      </button>
+                      {materials.length > 1 && (
+                        <button
+                          className="lc-mat-del"
+                          onClick={() => removeMat(m.id)}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "#FF3B30", padding: 0 }}
                         >
-                          TOTAL
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={addMat}
+                  style={{
+                    marginTop: 10, background: "rgba(73,136,196,0.07)",
+                    border: "1.5px dashed rgba(73,136,196,0.3)", color: "#1C4D8D",
+                    borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 600,
+                    cursor: "pointer", width: "100%",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    fontFamily: "'DM Sans', sans-serif",
+                  }}
+                >
+                  <Plus size={14} /> Add Material
+                </button>
+              </div>
+            </div>
+
+            {/* Severity banner */}
+            {selectedSev && (
+              <div style={{
+                marginTop: 18, padding: "10px 14px", borderRadius: 10,
+                background: selectedSev.bg, border: `1px solid ${selectedSev.color}30`,
+                display: "flex", alignItems: "center", gap: 8,
+              }}>
+                <AlertCircle size={14} color={selectedSev.color} />
+                <span style={{ color: selectedSev.color, fontSize: 12, fontWeight: 600 }}>
+                  {form.severity === "Critical"
+                    ? "⛔ Critical — This will immediately notify management."
+                    : form.severity === "High"
+                    ? "⚠ High severity — Relevant team will be alerted."
+                    : `${form.severity} severity — Complaint will be queued for review.`}
+                </span>
+              </div>
+            )}
+
+            <div style={{ marginTop: 22, display: "flex", justifyContent: "flex-end" }}>
+              <SubmitBtn loading={loading} onClick={handleSubmit}>
+                Submit Complaint
+              </SubmitBtn>
+            </div>
+          </div>
+        </Card>
+
+        {/* ── RIGHT: Sidebar ─────────────────────────────────────────────── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Recent Complaints */}
+          <Card>
+            <div style={{ padding: "22px" }}>
+              <SectionHead
+                icon={<MessageSquare size={16} color="#BDE8F5" />}
+                title="Recent Complaints"
+                subtitle="Last 30 days"
+              />
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {complaintsLoading ? (
+                  [1, 2, 3].map((i) => (
+                    <div key={i} style={{ padding: "12px 14px", borderRadius: 11, border: "1px solid rgba(73,136,196,0.1)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                        <Skeleton width="30%" height={11} />
+                        <Skeleton width="20%" height={11} />
+                      </div>
+                      <Skeleton width="80%" height={12} />
+                      <div style={{ marginTop: 6 }}><Skeleton width="50%" height={11} /></div>
+                    </div>
+                  ))
+                ) : recentComplaints.length === 0 ? (
+                  <p style={{ color: "#4988C4", fontSize: 12, textAlign: "center", padding: "16px 0", margin: 0 }}>
+                    No recent complaints.
+                  </p>
+                ) : (
+                  recentComplaints.map((c) => (
+                    <div
+                      key={c._id}
+                      style={{
+                        padding: "12px 14px", borderRadius: 11,
+                        background: "rgba(73,136,196,0.04)",
+                        border: "1px solid rgba(73,136,196,0.1)",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ color: "#1C4D8D", fontSize: 11, fontWeight: 700 }}>
+                          {c._id?.slice(-6).toUpperCase()}
                         </span>
-                        <span style={{ color: "#0F2854", fontWeight: 800 }}>
-                          $
-                          {form.materials
-                            .reduce((s, m) => s + (parseFloat(m.cost) || 0), 0)
-                            .toFixed(2)}
+                        <span style={{
+                          background: `${sevColorMap[c.priority] || "#4988C4"}18`,
+                          color: sevColorMap[c.priority] || "#4988C4",
+                          padding: "1px 8px", borderRadius: 99, fontSize: 10, fontWeight: 700,
+                        }}>
+                          {c.priority}
+                        </span>
+                      </div>
+                      <div style={{ color: "#0F2854", fontSize: 12, fontWeight: 600, marginBottom: 3 }}>
+                        {c.title}
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "#4988C4", fontSize: 11 }}>{c.status || "open"}</span>
+                        <span style={{ color: "#4988C4", fontSize: 11 }}>
+                          {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "—"}
                         </span>
                       </div>
                     </div>
-                  </div>
-                </>
-              )}
-
-              {submitError && (
-                <div
-                  style={{
-                    background: "rgba(255,59,48,0.06)",
-                    border: "1px solid rgba(255,59,48,0.2)",
-                    borderRadius: 8,
-                    padding: "10px 14px",
-                    color: "#FF3B30",
-                    fontSize: 12,
-                    marginBottom: 10,
-                  }}
-                >
-                  ⚠ {submitError}
-                </div>
-              )}
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="btn-submit"
-              >
-                {loading ? (
-                  <Loader2
-                    size={15}
-                    style={{ animation: "spin 0.8s linear infinite" }}
-                  />
-                ) : (
-                  <Send size={15} />
+                  ))
                 )}
-                {loading ? "Submitting…" : "Submit Complaint"}
-              </button>
+              </div>
             </div>
-          )}
+          </Card>
 
-          {/* ── Nav Buttons ── */}
-          <div className="nav-row">
-            <button
-              onClick={() => setStep((s) => Math.max(1, s - 1))}
-              className="btn-back"
-              style={{ visibility: step === 1 ? "hidden" : "visible" }}
-            >
-              <ChevronLeft size={14} /> Back
-            </button>
-            {step < 4 && (
-              <button
-                onClick={() => setStep((s) => Math.min(4, s + 1))}
-                className="btn-next"
-              >
-                Continue <ChevronRight size={14} />
-              </button>
-            )}
-          </div>
+          {/* Severity Reference — UI only, no data */}
+          <Card>
+            <div style={{ padding: "20px 22px" }}>
+              <div style={{ color: "#0F2854", fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
+                Severity Reference
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {SEVERITY_OPTS.map((s) => (
+                  <div
+                    key={s.label}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "7px 10px", borderRadius: 8, background: s.bg,
+                    }}
+                  >
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
+                    <span style={{ color: s.color, fontSize: 12, fontWeight: 600 }}>{s.label}</span>
+                    <span style={{ color: "#4988C4", fontSize: 11, marginLeft: "auto" }}>
+                      {s.label === "Low"      ? "Minor, non-urgent"
+                       : s.label === "Medium" ? "Needs attention soon"
+                       : s.label === "High"   ? "Urgent, alert team"
+                       :                        "Critical, notify management"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+
         </div>
       </div>
     </>

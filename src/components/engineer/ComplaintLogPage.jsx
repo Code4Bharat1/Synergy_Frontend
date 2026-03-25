@@ -117,19 +117,27 @@ export default function ComplaintLogPage() {
     setLoading(true);
     setError(null);
     try {
-      await axiosInstance.post(
-        "/complaints",
-        {
-          title: form.title.trim(),
-          description: form.description.trim(),
-          project: form.project || undefined,
-          item: form.item || undefined,
-          priority: form.severity,
-          status: "open",
-          materials: materials.filter((m) => m.name.trim()),
+      const formData = new FormData();
+      formData.append("title", form.title.trim());
+      formData.append("description", form.description.trim());
+      formData.append("priority", form.severity);
+      formData.append("status", "open");
+      if (form.project) formData.append("project", form.project);
+      if (form.item) formData.append("item", form.item);
+      
+      const mats = materials.filter((m) => m.name.trim());
+      formData.append("materials", JSON.stringify(mats));
+
+      form.photos.forEach((p) => {
+        if (p.file) formData.append("photos", p.file);
+      });
+
+      await axiosInstance.post("/complaints", formData, {
+        headers: {
+          ...authCfg().headers,
+          "Content-Type": "multipart/form-data",
         },
-        authCfg(),
-      );
+      });
 
       await fetchRecentComplaints();
       setSubmitted(true);

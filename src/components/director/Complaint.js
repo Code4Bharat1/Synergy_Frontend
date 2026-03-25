@@ -1,21 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import {
-  MessageSquareWarning,
-  AlertTriangle,
-  Plus,
-  X,
-  RefreshCw,
-  Eye,
-  Pencil,
-  Trash2,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  XCircle,
-  Loader2,
-} from "lucide-react";
-
+import { Eye, Pencil, Trash2, Plus, Loader2, AlertCircle, Filter, Search, ChevronRight, MessageCircle, Clock, AlertTriangle, ShieldCheck, X, RefreshCw, CheckCircle2, XCircle, MessageSquareWarning } from "lucide-react";
 import axiosInstance from "../../lib/axios";
 
 const apiFetch = async (path, { method = "GET", body } = {}) => {
@@ -137,6 +122,8 @@ function ComplaintForm({
   onSubmit,
   loading,
   submitLabel = "Submit",
+  projects = [],
+  users = [],
 }) {
   const [form, setForm] = useState(initial);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -210,24 +197,47 @@ function ComplaintForm({
       </div>
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">
-          Project ID
+          Project
         </label>
-        <input
-          value={form.project}
+        <select
+          value={form.project?._id || form.project || ""}
           onChange={(e) => set("project", e.target.value)}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-          placeholder="MongoDB Project ObjectId"
-        />
+        >
+          <option value="">Select Project</option>
+          {projects?.map((p) => (
+            <option key={p._id} value={p._id}>
+              {p.projectId ? `[${p.projectId}] ` : ""}{p.name}
+            </option>
+          ))}
+        </select>
       </div>
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">
-          Assigned To (User ID)
+          Assigned To
         </label>
-        <input
-          value={form.assignedTo}
+        <select
+          value={form.assignedTo?._id || form.assignedTo || ""}
           onChange={(e) => set("assignedTo", e.target.value)}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-          placeholder="MongoDB User ObjectId"
+        >
+          <option value="">Unassigned</option>
+          {users?.map((u) => (
+            <option key={u._id} value={u._id}>
+              {u.name} ({u.role})
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1 block">
+          Photo URL
+        </label>
+        <input
+          value={form.photo || ""}
+          onChange={(e) => set("photo", e.target.value)}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="Image URL (if any)"
         />
       </div>
       {(form.status === "resolved" || form.status === "closed") && (
@@ -278,7 +288,12 @@ function ComplaintDetail({ complaint }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="text-xs font-semibold text-gray-400 mb-1">Project</p>
-          <p className="text-gray-700">{complaint.project?.name || "—"}</p>
+          <p className="text-sm font-bold text-extra-darkblue">
+            <span className="text-blue-600 mr-2 font-bold">
+              {complaint.project?.projectId || complaint.project?._id?.slice(-6).toUpperCase()}
+            </span>
+            {complaint.project?.name || "—"}
+          </p>
           {complaint.project?.clientName && (
             <p className="text-xs text-gray-400">
               {complaint.project.clientName}
@@ -328,6 +343,44 @@ function ComplaintDetail({ complaint }) {
           <p className="text-gray-700 bg-green-50 rounded-lg p-3 text-xs leading-relaxed">
             {complaint.resolutionNotes}
           </p>
+        </div>
+      )}
+      {complaint.photos && complaint.photos.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-xs font-semibold text-gray-400 mb-1">Uploaded Evidence</p>
+          <div className="grid grid-cols-2 gap-3">
+            {complaint.photos?.map((url, idx) => {
+              const fullUrl = url.startsWith("http") ? url : `${axiosInstance.defaults.baseURL.replace("/api/v1", "")}${url}`;
+              return (
+              <div key={idx} className="rounded-xl overflow-hidden border border-gray-100 shadow-sm aspect-video">
+                {url.endsWith(".mp4") ? (
+                  <video src={fullUrl} controls className="w-full h-full object-cover" />
+                ) : (
+                  <img 
+                    src={fullUrl} 
+                    alt={`Evidence ${idx + 1}`} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "https://placehold.co/600x400?text=Image+Not+Found";
+                    }}
+                  />
+                )}
+              </div>
+            )})}
+          </div>
+        </div>
+      )}
+      {!complaint.photos && complaint.photo && (
+        <div>
+          <p className="text-xs font-semibold text-gray-400 mb-1">Uploaded Image</p>
+          <div className="mt-2 rounded-xl overflow-hidden border border-gray-100 shadow-sm">
+            <img 
+              src={complaint.photo?.startsWith("http") ? complaint.photo : `${axiosInstance.defaults.baseURL.replace("/api/v1", "")}${complaint.photo}`} 
+              alt="Complaint evidence" 
+              className="w-full h-auto object-cover max-h-60"
+            />
+          </div>
         </div>
       )}
     </div>
@@ -470,6 +523,9 @@ export default function ComplaintAnalytics() {
   const [filterPriority, setFilterPriority] = useState("all");
   const [search, setSearch] = useState("");
 
+  const [projectsList, setProjectsList] = useState([]);
+  const [usersList, setUsersList] = useState([]);
+
   const fetchComplaints = useCallback(async () => {
     try {
       setLoading(true);
@@ -483,16 +539,36 @@ export default function ComplaintAnalytics() {
     }
   }, []);
 
+  const fetchDropdownData = useCallback(async () => {
+    try {
+      const [pData, uData] = await Promise.all([
+        apiFetch("/projects"),
+        apiFetch("/admin/users"),
+      ]);
+      setProjectsList(Array.isArray(pData) ? pData : []);
+      setUsersList(Array.isArray(uData) ? uData : []);
+    } catch (err) {
+      console.error("Failed to fetch dropdown data:", err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchComplaints();
-  }, [fetchComplaints]);
+    fetchDropdownData();
+  }, [fetchComplaints, fetchDropdownData]);
 
   const handleCreate = async (form) => {
     try {
       setActionLoading(true);
-      const payload = Object.fromEntries(
-        Object.entries(form).filter(([, v]) => v !== ""),
-      );
+      const payload = {
+        ...form,
+        project: form.project?._id || form.project || undefined,
+        assignedTo: form.assignedTo?._id || form.assignedTo || undefined,
+        loggedBy: undefined, // Let backend handle loggedBy
+      };
+      // remove undefined
+      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+
       await apiFetch("/complaints", {
         method: "POST",
         body: JSON.stringify(payload),
@@ -509,9 +585,14 @@ export default function ComplaintAnalytics() {
   const handleUpdate = async (form) => {
     try {
       setActionLoading(true);
-      const payload = Object.fromEntries(
-        Object.entries(form).filter(([, v]) => v !== ""),
-      );
+      const payload = {
+        ...form,
+        project: form.project?._id || form.project || undefined,
+        assignedTo: form.assignedTo?._id || form.assignedTo || undefined,
+      };
+      // remove undefined/null
+      Object.keys(payload).forEach(key => (payload[key] === undefined || payload[key] === null) && delete payload[key]);
+
       await apiFetch(`/complaints/${editComplaint._id}`, {
         method: "PUT",
         body: JSON.stringify(payload),
@@ -751,6 +832,9 @@ export default function ComplaintAnalytics() {
                           {c.title}
                         </td>
                         <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap">
+                          <span className="text-blue-600 mr-2 font-bold">
+                            {c.project?.projectId || c.project?._id?.slice(-6).toUpperCase()}
+                          </span>
                           {c.project?.name || "—"}
                         </td>
                         <td className="px-5 py-3.5">
@@ -824,7 +908,8 @@ export default function ComplaintAnalytics() {
           <ComplaintForm
             onSubmit={handleCreate}
             loading={actionLoading}
-            submitLabel="Log Complaint"
+            projects={projectsList}
+            users={usersList}
           />
         </Modal>
       )}
@@ -837,20 +922,17 @@ export default function ComplaintAnalytics() {
         </Modal>
       )}
       {editComplaint && (
-        <Modal title="Edit Complaint" onClose={() => setEditComplaint(null)}>
+        <Modal
+          title="Edit Complaint"
+          onClose={() => setEditComplaint(null)}
+        >
           <ComplaintForm
-            initial={{
-              title: editComplaint.title || "",
-              description: editComplaint.description || "",
-              project: editComplaint.project?._id || "",
-              priority: editComplaint.priority || "medium",
-              status: editComplaint.status || "open",
-              assignedTo: editComplaint.assignedTo?._id || "",
-              resolutionNotes: editComplaint.resolutionNotes || "",
-            }}
+            initial={editComplaint}
             onSubmit={handleUpdate}
-            loading={actionLoading}
             submitLabel="Save Changes"
+            loading={actionLoading}
+            projects={projectsList}
+            users={usersList}
           />
         </Modal>
       )}
