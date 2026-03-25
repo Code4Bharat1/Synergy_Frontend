@@ -168,10 +168,23 @@ const isImageFile = (url) => {
   return ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext);
 };
 
+// Returns a complete URL since the backend stores relative paths like 'uploads/...'
+// Automatically strips out "undefined/" corrupted prefixes from previous uploads.
+const getFileUrl = (url) => {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+
+  const cleanUrl = url.replace(/^undefined\//, "").replace(/^\/+/, "");
+
+  // Fallback to ensuring the API absolute base URL prepends the static files
+  const base = API_BASE.replace("/api/v1", "");
+  return `${base}/${cleanUrl}`;
+};
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ProjectDetail({ params }) {
-  const resolvedParams = use(params);
-  const projectId = resolvedParams.id;
+  // Gracefully handle NextJS 13 params which is synchronous but might be a promise in NextJS 15
+  const projectId = params?.id || (params && typeof params.then === 'function' && use(params).id) || null;
   const router = useRouter();
   const pathname = usePathname();
   const backPath = pathname.includes("/director/")
@@ -383,13 +396,13 @@ export default function ProjectDetail({ params }) {
             >
               {preview.fileType === "image" ? (
                 <img
-                  src={preview.url}
+                  src={getFileUrl(preview.url)}
                   alt={preview.fileName}
                   className="max-w-full max-h-[75vh] object-contain rounded-lg shadow"
                 />
               ) : (
                 <embed
-  src={`${preview.url}#toolbar=0`}
+  src={`${getFileUrl(preview.url)}#toolbar=0`}
   type="application/pdf"
   className="w-full rounded-lg shadow bg-white"
   style={{ height: "75vh" }}
@@ -778,7 +791,7 @@ function FileGridCard({ file, onPreview, onDelete }) {
       >
         {file.fileType === "image" ? (
           <img
-            src={file.url}
+            src={getFileUrl(file.url)}
             alt={file.fileName}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
@@ -812,7 +825,7 @@ function FileGridCard({ file, onPreview, onDelete }) {
           </span>
           {/* <div className="flex items-center gap-1">
             <a
-              href={file.url}
+              href={getFileUrl(file.url)}
               target="_blank"
               rel="noreferrer"
               className="p-1 rounded text-gray-300 hover:text-blue-500 transition-colors"
@@ -842,7 +855,7 @@ function FileListRow({ file, onPreview, onDelete }) {
       >
         {file.fileType === "image" ? (
           <img
-            src={file.url}
+            src={getFileUrl(file.url)}
             alt={file.fileName}
             className="w-full h-full object-cover rounded-lg"
           />
@@ -880,7 +893,7 @@ function FileListRow({ file, onPreview, onDelete }) {
           <Eye size={14} />
         </button>
         <a
-          href={file.url}
+          href={getFileUrl(file.url)}
           target="_blank"
           rel="noreferrer"
           className="p-2 rounded-lg text-gray-300 hover:text-green-600 hover:bg-green-50 transition-all"
