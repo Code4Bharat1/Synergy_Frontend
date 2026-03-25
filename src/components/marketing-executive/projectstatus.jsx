@@ -499,7 +499,7 @@ function DetailPanel({ project, onClose }) {
               label: "Location",
               value: project.location || "Not specified",
               sub: "Site address",
-              icon: Icon?.mapPin,
+              icon: Icon.MapPin,
             },
             {
               label: "Engineer",

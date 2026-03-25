@@ -107,7 +107,10 @@ function InspectionCard({ row }) {
         <PriorityBadge priority={priority} />
       </div>
       <p className="text-sm font-semibold text-blue-950 leading-snug">
-        {row.name}
+        <span className="text-blue-500 mr-1.5">
+          {row.project?.projectId || row.project?._id?.slice(-6).toUpperCase()}
+        </span>
+        {row.project?.name || row.name}
       </p>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-400">
         <span>{row.clientName}</span>
@@ -240,9 +243,16 @@ export default function QCDashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-blue-950 leading-snug">
-                      {typeof project === "object"
-                        ? project?.name
-                        : `Report ${r._id.slice(-6).toUpperCase()}`}
+                      {typeof project === "object" ? (
+                        <>
+                          <span className="text-blue-600 mr-2 font-bold whitespace-nowrap">
+                            {project?.projectId || project?._id?.slice(-6).toUpperCase()}
+                          </span>
+                          <span className="text-blue-950">{project?.name}</span>
+                        </>
+                      ) : (
+                        `Report ${r._id.slice(-6).toUpperCase()}`
+                      )}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {passedCount} passed · {pendingCount} pending ·{" "}
@@ -300,7 +310,16 @@ export default function QCDashboard() {
                       <StatusBadge status={r.status} />
                     </div>
                     <p className="text-sm font-semibold text-blue-950 leading-snug">
-                      {typeof project === "object" ? project?.name : "—"}
+                      {typeof project === "object" ? (
+                        <>
+                          <span className="text-blue-500 mr-2 font-bold whitespace-nowrap">
+                            {project?.projectId || project?._id?.slice(-6).toUpperCase()}
+                          </span>
+                          <span className="text-blue-950">{project?.name}</span>
+                        </>
+                      ) : (
+                        "—"
+                      )}
                     </p>
                     <p className="text-xs text-gray-400">
                       {formatDate(r.date || r.createdAt)}
@@ -351,7 +370,16 @@ export default function QCDashboard() {
                           {r._id.slice(-6).toUpperCase()}
                         </td>
                         <td className="px-5 py-3.5 font-medium text-blue-950">
-                          {typeof project === "object" ? project?.name : "—"}
+                          {typeof project === "object" ? (
+                            <>
+                              <span className="text-blue-600 mr-2 font-bold whitespace-nowrap">
+                                {project?.projectId || project?._id?.slice(-6).toUpperCase()}
+                              </span>
+                              <span className="text-blue-950">{project?.name}</span>
+                            </>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="px-5 py-3.5 text-gray-500">
                           {typeof submitter === "object"

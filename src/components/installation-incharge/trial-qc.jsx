@@ -530,7 +530,7 @@ export default function TrialQC() {
                       <p
                         className={`text-[10px] font-bold mb-0.5 ${isSel ? "text-blue-700" : "text-blue-400"}`}
                       >
-                        {p._id.slice(-6).toUpperCase()}
+                        {p.projectId || p._id.slice(-6).toUpperCase()}
                       </p>
                       <p className="text-xs font-bold text-blue-950 leading-snug">
                         {p.name}
@@ -589,7 +589,7 @@ export default function TrialQC() {
                 <div className="flex flex-wrap justify-between items-start gap-3 relative">
                   <div>
                     <p className="text-[11px] font-semibold text-blue-200 uppercase tracking-wider mb-1">
-                      {proj._id.slice(-8).toUpperCase()}
+                      {proj.projectId || proj._id.slice(-8).toUpperCase()}
                     </p>
                     <h2 className="text-lg font-bold mb-1">{proj.name}</h2>
                     <p className="text-xs text-white/60">

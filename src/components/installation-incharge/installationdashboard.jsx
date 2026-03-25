@@ -110,9 +110,9 @@ function ReviewModal({ project, onClose }) {
               Eligibility Review
             </p>
             <h2 className="text-white text-lg font-bold leading-snug">
-              {project.projectId && (
-                <span className="text-blue-200 mr-2">{project.projectId}</span>
-              )}
+              <span className="text-blue-200 mr-2">
+                {project.projectId || project._id?.slice(-6).toUpperCase()}
+              </span>
               {project.name}
             </h2>
           </div>
@@ -628,8 +628,7 @@ export default function Dashboard() {
                 <thead>
                   <tr className="bg-slate-50 border-b border-gray-100">
                     {[
-                      "Project ID",
-                      "Project Name",
+                      "Project Name / ID",
                       "Engineer",
                       "Phase",
                       "Completion",
@@ -661,10 +660,10 @@ export default function Dashboard() {
                         key={row.id}
                         className={`border-t border-gray-50 hover:bg-blue-50/40 transition-colors ${i % 2 === 1 ? "bg-slate-50/50" : ""}`}
                       >
-                        <td className="px-5 py-3.5 font-semibold text-blue-700">
-                          {row.id}
-                        </td>
                         <td className="px-5 py-3.5 font-semibold text-gray-900">
+                          <span className="text-blue-700 mr-2">
+                            {row.id}
+                          </span>
                           {row.name}
                         </td>
                         <td

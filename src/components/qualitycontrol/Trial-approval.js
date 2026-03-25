@@ -94,7 +94,9 @@ function ErrorBanner({ message, onRetry }) {
 // ── Reject Modal ──────────────────────────────────────────────────────────────
 function RejectModal({ trial, onConfirm, onCancel, loading }) {
   const [reason, setReason] = useState("");
-  const projectName = trial?.project?.name || trial?.project || "this trial";
+  const project = trial?.project;
+  const projectId = project?.projectId || project?._id?.slice(-6).toUpperCase();
+  const projectName = project?.name || "this trial";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -117,6 +119,7 @@ function RejectModal({ trial, onConfirm, onCancel, loading }) {
         <p className="text-sm text-gray-500">
           You are rejecting{" "}
           <span className="font-semibold text-extra-darkblue">
+            <span className="text-blue-600 mr-2 font-bold">{projectId}</span>
             {projectName}
           </span>
           . Please provide a reason.
@@ -218,7 +221,9 @@ function TrialCard({ trial, onApprove, onReject, actionLoading }) {
 
   const status = trial.status;
   const isDecided = status !== "Pending";
-  const projectName = trial.project?.name || "—";
+  const project = trial.project;
+  const projectId = project?.projectId || project?._id?.slice(-6).toUpperCase();
+  const projectName = project?.name || "—";
   const siteName = trial.project?.location || "—";
   const inchargeName = trial.installationIncharge?.name || "—";
   const qcEngName = trial.qcEngineer?.name || "—";
@@ -248,6 +253,7 @@ function TrialCard({ trial, onApprove, onReject, actionLoading }) {
             )}
           </div>
           <h4 className="text-sm font-bold text-extra-darkblue mt-1">
+            <span className="text-blue-600 mr-2 font-bold">{projectId}</span>
             {projectName}
           </h4>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">

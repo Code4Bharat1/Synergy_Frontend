@@ -227,10 +227,20 @@ const ROLE_NAVIGATION = {
       icon: FileText,
       label: "Documents",
     },
+      {
+      href: "/marketingCoordinator/ProjectProgress",
+      icon: FileText,
+      label: "Project Status",
+    },
     {
       href: "/marketingCoordinator/installation-request",
       icon: Send,
       label: "Installation Request",
+    },
+     {
+      href: "/marketingCoordinator/complaintLog",
+      icon: MessageSquare,
+      label: "Complaint Log",
     },
     {
       href: "/marketingCoordinator/my-expenses",

@@ -114,7 +114,7 @@ function ProjectSelector({ selected, setSelected, projects, loading }) {
           {loading
             ? "Loading projects…"
             : selected
-              ? `${selected._id.slice(-6).toUpperCase()} — ${selected.name}`
+              ? `${selected.projectId || selected._id.slice(-6).toUpperCase()} ${selected.name}`
               : "Select a project…"}
         </span>
         {loading ? (
@@ -139,7 +139,7 @@ function ProjectSelector({ selected, setSelected, projects, loading }) {
                 className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
               >
                 <span className="font-mono text-xs text-blue-500 font-semibold mr-2">
-                  {p._id.slice(-6).toUpperCase()}
+                  {p.projectId || p._id.slice(-6).toUpperCase()}
                 </span>
                 <span className="text-blue-950 font-medium">{p.name}</span>
                 <span className="text-gray-400 ml-2 text-xs">
@@ -160,7 +160,10 @@ function ProjectDetails({ proj }) {
     proj.assignedEngineers?.[0]?.name ||
     "Unassigned";
   const fields = [
-    { label: "Project ID", value: proj._id.slice(-6).toUpperCase() },
+    {
+      label: "Project ID",
+      value: proj.projectId || proj._id.slice(-6).toUpperCase(),
+    },
     { label: "Client", value: proj.clientName },
     { label: "Assigned To", value: incharge },
     { label: "Location", value: proj.location || "—" },
