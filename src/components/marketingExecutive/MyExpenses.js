@@ -137,29 +137,29 @@ function PrintView({ sheet, onClose }) {
 
             <div className="header-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px", border: "1px solid #000", padding: "8px", marginBottom: 0 }}>
               <div className="header-row" style={{ fontSize: "11px" }}>
-                <span className="label" style={{ fontWeight: "bold", minWidth: "80px" }}>Name</span>
+                <span className="label" style={{ fontWeight: "bold", minWidth: "80px" }}>Name: </span>
                 <span>{sheet.submittedBy?.name || "—"}</span>
               </div>
               <div className="header-row" style={{ fontSize: "11px" }}>
-                <span className="label" style={{ fontWeight: "bold", minWidth: "80px" }}>Date</span>
+                <span className="label" style={{ fontWeight: "bold", minWidth: "80px" }}>Date: </span>
                 <span>{fmtDate(sheet.submittedAt || sheet.createdAt)}</span>
                 <span style={{ marginLeft: "12px", fontWeight: "bold" }}>Bill Months & Year:</span>
                 <span style={{ marginLeft: "4px" }}>{sheet.billMonth || "—"}</span>
               </div>
               <div className="header-row" style={{ fontSize: "11px" }}>
-                <span className="label" style={{ fontWeight: "bold", minWidth: "80px" }}>Designation</span>
+                <span className="label" style={{ fontWeight: "bold", minWidth: "80px" }}>Designation: </span>
                 <span>{sheet.designation || sheet.submittedBy?.role || "—"}</span>
               </div>
               <div className="header-row" style={{ fontSize: "11px" }}>
-                <span className="label" style={{ fontWeight: "bold", minWidth: "80px" }}>Project no.</span>
-                <span>{sheet.projectNumber || sheet.project?.projectId || "—"}</span>
+                <span className="label" style={{ fontWeight: "bold", minWidth: "80px" }}>Project no: </span>
+<span>{sheet.projectNumber || sheet.project?.projectId || sheet.projectNo || "—"}</span>
               </div>
               <div className="header-row" style={{ fontSize: "11px" }}>
-                <span className="label" style={{ fontWeight: "bold", minWidth: "80px" }}>Location Name</span>
+                <span className="label" style={{ fontWeight: "bold", minWidth: "80px" }}>Location Name: </span>
                 <span>{sheet.locationName || sheet.project?.location || "—"}</span>
               </div>
               <div className="header-row" style={{ fontSize: "11px" }}>
-                <span className="label" style={{ fontWeight: "bold", minWidth: "80px" }}>State & Country</span>
+                <span className="label" style={{ fontWeight: "bold", minWidth: "80px" }}>State & Country: </span>
                 <span>{sheet.state || "—"}</span>
               </div>
             </div>
@@ -184,7 +184,7 @@ function PrintView({ sheet, onClose }) {
                     <td style={{ border: "1px solid #000", padding: "4px 6px", whiteSpace: "nowrap" }}>{fmtDate(item.date)}</td>
                     <td style={{ border: "1px solid #000", padding: "4px 6px" }}>{item.particulars}</td>
                     <td style={{ border: "1px solid #000", padding: "4px 6px", textAlign: "right" }}>₹&nbsp;{item.amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                    <td style={{ border: "1px solid #000", padding: "4px 6px", textAlign: "center" }}>{item.projectNo || ""}</td>
+                    <td style={{ border: "1px solid #000", padding: "4px 6px", textAlign: "center" }}>{item.projectNo || item.projectId || ""}</td>
                     <td style={{ border: "1px solid #000", padding: "4px 6px", textAlign: "center" }}>{item.hasBill ? "Y" : "N"}</td>
                   </tr>
                 ))}
@@ -328,12 +328,12 @@ function CreateSheetModal({ projects, onClose, onCreated, showToast }) {
 }
 
 // ── Add Item Modal ─────────────────────────────────────────────────────────────
-function AddItemModal({ sheetId, editItem, onClose, onSaved, showToast }) {
+function AddItemModal({ sheetId, sheetProjectNumber, editItem, onClose, onSaved, showToast }) {
   const [form, setForm] = useState({
     date: editItem ? fmtDateInput(editItem.date) : "",
     particulars: editItem?.particulars || "",
     amount: editItem?.amount || "",
-    projectNo: editItem?.projectNo || "",
+    projectNo: editItem?.projectNo || sheetProjectNumber || "",
     hasBill: editItem?.hasBill || false,
   });
   const [loading, setLoading] = useState(false);
@@ -445,6 +445,9 @@ function SheetDetailView({ sheet: initSheet, onClose, onUpdated, showToast }) {
       onUpdated(res.data.expenseSheet);
     } catch {}
   };
+   useEffect(() => {
+    refreshSheet();
+  }, []);
 
   const handleDeleteItem = async (itemId) => {
     if (!confirm("Remove this item?")) return;
@@ -680,13 +683,15 @@ function SheetDetailView({ sheet: initSheet, onClose, onUpdated, showToast }) {
       </div>
 
       {addItem && (
-        <AddItemModal sheetId={sheet._id} onClose={() => setAddItem(false)}
+        <AddItemModal sheetId={sheet._id} sheetProjectNumber={sheet.projectNumber} onClose={() => setAddItem(false)}
+
           onSaved={(updated) => { setSheet(updated); onUpdated(updated); setAddItem(false); showToast("Item added"); }}
           showToast={showToast} />
       )}
 
-      {editItem && (
-        <AddItemModal sheetId={sheet._id} editItem={editItem} onClose={() => setEditItem(null)}
+     {editItem && (
+        <AddItemModal sheetId={sheet._id} sheetProjectNumber={sheet.projectNumber} editItem={editItem} onClose={() => setEditItem(null)}
+
           onSaved={(updated) => { setSheet(updated); onUpdated(updated); setEditItem(null); showToast("Item updated"); }}
           showToast={showToast} />
       )}

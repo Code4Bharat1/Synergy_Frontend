@@ -525,7 +525,7 @@ export default function InstallationRequestPage() {
           </SectionCard>
 
           {/* Notification Preferences */}
-          <div className="bg-white border border-slate-200 rounded-xl px-5 py-4">
+          {/* <div className="bg-white border border-slate-200 rounded-xl px-5 py-4">
             <div className="text-[12px] font-semibold uppercase tracking-widest text-slate-400 mb-3">
               Notification Preferences
             </div>
@@ -569,7 +569,7 @@ export default function InstallationRequestPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </div> */}
 
           {/* Error banner */}
           {error && (

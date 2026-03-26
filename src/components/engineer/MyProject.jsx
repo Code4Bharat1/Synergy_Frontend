@@ -680,6 +680,96 @@ function ProjectTaskChecklist({ projectId, engineerId }) {
   );
 }
 
+
+
+function buildDocTree(files) {
+  const root = { __files: [] };
+  files.forEach((file) => {
+    const rawName = file.relativePath || file.fileName || file.name || "";
+    const parts = rawName.split("/").filter(Boolean);
+    if (parts.length <= 1) {
+      root.__files.push(file);
+    } else {
+      let node = root;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!node[parts[i]]) node[parts[i]] = { __files: [] };
+        node = node[parts[i]];
+      }
+      node.__files.push({ ...file, _displayName: parts[parts.length - 1] });
+    }
+  });
+  return root;
+}
+
+function DocFileRow({ doc }) {
+  const displayName = doc._displayName || doc.fileName || doc.name || "Untitled";
+  const isPdf = doc.fileType === "pdf" || displayName.toLowerCase().endsWith(".pdf");
+  return (
+    <div className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-blue-50/40 group transition-colors">
+      <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center ${isPdf ? "bg-red-50 text-red-400" : "bg-blue-50 text-blue-400"}`}>
+        <FileText size={14} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold text-extra-darkblue truncate m-0">{displayName}</p>
+        <p className="text-[10px] text-blue-400 mt-0.5 m-0 flex gap-1.5">
+          <span className="capitalize">{doc.fileType || "file"}</span>
+          <span>·</span>
+          <span>{new Date(doc.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</span>
+        </p>
+      </div>
+      {doc.url && doc.url.startsWith("http") && (
+        <a href={doc.url} target="_blank" rel="noopener noreferrer"
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-blue-100 text-blue-400 shrink-0">
+          <Eye size={13} />
+        </a>
+      )}
+    </div>
+  );
+}
+
+function DocFolderNode({ name, node, depth = 0 }) {
+  const [open, setOpen] = useState(true);
+  const subFolders = Object.keys(node).filter((k) => k !== "__files");
+  const files = node.__files || [];
+  return (
+    <div className={depth > 0 ? "ml-3 border-l border-blue-100 pl-2" : ""}>
+      {name && (
+        <button onClick={() => setOpen((o) => !o)}
+          className="flex items-center gap-1.5 py-2 text-xs font-semibold text-blue-600 hover:text-extra-darkblue w-full text-left">
+          <ChevronDown size={13} className="text-gray-400 shrink-0 transition-transform duration-200"
+            style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)" }} />
+          <FolderOpen size={13} className="text-amber-500 shrink-0" />
+          <span className="truncate flex-1">{name}</span>
+          <span className="ml-auto text-[10px] font-normal text-gray-400 shrink-0">
+            {files.length} file{files.length !== 1 ? "s" : ""}
+          </span>
+        </button>
+      )}
+      {(open || !name) && (
+        <>
+          {files.map((f) => <DocFileRow key={f._id || f.url} doc={f} />)}
+          {subFolders.map((folder) => (
+            <DocFolderNode key={folder} name={folder} node={node[folder]} depth={depth + 1} />
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+function DocFolderTree({ documents }) {
+  const tree = buildDocTree(documents);
+  const rootFiles = tree.__files || [];
+  const subFolders = Object.keys(tree).filter((k) => k !== "__files");
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50/50 px-2 py-1">
+      {rootFiles.map((f) => <DocFileRow key={f._id || f.url} doc={f} />)}
+      {subFolders.map((folder) => (
+        <DocFolderNode key={folder} name={folder} node={tree[folder]} depth={1} />
+      ))}
+    </div>
+  );
+}
 // ── Project Detail View ───────────────────────────────────────────────────────
 function ProjectDetail({ project, onBack, onProjectUpdated }) {
   const [editOpen, setEditOpen] = useState(false);
@@ -692,8 +782,9 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
     const fetchDocs = async () => {
       setDocsLoading(true);
       try {
-        const data = await apiFetch("/documents");
+        const data = await apiFetch(`/project-files/${project._id}/files`);
         const allDocs = Array.isArray(data) ? data : data.documents || [];
+        console.log("DOC FIELDS:", allDocs[0]);
         setDocuments(
           allDocs.filter((d) => (d.project?._id || d.project) === project._id),
         );
@@ -1154,56 +1245,9 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
                 <p className="text-xs text-blue-300 text-center py-5">
                   No documents uploaded for this project yet.
                 </p>
-              ) : (
-                <div className="space-y-2">
-                  {documents?.map((doc) => (
-                    <div
-                      key={doc._id}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-blue-50/40 border border-blue-100 justify-between"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center bg-gray-100 text-blue-500">
-                          <FileText size={14} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-extra-darkblue m-0 truncate">
-                            {doc.title || doc.name || "Untitled"}
-                          </p>
-                          <p className="text-[10px] text-blue-400 m-0 flex gap-1.5">
-                            <span className="capitalize">
-                              {doc.documentType || "Other"}
-                            </span>
-                            <span>•</span>
-                            <span>
-                              {new Date(doc.createdAt).toLocaleDateString(
-                                "en-GB",
-                                { day: "2-digit", month: "short" },
-                              )}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-                      {doc.url &&
-                      typeof doc.url === "string" &&
-                      doc.url.startsWith("http") ? (
-                        <a
-                          href={doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-2 rounded-lg bg-gray-100 text-blue-500 hover:bg-blue-100 transition-colors shrink-0"
-                          title="View Document"
-                        >
-                          <Eye size={13} />
-                        </a>
-                      ) : (
-                        <span className="text-[10px] font-bold text-gray-400 px-2 py-1 bg-gray-100 rounded-lg shrink-0">
-                          Pending
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              ) :(
+  <DocFolderTree documents={documents} />
+)}
             </div>
           </div>
         </div>
