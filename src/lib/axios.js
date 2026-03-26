@@ -73,9 +73,14 @@ axiosInstance.interceptors.response.use(
         processQueue(null, data.accessToken);
 
         originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+alert("Token refreshed")
+console.log("Token refreshed");
 
         return axiosInstance(originalRequest);
       } catch (err) {
+        alert("Session Expired. Please login again.");
+        console.log(err.response);
+
         processQueue(err, null);
 
         localStorage.removeItem("accessToken");
