@@ -116,8 +116,11 @@ const ROLE_NAVIGATION = {
     // { href: "/support/profile", icon: User, label: "Profile" },
   ],
   attendance: [
-    { label: "Mark Attendance", icon: HardHat, href: "/attendance" },
+    { label: "Mark Attendance", icon: HardHat, href: "/attendance-manager" },
     { label: "Records", icon: ClipboardList, href: "/attendance/records" },
+  ],
+  worker: [
+    { label: "Mark Attendance", icon: HardHat, href: "/worker" },
   ],
   installationIncharge: [
     {

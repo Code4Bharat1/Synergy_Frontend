@@ -815,8 +815,8 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
     onProjectUpdated(updated);
   };
 
-  return (
-    <div>
+   return (
+    <div className="space-y-5">
       {editOpen && (
         <EditProjectModal
           project={localProject}
@@ -959,9 +959,100 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
               )}
             </div>
           </div>
-
-          {/* Progress & Phase */}
+ {/* Eligibility Checklist */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+              <div className="w-9 h-9 rounded-xl bg-extra-darkblue flex items-center justify-center shrink-0">
+                <CheckSquare size={16} className="text-sky-200" />
+              </div>
+              <h3 className="text-sm font-bold text-extra-darkblue">
+                Eligibility Checklist
+              </h3>
+            </div>
+            <div className="p-5">
+              {localProject.eligibilityStatus === "proceeded" ? (
+                <>
+                  <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-2.5 mb-4">
+                    <CheckCircle2 size={14} className="text-green-500" />
+                    <span className="text-xs font-bold text-green-700">
+                      All checks passed — Approved by admin
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {CHECKS_META?.map((c) => {
+                      const passed = checks[c.key];
+                      return (
+                        <div
+                          key={c.key}
+                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl border"
+                          style={{
+                            background: passed
+                              ? "rgba(52,199,89,0.06)"
+                              : "rgba(255,59,48,0.05)",
+                            borderColor: passed
+                              ? "rgba(52,199,89,0.2)"
+                              : "rgba(255,59,48,0.15)",
+                          }}
+                        >
+                          <div
+                            className="w-5 h-5 rounded-md shrink-0 flex items-center justify-center"
+                            style={{
+                              background: passed ? "#34C759" : "#FF3B30",
+                            }}
+                          >
+                            {passed ? (
+                              <CheckCircle2 size={12} color="#fff" />
+                            ) : (
+                              <XCircle size={12} color="#fff" />
+                            )}
+                          </div>
+                          <span
+                            className="text-xs font-semibold"
+                            style={{ color: passed ? "#1a6b3c" : "#c0392b" }}
+                          >
+                            {c.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {localProject.eligibilityProceededAt && (
+                    <p className="text-xs text-right mt-3 text-blue-400">
+                      Approved · {fmtDate(localProject.eligibilityProceededAt)}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center py-8 gap-3 text-center">
+                  <Package
+                    size={28}
+                    strokeWidth={1.5}
+                    className="text-gray-200"
+                  />
+                  <p className="text-xs font-semibold text-blue-400 m-0">
+                    Eligibility not yet reviewed
+                  </p>
+                  <p className="text-xs text-blue-300 m-0">
+                    Admin will complete this checklist before installation
+                    begins.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Progress & Phase */}
+          
+          {/* Task Checklist */}
+          <ProjectTaskChecklist
+            projectId={localProject._id}
+            engineerId={engineerId}
+          />
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div className="space-y-5 self-start">
+         
+<div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
               <div className="w-9 h-9 rounded-xl bg-extra-darkblue flex items-center justify-center shrink-0">
                 <ClipboardList size={16} className="text-sky-200" />
@@ -1045,97 +1136,6 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
                   );
                 })}
               </div>
-            </div>
-          </div>
-
-          {/* Task Checklist */}
-          <ProjectTaskChecklist
-            projectId={localProject._id}
-            engineerId={engineerId}
-          />
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <div className="space-y-5">
-          {/* Eligibility Checklist */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
-              <div className="w-9 h-9 rounded-xl bg-extra-darkblue flex items-center justify-center shrink-0">
-                <CheckSquare size={16} className="text-sky-200" />
-              </div>
-              <h3 className="text-sm font-bold text-extra-darkblue">
-                Eligibility Checklist
-              </h3>
-            </div>
-            <div className="p-5">
-              {localProject.eligibilityStatus === "proceeded" ? (
-                <>
-                  <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-2.5 mb-4">
-                    <CheckCircle2 size={14} className="text-green-500" />
-                    <span className="text-xs font-bold text-green-700">
-                      All checks passed — Approved by admin
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {CHECKS_META?.map((c) => {
-                      const passed = checks[c.key];
-                      return (
-                        <div
-                          key={c.key}
-                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl border"
-                          style={{
-                            background: passed
-                              ? "rgba(52,199,89,0.06)"
-                              : "rgba(255,59,48,0.05)",
-                            borderColor: passed
-                              ? "rgba(52,199,89,0.2)"
-                              : "rgba(255,59,48,0.15)",
-                          }}
-                        >
-                          <div
-                            className="w-5 h-5 rounded-md shrink-0 flex items-center justify-center"
-                            style={{
-                              background: passed ? "#34C759" : "#FF3B30",
-                            }}
-                          >
-                            {passed ? (
-                              <CheckCircle2 size={12} color="#fff" />
-                            ) : (
-                              <XCircle size={12} color="#fff" />
-                            )}
-                          </div>
-                          <span
-                            className="text-xs font-semibold"
-                            style={{ color: passed ? "#1a6b3c" : "#c0392b" }}
-                          >
-                            {c.label}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {localProject.eligibilityProceededAt && (
-                    <p className="text-xs text-right mt-3 text-blue-400">
-                      Approved · {fmtDate(localProject.eligibilityProceededAt)}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <div className="flex flex-col items-center py-8 gap-3 text-center">
-                  <Package
-                    size={28}
-                    strokeWidth={1.5}
-                    className="text-gray-200"
-                  />
-                  <p className="text-xs font-semibold text-blue-400 m-0">
-                    Eligibility not yet reviewed
-                  </p>
-                  <p className="text-xs text-blue-300 m-0">
-                    Admin will complete this checklist before installation
-                    begins.
-                  </p>
-                </div>
-              )}
             </div>
           </div>
 
@@ -1226,7 +1226,7 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
           </div>
 
           {/* Uploaded Documents */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          {/* <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
               <div className="w-9 h-9 rounded-xl bg-extra-darkblue flex items-center justify-center shrink-0">
                 <FileText size={16} className="text-sky-200" />
@@ -1249,13 +1249,41 @@ function ProjectDetail({ project, onBack, onProjectUpdated }) {
   <DocFolderTree documents={documents} />
 )}
             </div>
+          </div> */}
+          </div>
+      </div>
+
+      {/* ── Uploaded Documents — full width ── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+          <div className="w-9 h-9 rounded-xl bg-extra-darkblue flex items-center justify-center shrink-0">
+            <FileText size={16} className="text-sky-200" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-extra-darkblue">Uploaded Documents</h3>
+            <p className="text-xs text-blue-400 mt-0.5">
+              {documents.length} file{documents.length !== 1 ? "s" : ""} attached to this project
+            </p>
           </div>
         </div>
+        <div className="p-5">
+          {docsLoading ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-gray-400 text-sm">
+              <Loader size={16} className="animate-spin" /> Loading documents...
+            </div>
+          ) : documents.length === 0 ? (
+            <div className="flex flex-col items-center py-10 gap-2 text-center">
+              <FileText size={28} strokeWidth={1.5} className="text-gray-200" />
+              <p className="text-xs text-blue-300">No documents uploaded for this project yet.</p>
+            </div>
+          ) : (
+            <DocFolderTree documents={documents} />
+          )}
+        </div>
       </div>
-    </div>
+      </div>
   );
 }
-
 // ── Project Card ──────────────────────────────────────────────────────────────
 function ProjectCard({ project, onClick, onEdit, index }) {
   const delayed = isProjectDelayed(project);

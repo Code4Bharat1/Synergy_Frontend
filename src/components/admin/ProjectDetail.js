@@ -988,12 +988,12 @@ function FolderFileRow({ file, onPreview, onDelete }) {
           {file.fileType || getExt(displayName).toUpperCase() || "FILE"}
         </span>
       </div>
-      <button
+      {/* <button
         onClick={(e) => { e.stopPropagation(); onDelete(); }}
         className="opacity-0 group-hover:opacity-100 p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all shrink-0"
       >
         <Trash2 size={14} />
-      </button>
+      </button> */}
     </div>
   );
 }
