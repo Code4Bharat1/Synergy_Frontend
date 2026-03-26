@@ -1123,7 +1123,7 @@ export default function CreateProject() {
             <div className="border-t border-gray-100" />
 
             {/* ── 5. Documents ── */}
-            <div>
+            {/* <div>
               <SectionHead>Design Documents</SectionHead>
               <p className="text-[11px] mb-3 text-gray-400">
                 Upload PDFs, drawings, or design files. Max 20 MB each.
@@ -1208,7 +1208,7 @@ export default function CreateProject() {
                   ))}
                 </div>
               )}
-            </div>
+            </div> */}
           </div>
 
           {/* Footer */}
