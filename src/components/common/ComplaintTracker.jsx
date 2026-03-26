@@ -154,13 +154,14 @@ function getStageStatus(stageIndex, currentStageIndex, complaintStatus) {
  */
 export default function ComplaintTracker({
   currentStage,
-  status,
+  status, // overall complaint status
   stageHistory = [],
   compact = false,
   onAdvance,
   canAdvance = false,
   complaint = {},
 }) {
+  const currentStatus = status || complaint.status;
   const [expanded, setExpanded] = useState(!compact);
   const [stageNotes, setStageNotes] = useState("");
   const [materials, setMaterials] = useState([]);
@@ -232,24 +233,24 @@ export default function ComplaintTracker({
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-0.5">
               {STAGES.map((s, i) => {
-                const status = getStageStatus(i, activeIdx, complaint.status);
+                const statusVal = getStageStatus(i, activeIdx, currentStatus);
                 return (
                   <div key={s.key} className="flex items-center">
                     <div
                       className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all"
                       style={{
-                        background: status === "completed" ? s.color : status === "active" ? s.bgColor : "#f1f5f9",
-                        color: status === "completed" ? "#fff" : status === "active" ? s.color : "#94a3b8",
-                        border: `2px solid ${status === "active" ? s.color : status === "completed" ? s.color : "#e2e8f0"}`,
+                        background: statusVal === "completed" ? s.color : statusVal === "active" ? s.bgColor : "#f1f5f9",
+                        color: statusVal === "completed" ? "#fff" : statusVal === "active" ? s.color : "#94a3b8",
+                        border: `2px solid ${statusVal === "active" ? s.color : statusVal === "completed" ? s.color : "#e2e8f0"}`,
                       }}
                     >
-                      {status === "completed" ? "✓" : s.step}
+                      {statusVal === "completed" ? "✓" : s.step}
                     </div>
                     {i < STAGES.length - 1 && (
                       <div
                         className="w-4 h-0.5"
                         style={{
-                          background: status === "completed" ? s.color : "#e2e8f0",
+                          background: statusVal === "completed" ? s.color : "#e2e8f0",
                         }}
                       />
                     )}
@@ -325,7 +326,7 @@ export default function ComplaintTracker({
       {/* Stages */}
       <div className="px-5 py-4 space-y-0">
         {STAGES.map((stage, i) => {
-          const status = getStageStatus(i, activeIdx, complaint.status);
+          const status = getStageStatus(i, activeIdx, currentStatus);
           const Icon = stage.icon;
           const historyEntry = historyMap[stage.key];
           const prevEntry = i > 0 ? historyMap[STAGES[i - 1].key] : null;
