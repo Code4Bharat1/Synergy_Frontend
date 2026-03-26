@@ -32,6 +32,7 @@ import {
   ListTodo,
   Banknote,
   HardHat,
+  ChartNoAxesCombined,
 } from "lucide-react";
 
 import Navbar from "@/components/common/Navbar";
@@ -161,7 +162,7 @@ const ROLE_NAVIGATION = {
     },
     {
       href: "/installationIncharge/Attendance",
-      icon: CalendarCheck,
+      icon: HardHat,
       label: "Attendance",
     },
     {
@@ -234,7 +235,7 @@ const ROLE_NAVIGATION = {
     },
       {
       href: "/marketingCoordinator/ProjectProgress",
-      icon: FileText,
+      icon: ChartNoAxesCombined,
       label: "Project Status",
     },
     {
