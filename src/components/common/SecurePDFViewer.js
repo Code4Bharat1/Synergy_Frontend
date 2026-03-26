@@ -4,153 +4,119 @@ import { useState, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { Loader } from "lucide-react";
 
-// Set up the PDF.js worker via CDN
+// Set up the worker for React-PDF
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-// Helper: detect if a URL points to an image based on file extension
-const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"];
-export function isImageUrl(url) {
-  if (!url) return false;
-  const ext = url.split("?")[0].split(".").pop()?.toLowerCase();
-  return IMAGE_EXTENSIONS.includes(ext);
-}
-
-// ─── Shared Secure Styles ─────────────────────────────────────────────────────
-const SECURE_STYLES = `
-  @media print {
-    .secure-file-container { display: none !important; }
-  }
-  .wm-grid {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-around;
-    align-content: space-around;
-    overflow: hidden;
-    pointer-events: none;
-    z-index: 50;
-    opacity: 0.13;
-  }
-  .wm-text {
-    transform: rotate(-45deg);
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #000;
-    white-space: nowrap;
-    padding: 1.2rem;
-    letter-spacing: 0.01em;
-  }
-`;
-
-// ─── Watermark Overlay ────────────────────────────────────────────────────────
-function WatermarkOverlay({ text }) {
-  return (
-    <div className="wm-grid" aria-hidden="true">
-      {Array.from({ length: 50 }).map((_, i) => (
-        <span key={i} className="wm-text">{text}</span>
-      ))}
-    </div>
-  );
-}
-
-// ─── SecureFileViewer ─────────────────────────────────────────────────────────
-/**
- * Universal secure file viewer for PDFs and images.
- *
- * Features:
- * - PDFs rendered page-by-page on <canvas> via react-pdf (no browser native PDF toolbar)
- * - Images rendered inside a protected container (no drag, no context menu)
- * - Repeating diagonal watermark stamped with user identity + timestamp + CONFIDENTIAL
- * - Right-click disabled, text selection disabled, print blocked via @media print
- *
- * Props:
- *   url        {string}  Full resolved URL of the file
- *   userName   {string}  Logged-in user's name (from localStorage)
- *   userEmail  {string}  Logged-in user's email (from localStorage)
- */
-export default function SecureFileViewer({ url, userName, userEmail }) {
+export default function SecurePDFViewer({ url, userName, userEmail }) {
   const [numPages, setNumPages] = useState(null);
   const [timestamp, setTimestamp] = useState("");
-  const isImage = isImageUrl(url);
+const [scale, setScale] = useState(1.2); // ← add this
 
   useEffect(() => {
-    setTimestamp(new Date().toLocaleString("en-GB"));
+    // Generate static timestamp once on mount
+    setTimestamp(new Date().toLocaleString());
   }, []);
 
-  const watermarkText = `${userName || "Authorized User"} | ${userEmail || ""} | ${timestamp} | CONFIDENTIAL`;
+  function onDocumentLoadSuccess({ numPages }) {
+    setNumPages(numPages);
+  }
+
+  // Generate repeating watermark content
+  const watermarkText = `${userName || "Authorized User"} | ${userEmail || "No Email"} | ${timestamp}`;
 
   return (
-    <div
-      className="secure-file-container relative w-full flex flex-col items-center overflow-auto bg-gray-200"
-      style={{ maxHeight: "80vh", userSelect: "none" }}
-      onContextMenu={(e) => e.preventDefault()}
-    >
-      <style>{SECURE_STYLES}</style>
+  <div
+    className="secure-pdf-container relative w-full bg-gray-200 flex flex-col"
+    style={{ height: "80vh", userSelect: "none" }}
+    onContextMenu={(e) => e.preventDefault()}
+  >
+    <style>{`
+      @media print {
+        .secure-pdf-container { display: none !important; }
+      }
+      .watermark-overlay {
+        position: sticky; top: 0; left: 0;
+        width: 100%; height: 0;
+        overflow: visible; pointer-events: none; z-index: 50;
+      }
+      .watermark-grid {
+        position: absolute; top: 0; left: 0;
+        width: 100%; height: 80vh;
+        display: flex; flex-wrap: wrap;
+        justify-content: space-around; align-content: space-around;
+        overflow: hidden; opacity: 0.15;
+      }
+      .watermark-text {
+        transform: rotate(-45deg); font-size: 1.5rem;
+        font-weight: bold; color: #000;
+        white-space: nowrap; margin: 3rem;
+      }
+    `}</style>
 
-      {/* ── Image Mode ── */}
-      {isImage ? (
-        <div
-          className="relative w-full flex items-center justify-center p-6"
-          style={{ minHeight: "40vh" }}
-        >
-          <WatermarkOverlay text={watermarkText} />
-          <img
-            src={url}
-            alt="Secure Preview"
-            className="max-w-full max-h-[72vh] object-contain rounded-xl shadow-2xl relative z-10"
-            draggable={false}
-          />
-        </div>
-      ) : (
-        /* ── PDF Mode ── */
-        <div className="relative w-full">
-          {/* Sticky floating watermark that stays visible as user scrolls through PDF pages */}
-          <div
-            className="sticky top-0 left-0 w-full"
-            style={{ height: "80vh", overflow: "visible", pointerEvents: "none", zIndex: 50, position: "sticky" }}
-          >
-            <WatermarkOverlay text={watermarkText} />
-          </div>
-          <div
-            className="flex flex-col items-center gap-4 px-4"
-            style={{ marginTop: "-80vh" }} // Overlay on top of pages
-          >
-            <Document
-              file={url}
-              onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-              loading={
-                <div className="flex flex-col items-center justify-center text-gray-500 py-20">
-                  <Loader className="animate-spin mb-3 text-[#0F2854]" size={40} />
-                  <p className="text-sm font-bold text-[#0F2854]">Loading Secure Document…</p>
-                </div>
-              }
-              error={
-                <div className="text-red-500 font-semibold py-20 bg-white px-10 rounded-xl shadow">
-                  Failed to load the secure document. Please try again.
-                </div>
-              }
-            >
-              {numPages &&
-                Array.from(new Array(numPages), (_, i) => (
-                  <div
-                    key={`page_${i + 1}`}
-                    className="mb-4 shadow-2xl border border-gray-100 bg-white select-none"
-                    style={{ pointerEvents: "none" }}
-                  >
-                    <Page
-                      pageNumber={i + 1}
-                      renderTextLayer={false}
-                      renderAnnotationLayer={false}
-                    />
-                  </div>
-                ))}
-            </Document>
-          </div>
-        </div>
-      )}
+    {/* ── Zoom Toolbar ── */}
+    <div className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 shrink-0 z-20">
+      <button
+        onClick={() => setScale((s) => Math.max(s - 0.2, 0.4))}
+        disabled={scale <= 0.4}
+        className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-600 hover:bg-gray-500 text-white text-xl font-bold disabled:opacity-30 transition-colors"
+      >−</button>
+      <button
+        onClick={() => setScale(1.2)}
+        className="px-3 h-8 rounded-lg bg-gray-600 hover:bg-gray-500 text-white text-xs font-semibold min-w-[56px] transition-colors"
+      >{Math.round(scale * 100)}%</button>
+      <button
+        onClick={() => setScale((s) => Math.min(s + 0.2, 3.0))}
+        disabled={scale >= 3.0}
+        className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-600 hover:bg-gray-500 text-white text-xl font-bold disabled:opacity-30 transition-colors"
+      >+</button>
     </div>
-  );
+
+    {/* ── Scrollable area (both directions) ── */}
+    <div className="flex-1 overflow-auto">
+      <div className="flex flex-col items-center py-6 relative" style={{ minWidth: "max-content" }}>
+
+        {/* Floating Watermark */}
+        <div className="watermark-overlay">
+          <div className="watermark-grid">
+            {Array.from({ length: 40 }).map((_, i) => (
+              <div key={i} className="watermark-text">{watermarkText}</div>
+            ))}
+          </div>
+        </div>
+
+        <div className="w-full flex flex-col items-center relative z-10">
+          <Document
+            file={url}
+            onLoadSuccess={onDocumentLoadSuccess}
+            loading={
+              <div className="flex flex-col items-center justify-center text-gray-500 py-20">
+                <Loader className="animate-spin mb-3 text-[#0F2854]" size={40} />
+                <p className="text-sm font-bold text-[#0F2854]">Loading Secure Document...</p>
+              </div>
+            }
+            error={
+              <div className="text-red-500 font-semibold py-20 bg-white px-10 rounded-xl shadow">
+                Failed to load secure document.
+              </div>
+            }
+          >
+            {numPages &&
+              Array.from(new Array(numPages), (el, index) => (
+                <div key={`page_${index + 1}`} className="mb-6 shadow-2xl select-none border border-gray-100 bg-white">
+                  <Page
+                    pageNumber={index + 1}
+                    scale={scale}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                    className="pointer-events-none"
+                  />
+                </div>
+              ))}
+          </Document>
+        </div>
+
+      </div>
+    </div>
+  </div>
+);
 }

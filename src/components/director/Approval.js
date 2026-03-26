@@ -9,8 +9,6 @@ import {
 import axiosInstance from "../../lib/axios";
 import Link from "next/link";
 import * as expSvc from "../../services/expense.service";
-import SecureFileViewer from "../common/SecurePDFViewer";
-
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const apiFetch = async (path, { method = "GET", body } = {}) => {
@@ -65,48 +63,36 @@ const ALL_TYPES = [
   "High-Value Complaint", "Corrective Action", "Document Review", "Expense Approval",
 ];
 
-// ── Secure Lightbox ───────────────────────────────────────────────────────────
+// ── Lightbox ──────────────────────────────────────────────────────────────────
 function Lightbox({ url, onClose }) {
-  const [currentUser, setCurrentUser] = useState(null);
-
   useEffect(() => {
     const fn = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", fn);
     document.body.style.overflow = "hidden";
-    try {
-      const u = localStorage.getItem("user");
-      if (u) setCurrentUser(JSON.parse(u));
-    } catch {}
     return () => { document.removeEventListener("keydown", fn); document.body.style.overflow = ""; };
   }, [onClose]);
-
+  const isPdf = url?.toLowerCase().endsWith(".pdf");
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="relative w-full max-w-4xl">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="relative max-w-4xl w-full">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-white/60 text-xs font-medium">Secure Preview — Confidential</span>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
-          >
-            <X size={15} />
-          </button>
+          <span className="text-white/60 text-xs font-medium">Bill Preview</span>
+          <div className="flex items-center gap-2">
+            <a href={url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-semibold text-white/70 hover:text-white">
+              <ExternalLink size={12} /> Open original
+            </a>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"><X size={15} /></button>
+          </div>
         </div>
-        <div className="rounded-xl overflow-hidden shadow-2xl">
-          <SecureFileViewer
-            url={url}
-            userName={currentUser?.name}
-            userEmail={currentUser?.email}
-          />
-        </div>
+        {isPdf
+          ? <iframe src={url} className="w-full h-[78vh] rounded-xl bg-white" title="Bill" />
+          : <img src={url} alt="Bill preview" className="w-full max-h-[82vh] object-contain rounded-xl shadow-2xl" />
+        }
       </div>
     </div>
   );
 }
-
 
 // ── Reject Modal ──────────────────────────────────────────────────────────────
 function RejectModal({ item, onConfirm, onCancel }) {

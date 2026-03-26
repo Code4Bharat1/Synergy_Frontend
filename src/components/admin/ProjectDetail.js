@@ -29,8 +29,7 @@ import {
   FolderOpen,
 } from "lucide-react";
 import ProjectAnalytics from "../director/ProjectAnalytics";
-import SecureFileViewer, { isImageUrl } from "../common/SecurePDFViewer";
-
+import SecurePDFViewer from "../common/SecurePDFViewer";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const API_BASE =
@@ -428,14 +427,26 @@ export default function ProjectDetail({ params }) {
                 </button>
               </div>
             </div>
-            {/* Single unified secure preview for both images & PDFs */}
-            <div className="flex w-full h-[80vh] bg-gray-200 overflow-hidden relative">
-              <SecureFileViewer
-                url={getFileUrl(preview.url)}
-                userName={currentUser?.name}
-                userEmail={currentUser?.email}
-              />
-            </div>
+            {preview.fileType === "image" || isImageFile(preview.url) ? (
+              <div
+                className="flex items-center justify-center bg-gray-100 p-4 overflow-auto"
+                style={{ maxHeight: "80vh" }}
+              >
+                <img
+                  src={getFileUrl(preview.url)}
+                  alt={preview.fileName}
+                  className="max-w-full max-h-[75vh] object-contain rounded-lg shadow"
+                />
+              </div>
+            ) : (
+              <div className="flex w-full h-[80vh] bg-gray-200 overflow-hidden relative">
+                <SecurePDFViewer
+                  url={getFileUrl(preview.url)}
+                  userName={currentUser?.name}
+                  userEmail={currentUser?.email}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
