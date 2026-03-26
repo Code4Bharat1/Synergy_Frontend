@@ -184,6 +184,31 @@ const getFileUrl = (url) => {
   const base = API_BASE.replace("/api/v1", "");
   return `${base}/${cleanUrl}`;
 };
+// ── Folder tree helpers ───────────────────────────────────────────────────────
+const getExt = (name) => {
+  if (!name) return "";
+  const p = name.split(".");
+  return p.length > 1 ? p.pop().toLowerCase() : "";
+};
+
+const buildTree = (files) => {
+  const root = { __files: [] };
+  files.forEach((file) => {
+    const rawName = file.fileName || file.originalname || file.filename || file.name || "";
+    const parts = rawName.split("/").filter(Boolean);
+    if (parts.length <= 1) {
+      root.__files.push(file);
+    } else {
+      let node = root;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!node[parts[i]]) node[parts[i]] = { __files: [] };
+        node = node[parts[i]];
+      }
+      node.__files.push({ ...file, _displayName: parts[parts.length - 1] });
+    }
+  });
+  return root;
+};
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ProjectDetail({ params }) {
@@ -719,59 +744,79 @@ export default function ProjectDetail({ params }) {
         </div>
 
         {/* Files display */}
-        <div className="p-5">
-          {filteredFiles.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText size={36} className="mx-auto text-gray-200 mb-3" />
-              <p className="text-sm font-semibold text-gray-400">
-                {files.length === 0
-                  ? "No files uploaded yet"
-                  : "No files match your filter"}
-              </p>
-              <p className="text-xs text-gray-300 mt-1">
-                {files.length === 0
-                  ? "Upload PDFs or images to get started"
-                  : "Try changing your search or filter"}
-              </p>
-            </div>
-          ) : viewMode === "grid" ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {filteredFiles?.map((file) => (
-                <FileGridCard
-                  key={file._id}
-                  file={file}
-                  onPreview={() => {
-                    const isPreviewable = file.fileType === "image" || file.fileType === "pdf" || file.fileName?.toLowerCase().endsWith(".pdf");
-                    if (isPreviewable) {
-                      setPreview(file);
-                    } else {
-                      showToast("Preview not available for this file type. Downloads are disabled.", "error");
-                    }
-                  }}
-                  onDelete={() => handleDelete(file._id)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredFiles?.map((file) => (
-                <FileListRow
-                  key={file._id}
-                  file={file}
-                  onPreview={() => {
-                    const isPreviewable = file.fileType === "image" || file.fileType === "pdf" || file.fileName?.toLowerCase().endsWith(".pdf");
-                    if (isPreviewable) {
-                      setPreview(file);
-                    } else {
-                      showToast("Preview not available for this file type. Downloads are disabled.", "error");
-                    }
-                  }}
-                  onDelete={() => handleDelete(file._id)}
-                />
-              ))}
-            </div>
-          )}
+<div className="p-5">
+  {filteredFiles.length === 0 ? (
+    <div className="text-center py-12">
+      <FileText size={36} className="mx-auto text-gray-200 mb-3" />
+      <p className="text-sm font-semibold text-gray-400">
+        {files.length === 0 ? "No files uploaded yet" : "No files match your filter"}
+      </p>
+      <p className="text-xs text-gray-300 mt-1">
+        {files.length === 0 ? "Upload PDFs or images to get started" : "Try changing your search or filter"}
+      </p>
+    </div>
+  ) : (() => {
+    const hasFolders = filteredFiles.some((f) => {
+      const name = f.fileName || f.originalname || f.filename || f.name || "";
+      return name.includes("/") && name.split("/").filter(Boolean).length > 1;
+    });
+
+    if (hasFolders) {
+      const tree = buildTree(filteredFiles);
+      const rootFiles = tree.__files || [];
+      const subFolders = Object.keys(tree).filter((k) => k !== "__files");
+
+      const handlePreview = (file) => {
+        const isPreviewable = file.fileType === "image" || file.fileType === "pdf"
+          || file.fileName?.toLowerCase().endsWith(".pdf");
+        if (isPreviewable) setPreview(file);
+        else showToast("Preview not available for this file type.", "error");
+      };
+
+      return (
+        <div className="rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2">
+          {rootFiles.map((f) => (
+            <FolderFileRow key={f._id || f.url} file={f}
+              onPreview={() => handlePreview(f)}
+              onDelete={() => handleDelete(f._id)} />
+          ))}
+          {subFolders.map((folder) => (
+            <FolderNode key={folder} name={folder} node={tree[folder]}
+              depth={1} onPreview={handlePreview} onDelete={handleDelete} />
+          ))}
         </div>
+      );
+    }
+
+    return viewMode === "grid" ? (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        {filteredFiles.map((file) => (
+          <FileGridCard key={file._id} file={file}
+            onPreview={() => {
+              const isPreviewable = file.fileType === "image" || file.fileType === "pdf"
+                || file.fileName?.toLowerCase().endsWith(".pdf");
+              if (isPreviewable) setPreview(file);
+              else showToast("Preview not available for this file type.", "error");
+            }}
+            onDelete={() => handleDelete(file._id)} />
+        ))}
+      </div>
+    ) : (
+      <div className="space-y-2">
+        {filteredFiles.map((file) => (
+          <FileListRow key={file._id} file={file}
+            onPreview={() => {
+              const isPreviewable = file.fileType === "image" || file.fileType === "pdf"
+                || file.fileName?.toLowerCase().endsWith(".pdf");
+              if (isPreviewable) setPreview(file);
+              else showToast("Preview not available for this file type.", "error");
+            }}
+            onDelete={() => handleDelete(file._id)} />
+        ))}
+      </div>
+    );
+  })()}
+</div>
       </div>
     </div>
   );
@@ -920,6 +965,94 @@ function FileListRow({ file, onPreview, onDelete }) {
           <Trash2 size={14} />
         </button>
       </div> */}
+    </div>
+  );
+}
+function FolderFileRow({ file, onPreview, onDelete }) {
+  const rawName = file._displayName || file.fileName || file.originalname || file.filename || file.name || "Unnamed";
+  const displayName = rawName.split("/").pop() || "Unnamed";
+
+  return (
+    <div
+      className="flex items-center gap-2 px-2 py-2.5 rounded-lg hover:bg-blue-50/50 group transition-colors cursor-pointer"
+      onClick={onPreview}
+    >
+      <FileText size={14} className="text-red-400 shrink-0" />
+      <div className="flex-1 min-w-0">
+        {/* Full name on its own line, wraps instead of truncates */}
+        <p className="text-[12px]  font-semibold text-gray-800 break-words leading-snug" title={displayName}>
+          {displayName}
+        </p>
+        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded mt-0.5 inline-block
+          ${file.fileType === "image" ? "bg-pink-50 text-pink-500" : "bg-red-50 text-red-500"}`}>
+          {file.fileType || getExt(displayName).toUpperCase() || "FILE"}
+        </span>
+      </div>
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        className="opacity-0 group-hover:opacity-100 p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all shrink-0"
+      >
+        <Trash2 size={14} />
+      </button>
+    </div>
+  );
+}
+function FolderNode({ name, node, depth = 0, onPreview, onDelete }) {
+  const [open, setOpen] = useState(true);
+  const subFolders = Object.keys(node).filter((k) => k !== "__files");
+  const files = node.__files || [];
+
+  const countAll = (n) => {
+    const direct = (n.__files || []).length;
+    return direct + Object.keys(n).filter((k) => k !== "__files")
+      .reduce((acc, k) => acc + countAll(n[k]), 0);
+  };
+  const totalFiles = countAll(node);
+
+  return (
+    <div>
+      {name && (
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex items-center gap-2 py-2.5 px-2 w-full text-left rounded-xl hover:bg-blue-50/60 transition-colors mb-0.5"
+        >
+          <ChevronDown
+            size={15}
+            className={`text-gray-400 transition-transform shrink-0 ${open ? "" : "-rotate-90"}`}
+          />
+          <FolderOpen size={15} className="text-blue-500 shrink-0" />
+          {/* Folder name wraps too */}
+          <span className="text-sm font-bold text-[#0F2854] break-words flex-1 text-left leading-snug">
+            {name}
+          </span>
+          <span className="text-xs font-semibold text-gray-400 shrink-0 bg-gray-100 px-2 py-0.5 rounded-full ml-1">
+            {totalFiles}
+          </span>
+        </button>
+      )}
+      {(open || !name) && (
+        // Fixed small indent regardless of depth — prevents runaway nesting on mobile
+        <div className={name ? "ml-2 border-l-2 border-blue-100 pl-2 mb-1" : ""}>
+          {files.map((f) => (
+            <FolderFileRow
+              key={f._id || f.url}
+              file={f}
+              onPreview={() => onPreview(f)}
+              onDelete={() => onDelete(f._id)}
+            />
+          ))}
+          {subFolders.map((folder) => (
+            <FolderNode
+              key={folder}
+              name={folder}
+              node={node[folder]}
+              depth={depth + 1}
+              onPreview={onPreview}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
