@@ -397,7 +397,7 @@ export default function ProjectDetail({ params }) {
               className="flex items-center justify-center bg-gray-100 p-4 overflow-auto"
               style={{ maxHeight: "80vh" }}
             >
-              {preview.fileType === "image" ? (
+              {preview.fileType === "image" || isImageFile(preview.url) ? (
                 <img
                   src={getFileUrl(preview.url)}
                   alt={preview.fileName}
@@ -733,7 +733,11 @@ export default function ProjectDetail({ params }) {
                   onPreview={() => {
                     const isPreviewable = file.fileType === "image" || file.fileType === "pdf" || file.fileName?.toLowerCase().endsWith(".pdf");
                     if (isPreviewable) {
-                      setPreview(file);
+                      if (file.fileType === "image" || isImageFile(file.url)) {
+                        setPreview(file);
+                      } else {
+                        window.open(getFileUrl(file.url), "_blank");
+                      }
                     } else {
                       showToast("Preview not available for this file type. Downloads are disabled.", "error");
                     }
@@ -749,9 +753,13 @@ export default function ProjectDetail({ params }) {
                   key={file._id}
                   file={file}
                   onPreview={() => {
-                    const isPreviewable = file.fileType === "image" || file.fileName?.toLowerCase().endsWith(".pdf");
+                    const isPreviewable = file.fileType === "image" || file.fileType === "pdf" || file.fileName?.toLowerCase().endsWith(".pdf");
                     if (isPreviewable) {
-                      setPreview(file);
+                      if (file.fileType === "image" || isImageFile(file.url)) {
+                        setPreview(file);
+                      } else {
+                        window.open(getFileUrl(file.url), "_blank");
+                      }
                     } else {
                       showToast("Preview not available for this file type. Downloads are disabled.", "error");
                     }
