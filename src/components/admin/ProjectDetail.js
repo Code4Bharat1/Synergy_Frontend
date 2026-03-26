@@ -29,6 +29,7 @@ import {
   FolderOpen,
 } from "lucide-react";
 import ProjectAnalytics from "../director/ProjectAnalytics";
+import SecurePDFViewer from "../common/SecurePDFViewer";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const API_BASE =
@@ -205,6 +206,14 @@ export default function ProjectDetail({ params }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [uploadMode, setUploadMode] = useState("files"); // "files" | "folder"
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    try {
+      const u = localStorage.getItem("user");
+      if (u) setCurrentUser(JSON.parse(u));
+    } catch (e) {}
+  }, []);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -393,25 +402,26 @@ export default function ProjectDetail({ params }) {
                 </button>
               </div>
             </div>
-            <div
-              className="flex items-center justify-center bg-gray-100 p-4 overflow-auto"
-              style={{ maxHeight: "80vh" }}
-            >
-              {preview.fileType === "image" || isImageFile(preview.url) ? (
+            {preview.fileType === "image" || isImageFile(preview.url) ? (
+              <div
+                className="flex items-center justify-center bg-gray-100 p-4 overflow-auto"
+                style={{ maxHeight: "80vh" }}
+              >
                 <img
                   src={getFileUrl(preview.url)}
                   alt={preview.fileName}
                   className="max-w-full max-h-[75vh] object-contain rounded-lg shadow"
                 />
-              ) : (
-                <embed
-  src={`${getFileUrl(preview.url)}#toolbar=0`}
-  type="application/pdf"
-  className="w-full rounded-lg shadow bg-white"
-  style={{ height: "75vh" }}
-/>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="flex w-full h-[80vh] bg-gray-200 overflow-hidden relative">
+                <SecurePDFViewer
+                  url={getFileUrl(preview.url)}
+                  userName={currentUser?.name}
+                  userEmail={currentUser?.email}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -733,11 +743,7 @@ export default function ProjectDetail({ params }) {
                   onPreview={() => {
                     const isPreviewable = file.fileType === "image" || file.fileType === "pdf" || file.fileName?.toLowerCase().endsWith(".pdf");
                     if (isPreviewable) {
-                      if (file.fileType === "image" || isImageFile(file.url)) {
-                        setPreview(file);
-                      } else {
-                        window.open(getFileUrl(file.url), "_blank");
-                      }
+                      setPreview(file);
                     } else {
                       showToast("Preview not available for this file type. Downloads are disabled.", "error");
                     }
@@ -755,11 +761,7 @@ export default function ProjectDetail({ params }) {
                   onPreview={() => {
                     const isPreviewable = file.fileType === "image" || file.fileType === "pdf" || file.fileName?.toLowerCase().endsWith(".pdf");
                     if (isPreviewable) {
-                      if (file.fileType === "image" || isImageFile(file.url)) {
-                        setPreview(file);
-                      } else {
-                        window.open(getFileUrl(file.url), "_blank");
-                      }
+                      setPreview(file);
                     } else {
                       showToast("Preview not available for this file type. Downloads are disabled.", "error");
                     }
