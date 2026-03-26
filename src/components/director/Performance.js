@@ -259,7 +259,11 @@ export default function PerformanceAnalytics() {
   const filtered = projects.filter(p => {
     const q = search.toLowerCase();
     const mQ = !q || (p.name||"").toLowerCase().includes(q) || (p.clientName||"").toLowerCase().includes(q) || (p.location||"").toLowerCase().includes(q);
-    const mS = statusFilter === "All" || p.status === statusFilter;
+    
+    let mS = statusFilter === "All" || p.status === statusFilter;
+    if (statusFilter === "Delayed") mS = timing(p) === "delayed";
+    if (statusFilter === "On Track") mS = timing(p) === "on-track";
+    
     return mQ && mS;
   });
 
@@ -599,10 +603,10 @@ export default function PerformanceAnalytics() {
               className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-[#1C4D8D] text-gray-700" />
           </div>
           <div className="flex flex-wrap gap-1">
-            {["All","initiated","in-progress","installation","testing","completed","on-hold"].map(f => (
+            {["All", "Delayed", "On Track", "initiated", "in-progress", "installation", "testing", "completed", "on-hold"].map(f => (
               <button key={f} onClick={() => setStatusFilter(f)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${statusFilter === f ? "bg-[#0F2854] text-white" : "bg-white border border-gray-200 text-gray-500 hover:border-[#1C4D8D]"}`}>
-                {f === "All" ? "All" : f.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+                {f === "All" ? "All" : f === "Delayed" ? "Delayed" : f === "On Track" ? "On Track" : f.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
               </button>
             ))}
           </div>

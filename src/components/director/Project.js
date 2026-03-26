@@ -86,6 +86,13 @@ const isProjectDelayed = (project) => {
   return false;
 };
 
+const isProjectOnTime = (project) => {
+  if (project.status === "completed" || project.status === "on-hold")
+    return false;
+  if (!project.endDate) return true;
+  return new Date(project.endDate) >= new Date();
+};
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 function Bar({ pct, color }) {
   return (
@@ -995,7 +1002,9 @@ export default function ProjectOverview() {
       ? projects
       : filter === "Delayed"
         ? projects.filter((p) => isProjectDelayed(p))
-        : projects.filter((p) => p.status === filter);
+        : filter === "On Time"
+          ? projects.filter((p) => isProjectOnTime(p))
+          : projects.filter((p) => p.status === filter);
   const statusProgress = {
     initiated: 5,
     "in-progress": 40,
@@ -1119,7 +1128,29 @@ export default function ProjectOverview() {
       )}
 
       {/* Summary stats */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-2">
+        <button
+          onClick={() => setFilter(filter === "Delayed" ? "All" : "Delayed")}
+          className={`rounded-xl border p-3 text-center transition-all cursor-pointer
+            ${filter === "Delayed" ? "border-red-300 bg-red-50" : "border-gray-100 bg-white hover:border-gray-200"}`}
+        >
+          <p className="text-xl font-bold text-red-600">
+            {projects.filter((p) => isProjectDelayed(p)).length}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5 leading-tight">Delayed</p>
+        </button>
+
+        <button
+          onClick={() => setFilter(filter === "On Time" ? "All" : "On Time")}
+          className={`rounded-xl border p-3 text-center transition-all cursor-pointer
+            ${filter === "On Time" ? "border-emerald-300 bg-emerald-50" : "border-gray-100 bg-white hover:border-gray-200"}`}
+        >
+          <p className="text-xl font-bold text-emerald-600">
+            {projects.filter((p) => isProjectOnTime(p)).length}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5 leading-tight">On Time</p>
+        </button>
+
         {Object.entries(STATUS_LABELS)?.map(([k, v]) => {
           const count = projects.filter((p) => p.status === k).length;
           return (
@@ -1141,15 +1172,21 @@ export default function ProjectOverview() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit overflow-x-auto">
-        {["All", "Delayed", ...Object.keys(STATUS_LABELS)]?.map((f) => (
+      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit overflow-x-auto shadow-inner">
+        {["All", "Delayed", "On Time", ...Object.keys(STATUS_LABELS)]?.map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all
-              ${filter === f ? "bg-white text-gray-800 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all
+              ${filter === f ? "bg-white text-blue-700 shadow-sm" : "text-gray-400 hover:text-gray-600 hover:bg-white/50"}`}
           >
-            {f === "All" ? "All" : f === "Delayed" ? "Delayed" : STATUS_LABELS[f]}
+            {f === "All"
+              ? "All"
+              : f === "Delayed"
+                ? "Delayed"
+                : f === "On Time"
+                  ? "On Time"
+                  : STATUS_LABELS[f]}
           </button>
         ))}
       </div>
@@ -1218,11 +1255,15 @@ export default function ProjectOverview() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {isProjectDelayed(p) && (
+                      {isProjectDelayed(p) ? (
                         <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded animate-pulse">
                           DELAYED
                         </span>
-                      )}
+                      ) : isProjectOnTime(p) ? (
+                        <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded shadow-sm">
+                          ON TIME
+                        </span>
+                      ) : null}
                       <Badge text={statusLabel} colorClass={statusStyle} />
                     </div>
                   </div>
