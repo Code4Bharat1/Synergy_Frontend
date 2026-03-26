@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { inputStyle, labelStyle, PageHeader, Card } from "./shared";
 import axiosInstance from "../../lib/axios";
+import ComplaintTracker from "../common/ComplaintTracker";
 
 // ── UI-only constants (not data) ───────────────────────────────────────────────
 const SEVERITY_OPTS = [
@@ -778,6 +779,9 @@ export default function LogComplaintPage() {
                         <span style={{ color: "#4988C4", fontSize: 11 }}>
                           {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "—"}
                         </span>
+                      </div>
+                      <div className="mt-3">
+                        <ComplaintTracker currentStage={c.currentStage} status={c.status} stageHistory={c.stageHistory} compact />
                       </div>
                     </div>
                   ))

@@ -11,6 +11,7 @@ import {
   Loader,
   Briefcase,
 } from "lucide-react";
+import ComplaintTracker from "../common/ComplaintTracker";
 
 // Config
 const API_BASE =
@@ -165,6 +166,9 @@ export default function AdminDashboard() {
       action: c.title || "Complaint log",
       time: new Date(c.createdAt).toLocaleDateString(),
       type: c.priority || "medium",
+      status: c.status || "open",
+      currentStage: c.currentStage,
+      stageHistory: c.stageHistory,
     }));
 
   // Replacing static Workflows with Recent/Active Projects
@@ -230,9 +234,12 @@ export default function AdminDashboard() {
                   <p className="text-sm text-extra-darkblue font-medium truncate">
                     {log.action}
                   </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Logged by {log.user} · {log.time}
-                  </p>
+                  <div className="flex items-center justify-between mt-0.5 mb-2">
+                    <p className="text-xs text-gray-400">
+                      Logged by {log.user} · {log.time}
+                    </p>
+                  </div>
+                  <ComplaintTracker currentStage={log.currentStage} status={log.status} stageHistory={log.stageHistory} compact />
                 </div>
               </div>
             ))}

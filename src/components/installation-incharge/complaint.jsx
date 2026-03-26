@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import axiosInstance from "../../lib/axios";
+import ComplaintTracker, { STAGE_ADVANCE_ROLES } from "../common/ComplaintTracker";
+import { useAuth } from "../../context/AuthContext";
 
 // ── API Helper ────────────────────────────────────────────────────────────────
 const apiFetch = async (path, { method = "GET", body } = {}) => {
@@ -158,6 +160,8 @@ export default function ComplaintApproval() {
   const [modal, setModal] = useState(null); // { type: "approve" | "reject" }
   const [comment, setComment] = useState("");
   const [showDetail, setShowDetail] = useState(false);
+  const { user } = useAuth();
+  const userRole = user?.role;
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchComplaints = useCallback(async () => {
@@ -184,20 +188,37 @@ export default function ComplaintApproval() {
   }, [fetchComplaints]);
 
   // ── Approve / Reject ───────────────────────────────────────────────────────
+  const handleAdvanceStage = async (nextStageKey) => {
+    if (!active) return;
+    try {
+      setActionLoading(true);
+      await axiosInstance.put(`/complaints/${active._id}`, {
+        currentStage: nextStageKey,
+      });
+      fetchComplaints();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const resolve = async () => {
     if (!active) return;
     try {
       setActionLoading(true);
       const newStatus = modal.type === "approve" ? "resolved" : "closed";
+      const payload = {
+        status: newStatus,
+        resolutionNotes: comment.trim() || undefined,
+      };
+      if (newStatus === "resolved") {
+          payload.resolvedAt = new Date().toISOString();
+          payload.currentStage = "resolved"; // Also update stage
+      }
       await apiFetch(`/complaints/${active._id}`, {
         method: "PUT",
-        body: JSON.stringify({
-          status: newStatus,
-          resolutionNotes: comment.trim() || undefined,
-          ...(newStatus === "resolved"
-            ? { resolvedAt: new Date().toISOString() }
-            : {}),
-        }),
+        body: JSON.stringify(payload),
       });
       setModal(null);
       setComment("");
@@ -395,10 +416,10 @@ export default function ComplaintApproval() {
                       dotCls={csm.dot}
                     />
                   </div>
-                  <p className="text-xs font-bold text-blue-950 leading-snug line-clamp-2 mb-1.5">
+                  <p className="text-xs font-bold text-blue-950 leading-snug line-clamp-2 mb-1.5 mt-1.5">
                     {c.title}
                   </p>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-3">
                     <span className="text-[11px] text-gray-400 truncate max-w-[60%]">
                       {c.project?.name || "No project"}
                     </span>
@@ -408,6 +429,12 @@ export default function ComplaintApproval() {
                       dotCls={null}
                     />
                   </div>
+                  <ComplaintTracker 
+                    currentStage={c.currentStage || "complaint_raised"} 
+                    stageHistory={c.stageHistory || []} 
+                    complaint={c}
+                    compact 
+                  />
                 </div>
               );
             })}
@@ -444,6 +471,17 @@ export default function ComplaintApproval() {
                   {active.project?.name || "—"} · Client:{" "}
                   {active.project?.clientName || "—"}
                 </p>
+              </div>
+
+              {/* Tracker */}
+              <div className="mb-6">
+                <ComplaintTracker 
+                  currentStage={active.currentStage || "complaint_raised"} 
+                  stageHistory={active.stageHistory || []}
+                  complaint={active}
+                  onAdvance={handleAdvanceStage}
+                  canAdvance={STAGE_ADVANCE_ROLES[active.currentStage || "complaint_raised"]?.includes(userRole)}
+                />
               </div>
 
               {/* Meta strip */}

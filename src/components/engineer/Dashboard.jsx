@@ -23,9 +23,12 @@ import {
   Loader,
   FileText,
   Eye,
+MessageSquare,
   ExternalLink,
 } from "lucide-react";
 import axiosInstance from "../../lib/axios";
+import ComplaintTracker, { STAGE_ADVANCE_ROLES } from "../common/ComplaintTracker";
+import MediaGallery from "../common/MediaGallery";
 
 // ── Shared Components (inline replacements for shared.js) ─────────────────────
 function PageHeader({ title, subtitle }) {
@@ -942,6 +945,8 @@ export default function EngineerDashboard() {
   const [projectFilter, setProjectFilter] = useState("all");
   const [showDelayedPanel, setShowDelayedPanel] = useState(false);
   const [engineerName, setEngineerName] = useState("Engineer");
+  const [viewComplaint, setViewComplaint] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -987,6 +992,33 @@ export default function EngineerDashboard() {
       setTasksLoading(false);
     }
   }, []);
+
+  const handleAdvanceStage = async (nextStageKey, stageData = {}) => {
+    if (!viewComplaint) return;
+    try {
+      setActionLoading(true);
+      
+      const formData = new FormData();
+      formData.append("currentStage", nextStageKey);
+      
+      if (stageData.stageNotes) formData.append("stageNotes", stageData.stageNotes);
+      if (stageData.materials) formData.append("materials", JSON.stringify(stageData.materials));
+      if (stageData.files) {
+        stageData.files.forEach(f => formData.append("photos", f));
+      }
+
+      await axiosInstance.put(`/complaints/${viewComplaint._id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+
+      setViewComplaint(null);
+      loadData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -1461,6 +1493,51 @@ export default function EngineerDashboard() {
                 </div>
               </div>
 
+              {/* Recent Complaints */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                   <div className="flex items-center gap-3">
+                     <div className="w-9 h-9 rounded-xl bg-extra-darkblue flex items-center justify-center shrink-0">
+                       <MessageSquare size={16} className="text-sky-200" />
+                     </div>
+                     <h3 className="text-sm font-bold text-extra-darkblue">Recent Complaints</h3>
+                   </div>
+                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-500 uppercase">
+                     {complaints.length} Records
+                   </span>
+                </div>
+                <div className="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
+                   {complaints.length === 0 ? (
+                     <p className="text-xs text-gray-400 text-center py-8">No complaints logged yet.</p>
+                   ) : (
+                     complaints.slice(0, 5).map(c => (
+                       <div 
+                         key={c._id} 
+                         onClick={() => setViewComplaint(c)}
+                         className="px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                       >
+                         <div className="flex justify-between items-start mb-2 gap-2">
+                           <div>
+                             <p className="text-sm font-bold text-extra-darkblue leading-tight truncate max-w-[180px]">{c.title}</p>
+                             <p className="text-[10px] text-gray-400 mt-0.5">{c.project?.name || "No Project"}</p>
+                           </div>
+                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.priority === 'high' || c.priority === 'critical' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-500'} uppercase shrink-0`}>
+                             {c.priority}
+                           </span>
+                         </div>
+                          <ComplaintTracker 
+                            currentStage={c.currentStage} 
+                            status={c.status} 
+                            stageHistory={c.stageHistory || []}
+                            complaint={c}
+                            compact 
+                          />
+                       </div>
+                     ))
+                   )}
+                </div>
+              </div>
+
               {/* Quick Actions */}
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
@@ -1524,6 +1601,93 @@ export default function EngineerDashboard() {
           </div>
         </>
       )}
+
+      {viewComplaint && (
+        <ComplaintDetailModal 
+          complaint={viewComplaint} 
+          onClose={() => setViewComplaint(null)} 
+          onAdvance={handleAdvanceStage}
+        />
+      )}
+    </div>
+  );
+}
+
+function ComplaintDetailModal({ complaint, onClose, onAdvance }) {
+  const canAdvance = STAGE_ADVANCE_ROLES[complaint.currentStage || "complaint_raised"]?.includes("engineer");
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <h3 className="text-base font-bold text-extra-darkblue truncate pr-4">{complaint.title}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-6 max-h-[75vh] overflow-y-auto space-y-6">
+          <ComplaintTracker 
+            currentStage={complaint.currentStage} 
+            stageHistory={complaint.stageHistory}
+            complaint={complaint}
+            onAdvance={onAdvance}
+            canAdvance={canAdvance}
+            compact
+          />
+          
+          <div className="space-y-6">
+            <div>
+              <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1.5 opacity-60">Description</p>
+              <p className="text-sm text-extra-darkblue leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100 italic">
+                "{complaint.description}"
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-gray-50/30 p-3 rounded-xl border border-gray-100/50">
+                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1 opacity-60">Project</p>
+                <p className="text-sm font-bold text-extra-darkblue truncate">{complaint.project?.name || "Global / SiteWide"}</p>
+                {complaint.project?.projectId && <p className="text-[10px] font-bold text-blue-600/70">#{complaint.project.projectId}</p>}
+              </div>
+              <div className="bg-gray-50/30 p-3 rounded-xl border border-gray-100/50">
+                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1 opacity-60">Status</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                   <div className={`w-2 h-2 rounded-full ${complaint.status === 'resolved' ? 'bg-green-500' : 'bg-blue-500'}`} />
+                   <span className="text-sm font-bold text-extra-darkblue capitalize">{complaint.status}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Materials List */}
+            {complaint.materials && complaint.materials.length > 0 && (
+              <div className="space-y-3 pt-4 border-t border-gray-100">
+                 <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest opacity-60">Active Material List / BOM</p>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {complaint.materials.map((m, idx) => (
+                       <div key={idx} className="flex items-center gap-2.5 bg-amber-50/40 p-2 rounded-lg border border-amber-100/30">
+                          <Package size={14} className="text-amber-500" />
+                          <div className="min-w-0">
+                             <p className="text-xs font-bold text-extra-darkblue truncate">{m.name}</p>
+                             <p className="text-[10px] text-amber-600 font-bold">{m.qty} {m.unit}</p>
+                          </div>
+                       </div>
+                    ))}
+                 </div>
+              </div>
+            )}
+
+            {/* Media Gallery */}
+            <div className="pt-4 border-t border-gray-100">
+               <MediaGallery files={complaint.photos || (complaint.photo ? [complaint.photo] : [])} />
+            </div>
+          </div>
+        </div>
+        <div className="p-4 border-t border-gray-50 flex justify-end bg-gray-50/50">
+           <button onClick={onClose} className="px-8 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-100 transition-all hover:translate-x-0.5">
+             Close
+           </button>
+        </div>
+      </div>
     </div>
   );
 }

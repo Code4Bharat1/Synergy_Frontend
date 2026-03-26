@@ -18,6 +18,9 @@ import {
   FONTS,
 } from "./shared";
 import axiosInstance from "../../lib/axios";
+import ComplaintTracker, { STAGE_ADVANCE_ROLES } from "../common/ComplaintTracker";
+import MediaGallery from "../common/MediaGallery";
+import { Package } from "lucide-react";
 
 const SEVERITY_OPTS = [
   { label: "Low", color: "#34C759", bg: "rgba(52,199,89,0.1)" },
@@ -75,10 +78,8 @@ export default function ComplaintLogPage() {
     axiosInstance
       .get("/projects", authCfg())
       .then((res) => {
-        const completedProjects = res.data.filter(
-          (p) => p.status === "completed",
-        );
-        setProjects(completedProjects);
+        const raw = Array.isArray(res.data) ? res.data : res.data?.projects || [];
+        setProjects(raw);
       })
       .catch(console.error);
 
@@ -120,7 +121,7 @@ export default function ComplaintLogPage() {
       const formData = new FormData();
       formData.append("title", form.title.trim());
       formData.append("description", form.description.trim());
-      formData.append("priority", form.severity);
+      formData.append("priority", form.severity.toLowerCase());
       formData.append("status", "open");
       if (form.project) formData.append("project", form.project);
       if (form.item) formData.append("item", form.item);
@@ -622,65 +623,42 @@ export default function ComplaintLogPage() {
                 recentComplaints?.map((c) => (
                   <div
                     key={c._id}
-                    style={{
-                      padding: "12px 14px",
-                      borderRadius: 11,
-                      background: "rgba(73,136,196,0.04)",
-                      border: "1px solid rgba(73,136,196,0.1)",
-                    }}
+                    className="p-4 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-blue-200 transition-all shadow-sm"
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        marginBottom: 4,
-                      }}
-                    >
-                      <span
-                        style={{
-                          color: "#1C4D8D",
-                          fontSize: 11,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {c._id?.slice(-6).toUpperCase()}
-                      </span>
-                      <span
-                        style={{
-                          background: `${sevColorMap[c.priority] || "#4988C4"}18`,
-                          color: sevColorMap[c.priority] || "#4988C4",
-                          padding: "1px 8px",
-                          borderRadius: 99,
-                          fontSize: 10,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {c.priority}
-                      </span>
+                    <div className="flex justify-between items-start mb-3">
+                       <span className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                         #{c.project?.projectId || c._id?.slice(-6).toUpperCase()}
+                       </span>
+                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.priority === 'High' || c.priority === 'Critical' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-500'} uppercase border border-current/10`}>
+                         {c.priority}
+                       </span>
                     </div>
-                    <div
-                      style={{
-                        color: "#0F2854",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        marginBottom: 3,
-                      }}
-                    >
-                      {c.title}
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <span style={{ color: "#4988C4", fontSize: 11 }}>
-                        {c.status || "open"}
-                      </span>
-                      <span style={{ color: "#4988C4", fontSize: 11 }}>
-                        {new Date(c.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
+                    <p className="text-sm font-bold text-blue-950 mb-1">{c.title}</p>
+                    <p className="text-[11px] text-gray-500 mb-4 line-clamp-2 italic">"{c.description}"</p>
+                    
+                    <ComplaintTracker 
+                      currentStage={c.currentStage} 
+                      status={c.status} 
+                      stageHistory={c.stageHistory} 
+                      compact 
+                    />
+
+                    {/* Materials & Media if available */}
+                    {(c.materials?.length > 0 || c.photos?.length > 0) && (
+                       <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                          {c.materials?.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                               {c.materials.slice(0, 3).map((m, i) => (
+                                 <span key={i} className="text-[9px] font-bold bg-amber-50 text-amber-600 px-2 py-0.5 rounded border border-amber-100/50">
+                                   {m.name} ({m.qty})
+                                 </span>
+                               ))}
+                               {c.materials.length > 3 && <span className="text-[9px] text-gray-400">+{c.materials.length - 3} more</span>}
+                            </div>
+                          )}
+                          <MediaGallery files={c.photos || []} />
+                       </div>
+                    )}
                   </div>
                 ))
               )}

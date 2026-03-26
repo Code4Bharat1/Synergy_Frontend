@@ -15,9 +15,14 @@ import {
   AlertCircle,
   XCircle,
   Loader2,
+  ImagePlus,
 } from "lucide-react";
 
 import axiosInstance from "../../lib/axios";
+import ComplaintTracker, { STAGE_ADVANCE_ROLES } from "../common/ComplaintTracker";
+import MediaGallery from "../common/MediaGallery";
+import { useAuth } from "../../context/AuthContext";
+import { Package, FileSpreadsheet } from "lucide-react";
 
 const apiFetch = async (path, { method = "GET", body } = {}) => {
   const token = localStorage.getItem("accessToken");
@@ -138,15 +143,37 @@ function ComplaintForm({
   onSubmit,
   loading,
   submitLabel = "Submit",
+  projectsList = [],
+  usersList = [],
 }) {
   const [form, setForm] = useState(initial);
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    const newFiles = files.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+      name: file.name,
+    }));
+    setSelectedFiles((prev) => [...prev, ...newFiles]);
+  };
+
+  const removeFile = (idx) => {
+    setSelectedFiles((prev) => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[idx].preview);
+      updated.splice(idx, 1);
+      return updated;
+    });
+  };
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit(form);
+        onSubmit(form, selectedFiles);
       }}
       className="space-y-4"
     >
@@ -211,25 +238,75 @@ function ComplaintForm({
       </div>
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">
-          Project ID
+          Project
         </label>
-        <input
-          value={form.project}
+        <select
+          value={form.project?._id || form.project || ""}
           onChange={(e) => set("project", e.target.value)}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-          placeholder="MongoDB Project ObjectId"
-        />
+        >
+          <option value="">Select Project</option>
+          {projectsList?.map((p) => (
+            <option key={p._id} value={p._id}>
+              {p.projectId ? `[${p.projectId}] ` : ""}{p.name}
+            </option>
+          ))}
+        </select>
       </div>
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">
-          Assigned To (User ID)
+          Assigned To
         </label>
-        <input
-          value={form.assignedTo}
+        <select
+          value={form.assignedTo?._id || form.assignedTo || ""}
           onChange={(e) => set("assignedTo", e.target.value)}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-          placeholder="MongoDB User ObjectId"
-        />
+        >
+          <option value="">Unassigned</option>
+          {usersList?.map((u) => (
+            <option key={u._id} value={u._id}>
+              {u.name} ({u.role})
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1 block">
+          Photos / Evidence
+        </label>
+        <label
+          className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-gray-200 rounded-lg px-3 py-4 text-sm text-gray-400 hover:border-blue-300 hover:text-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer"
+        >
+          <ImagePlus size={18} />
+          <span>Click to select images or videos</span>
+          <input
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+        </label>
+        {selectedFiles.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            {selectedFiles.map((f, idx) => (
+              <div key={idx} className="relative rounded-lg overflow-hidden border border-gray-100 aspect-video group">
+                {f.file.type.startsWith("video/") ? (
+                  <video src={f.preview} className="w-full h-full object-cover" />
+                ) : (
+                  <img src={f.preview} alt={f.name} className="w-full h-full object-cover" />
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeFile(idx)}
+                  className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       {(form.status === "resolved" || form.status === "closed") && (
         <div>
@@ -257,11 +334,19 @@ function ComplaintForm({
   );
 }
 
-function ComplaintDetail({ complaint }) {
+function ComplaintDetail({ complaint, onAdvance, canAdvance }) {
   const SM = STATUS_META[complaint.status] || {};
   const PM = PRIORITY_META[complaint.priority] || {};
   return (
-    <div className="space-y-4 text-sm">
+    <div className="space-y-5 text-sm">
+      <ComplaintTracker
+        currentStage={complaint.currentStage || "complaint_raised"}
+        stageHistory={complaint.stageHistory || []}
+        compact={true}
+        complaint={complaint}
+        onAdvance={onAdvance}
+        canAdvance={canAdvance}
+      />
       <div className="flex flex-wrap gap-2">
         <Badge
           text={SM.label || complaint.status}
@@ -273,61 +358,58 @@ function ComplaintDetail({ complaint }) {
         />
       </div>
       <div>
-        <p className="text-xs font-semibold text-gray-400 mb-1">Description</p>
-        <p className="text-gray-700 leading-relaxed">{complaint.description}</p>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Description</p>
+        <p className="text-gray-700 leading-relaxed bg-gray-50/50 p-3 rounded-xl border border-gray-100">{complaint.description}</p>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <p className="text-xs font-semibold text-gray-400 mb-1">Project</p>
-          <p className="text-gray-700">{complaint.project?.name || "—"}</p>
-          {complaint.project?.clientName && (
-            <p className="text-xs text-gray-400">
-              {complaint.project.clientName}
-            </p>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="bg-gray-50/30 p-2.5 rounded-xl border border-gray-100/50">
+          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Project</p>
+          <p className="text-sm font-bold text-blue-900 truncate">
+            {complaint.project?.name || "—"}
+          </p>
+          {complaint.project?.projectId && (
+            <p className="text-[9px] font-bold text-blue-500">#{complaint.project.projectId}</p>
           )}
         </div>
-        <div>
-          <p className="text-xs font-semibold text-gray-400 mb-1">Logged By</p>
-          <p className="text-gray-700">{complaint.loggedBy?.name || "—"}</p>
-          <p className="text-xs text-gray-400">
-            {complaint.loggedBy?.role || ""}
-          </p>
+        <div className="bg-gray-50/30 p-2.5 rounded-xl border border-gray-100/50">
+          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Logged By</p>
+          <p className="text-sm font-bold text-gray-700">{complaint.loggedBy?.name || "—"}</p>
         </div>
-        <div>
-          <p className="text-xs font-semibold text-gray-400 mb-1">
-            Assigned To
-          </p>
-          <p className="text-gray-700">
-            {complaint.assignedTo?.name || "Unassigned"}
-          </p>
-          <p className="text-xs text-gray-400">
-            {complaint.assignedTo?.role || ""}
-          </p>
+        <div className="bg-gray-50/30 p-2.5 rounded-xl border border-gray-100/50">
+          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Assigned To</p>
+          <p className="text-sm font-bold text-gray-700">{complaint.assignedTo?.name || "Unassigned"}</p>
         </div>
-        <div>
-          <p className="text-xs font-semibold text-gray-400 mb-1">Created</p>
-          <p className="text-gray-700">
-            {new Date(complaint.createdAt).toLocaleDateString()}
-          </p>
-        </div>
-        {complaint.resolvedAt && (
-          <div>
-            <p className="text-xs font-semibold text-gray-400 mb-1">
-              Resolved At
-            </p>
-            <p className="text-gray-700">
-              {new Date(complaint.resolvedAt).toLocaleDateString()}
-            </p>
-          </div>
-        )}
       </div>
+
+      {/* Materials List */}
+      {complaint.materials && complaint.materials.length > 0 && (
+        <div className="space-y-3 pt-4 border-t border-gray-100">
+           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active Material List / BOM</p>
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+             {complaint.materials.map((m, idx) => (
+                <div key={idx} className="flex items-center gap-2.5 bg-amber-50/40 p-2 rounded-lg border border-amber-100/50">
+                   <Package size={14} className="text-amber-500" />
+                   <div>
+                      <p className="text-xs font-bold text-gray-800 leading-none truncate">{m.name}</p>
+                      <p className="text-[10px] text-amber-600 font-bold mt-1">{m.qty} {m.unit}</p>
+                   </div>
+                </div>
+             ))}
+           </div>
+        </div>
+      )}
+
+      {/* Media Gallery */}
+      <div className="pt-4 border-t border-gray-100">
+        <MediaGallery files={complaint.photos || (complaint.photo ? [complaint.photo] : [])} />
+      </div>
+
       {complaint.resolutionNotes && (
-        <div>
-          <p className="text-xs font-semibold text-gray-400 mb-1">
-            Resolution Notes
-          </p>
-          <p className="text-gray-700 bg-green-50 rounded-lg p-3 text-xs leading-relaxed">
-            {complaint.resolutionNotes}
+        <div className="pt-4 border-t border-gray-100">
+          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Resolution Notes</p>
+          <p className="text-gray-700 bg-green-50/50 rounded-xl border border-green-100 p-3 text-xs leading-relaxed italic">
+            "{complaint.resolutionNotes}"
           </p>
         </div>
       )}
@@ -471,6 +553,24 @@ export default function ComplaintAnalytics() {
   const [activeCard, setActiveCard] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
   const [search, setSearch] = useState("");
+  const [projectsList, setProjectsList] = useState([]);
+  const [usersList, setUsersList] = useState([]);
+
+  const { user } = useAuth();
+  const userRole = user?.role;
+
+  const fetchDropdownData = useCallback(async () => {
+    try {
+      const [pData, uData] = await Promise.all([
+        apiFetch("/projects"),
+        apiFetch("/admin/users"),
+      ]);
+      setProjectsList(Array.isArray(pData) ? pData : []);
+      setUsersList(Array.isArray(uData) ? uData : []);
+    } catch (err) {
+      console.error("Failed to fetch dropdown data:", err);
+    }
+  }, []);
 
   const fetchComplaints = useCallback(async () => {
     try {
@@ -487,41 +587,106 @@ export default function ComplaintAnalytics() {
 
   useEffect(() => {
     fetchComplaints();
-  }, [fetchComplaints]);
+    fetchDropdownData();
+  }, [fetchComplaints, fetchDropdownData]);
 
-  const handleCreate = async (form) => {
+  const handleCreate = async (form, files = []) => {
     try {
       setActionLoading(true);
-      const payload = Object.fromEntries(
-        Object.entries(form).filter(([, v]) => v !== ""),
-      );
-      await apiFetch("/complaints", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      const token = localStorage.getItem("accessToken");
+      const headers = { Authorization: `Bearer ${token}` };
+      const editableFields = ["title", "description", "priority", "status", "project", "assignedTo", "resolutionNotes"];
+
+      if (files.length === 0) {
+        const payload = {};
+        editableFields.forEach(k => {
+          if (form[k] !== undefined && form[k] !== null && form[k] !== "") {
+            if (k === "priority") payload[k] = String(form[k]).toLowerCase();
+            else payload[k] = form[k]._id || form[k];
+          }
+        });
+        await axiosInstance.post("/complaints", payload, { headers });
+      } else {
+        const formData = new FormData();
+        editableFields.forEach(k => {
+          const v = form[k];
+          if (v === "" || v === undefined || v === null) return;
+          let val = v._id || v;
+          if (k === "priority") val = String(v).toLowerCase();
+          formData.append(k, val);
+        });
+        files.forEach((f) => formData.append("photos", f.file));
+        await axiosInstance.post("/complaints", formData, { headers });
+      }
+
       setShowCreate(false);
       fetchComplaints();
     } catch (err) {
-      alert(err.message);
+      alert(err.response?.data?.message || err.message);
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleUpdate = async (form) => {
+  const handleAdvanceStage = async (nextStageKey, stageData = {}) => {
+    if (!viewComplaint) return;
     try {
       setActionLoading(true);
-      const payload = Object.fromEntries(
-        Object.entries(form).filter(([, v]) => v !== ""),
-      );
-      await apiFetch(`/complaints/${editComplaint._id}`, {
-        method: "PUT",
-        body: JSON.stringify(payload),
+      const formData = new FormData();
+      formData.append("currentStage", nextStageKey);
+
+      if (stageData.stageNotes) formData.append("stageNotes", stageData.stageNotes);
+      if (stageData.materials) formData.append("materials", JSON.stringify(stageData.materials));
+      if (stageData.files) {
+        stageData.files.forEach(f => formData.append("photos", f));
+      }
+
+      await axiosInstance.put(`/complaints/${viewComplaint._id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
       });
+
+      setViewComplaint(null);
+      fetchComplaints();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUpdate = async (form, files = []) => {
+    try {
+      setActionLoading(true);
+      const token = localStorage.getItem("accessToken");
+      const headers = { Authorization: `Bearer ${token}` };
+      const editableFields = ["title", "description", "priority", "status", "project", "assignedTo", "resolutionNotes"];
+
+      if (files.length === 0) {
+        const payload = {};
+        editableFields.forEach(k => {
+          if (form[k] !== undefined && form[k] !== null && form[k] !== "") {
+            if (k === "priority") payload[k] = String(form[k]).toLowerCase();
+            else payload[k] = form[k]._id || form[k];
+          }
+        });
+        await axiosInstance.put(`/complaints/${editComplaint._id}`, payload, { headers });
+      } else {
+        const formData = new FormData();
+        editableFields.forEach(k => {
+          const v = form[k];
+          if (v === "" || v === undefined || v === null) return;
+          let val = v._id || v;
+          if (k === "priority") val = String(v).toLowerCase();
+          formData.append(k, val);
+        });
+        files.forEach((f) => formData.append("photos", f.file));
+        await axiosInstance.put(`/complaints/${editComplaint._id}`, formData, { headers });
+      }
+
       setEditComplaint(null);
       fetchComplaints();
     } catch (err) {
-      alert(err.message);
+      alert(err.response?.data?.message || err.message);
     } finally {
       setActionLoading(false);
     }
@@ -852,6 +1017,8 @@ export default function ComplaintAnalytics() {
             onSubmit={handleCreate}
             loading={actionLoading}
             submitLabel="Log Complaint"
+            projectsList={projectsList}
+            usersList={usersList}
           />
         </Modal>
       )}
@@ -860,7 +1027,11 @@ export default function ComplaintAnalytics() {
           title={viewComplaint.title}
           onClose={() => setViewComplaint(null)}
         >
-          <ComplaintDetail complaint={viewComplaint} />
+          <ComplaintDetail 
+            complaint={viewComplaint} 
+            onAdvance={handleAdvanceStage}
+            canAdvance={STAGE_ADVANCE_ROLES[viewComplaint.currentStage || "complaint_raised"]?.includes(userRole)}
+          />
         </Modal>
       )}
       {editComplaint && (
@@ -878,6 +1049,8 @@ export default function ComplaintAnalytics() {
             onSubmit={handleUpdate}
             loading={actionLoading}
             submitLabel="Save Changes"
+            projectsList={projectsList}
+            usersList={usersList}
           />
         </Modal>
       )}

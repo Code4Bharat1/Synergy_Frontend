@@ -14,7 +14,11 @@ import {
   Package,
   Calendar1,
   CheckCircle,
+  MessageSquare,
+  X,
 } from "lucide-react";
+import ComplaintTracker, { STAGE_ADVANCE_ROLES } from "../common/ComplaintTracker";
+import MediaGallery from "../common/MediaGallery";
 
 // ── API setup (same pattern as your Service Team Dashboard) ───────────────────
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -192,10 +196,54 @@ export default function MarketingDashboard() {
 
   const [dismissed, setDismissed] = useState(false);
   const [coordName, setCoordName] = useState("Coordinator");
+  const [complaints, setComplaints] = useState([]);
+  const [complaintsLoading, setComplaintsLoading] = useState(true);
+  const [viewComplaint, setViewComplaint] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const fetchComplaints = useCallback(async () => {
+    try {
+      setComplaintsLoading(true);
+      const res = await api.get("/complaints");
+      const data = Array.isArray(res.data) ? res.data : (res.data.data ?? []);
+      setComplaints(data.slice(0, 5));
+    } catch {
+      setComplaints([]);
+    } finally {
+      setComplaintsLoading(false);
+    }
+  }, []);
+
+  const handleAdvanceStage = async (nextStageKey, stageData = {}) => {
+    if (!viewComplaint) return;
+    try {
+      setActionLoading(true);
+      const formData = new FormData();
+      formData.append("currentStage", nextStageKey);
+
+      if (stageData.stageNotes) formData.append("stageNotes", stageData.stageNotes);
+      if (stageData.materials) formData.append("materials", JSON.stringify(stageData.materials));
+      if (stageData.files) {
+        stageData.files.forEach(f => formData.append("photos", f));
+      }
+
+      await api.put(`/complaints/${viewComplaint._id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+
+      setViewComplaint(null);
+      fetchComplaints();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   useEffect(() => {
     setCoordName(getCoordinatorName());
-  }, []);
+    fetchComplaints();
+  }, [fetchComplaints]);
 
   const overdueCount = docs.data.filter((d) => d.due === "Overdue").length;
   const overdueDoc = docs.data.find((d) => d.due === "Overdue");
@@ -297,50 +345,52 @@ export default function MarketingDashboard() {
 
       {/* ── Main Grid ─────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5">
-        {/* ── Pending Replications (hardcoded) ────────────────────────────── */}
-        {/* <div className="rounded-2xl bg-white shadow-sm p-5 sm:p-6">
+        {/* Recent Complaints */}
+        <div className="rounded-2xl bg-white shadow-sm p-5 sm:p-6 overflow-hidden">
           <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-brand-darkest to-brand-dark flex items-center justify-center shrink-0">
-                <Copy size={14} className="text-brand-light" />
+                <MessageSquare size={14} className="text-brand-light" />
               </div>
               <div>
-                <div className="text-brand-darkest font-bold text-[14px] font-display">Pending Replications</div>
-                <div className="text-brand-mid text-[11px]">Projects awaiting replication</div>
+                <div className="text-brand-darkest font-bold text-[14px] font-display">Recent Complaints</div>
+                <div className="text-brand-mid text-[11px]">Track resolution progress</div>
               </div>
             </div>
-            <Link href="/marketing/project-replication">
-              <span className="text-[11px] font-bold text-brand-mid hover:text-brand-dark transition-colors cursor-pointer">
-                + New Replication
-              </span>
+            <Link href="/marketingCoordinator/complaint-log">
+               <span className="text-[11px] font-bold text-brand-mid hover:text-brand-dark transition-colors cursor-pointer">
+                 View Log →
+               </span>
             </Link>
           </div>
 
-          <div className="space-y-3">
-            {PENDING_REPLICATIONS?.map(r => {
-              const s = statusStyle[r.status] || statusStyle["Pending"];
-              return (
-                <div key={r.id} className="rounded-xl bg-brand-bg/50 p-3.5">
-                  <div className="flex items-start justify-between gap-3 mb-2.5 flex-wrap">
-                    <div>
-                      <span className="text-[11px] font-bold text-brand-dark">{r.id}</span>
-                      <div className="text-brand-darkest text-[13px] font-bold mt-0.5">{r.project}</div>
+          <div className="divide-y divide-gray-50 max-h-[420px] overflow-y-auto pr-1">
+             {complaintsLoading ? (
+                <p className="text-xs text-brand-mid text-center py-8">Loading complaints...</p>
+             ) : complaints.length === 0 ? (
+                <p className="text-xs text-brand-mid text-center py-8">No complaints logged yet.</p>
+             ) : (
+                complaints.map(c => (
+                  <div 
+                    key={c._id} 
+                    onClick={() => setViewComplaint(c)}
+                    className="py-4 cursor-pointer hover:bg-brand-bg/30 transition-colors first:pt-0"
+                  >
+                    <div className="flex justify-between items-start mb-2.5 gap-2">
+                       <div>
+                         <p className="text-[13px] font-bold text-brand-darkest leading-tight">{c.title}</p>
+                         <p className="text-[10px] text-brand-mid mt-0.5">{c.project?.name || "No Project"}</p>
+                       </div>
+                       <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${c.priority === 'high' || c.priority === 'critical' ? 'bg-red-50 text-red-500' : 'bg-brand-mid/10 text-brand-mid'} uppercase shrink-0`}>
+                         {c.priority}
+                       </span>
                     </div>
-                    <span className={`inline-flex items-center gap-1.5 rounded-full border ${s.bg} ${s.border} px-2.5 py-0.5 text-[11px] font-bold ${s.text} whitespace-nowrap`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-                      {r.status}
-                    </span>
+                    <ComplaintTracker currentStage={c.currentStage} status={c.status} compact />
                   </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-brand-mid">
-                    <span className="flex items-center gap-1"><User size={12} className="shrink-0" />{r.incharge}</span>
-                    <span className="flex items-center gap-1"><Package size={12} className="shrink-0" />{r.items} items</span>
-                    <span className="flex items-center gap-1"><Calendar1 size={12} className="shrink-0" />Due: {r.due}</span>
-                  </div>
-                </div>
-              );
-            })}
+                ))
+             )}
           </div>
-        </div> */}
+        </div>
 
         {/* ── Right Column ──────────────────────────────────────────────────── */}
         {/* <div className="flex flex-col gap-5"> */}
@@ -498,6 +548,73 @@ export default function MarketingDashboard() {
         </div>
 
         {/* </div> */}
+      </div>
+      {viewComplaint && (
+        <ComplaintDetailModal 
+          complaint={viewComplaint} 
+          onClose={() => setViewComplaint(null)} 
+          onAdvance={handleAdvanceStage}
+        />
+      )}
+    </div>
+  );
+}
+
+function ComplaintDetailModal({ complaint, onClose, onAdvance }) {
+  const canAdvance = STAGE_ADVANCE_ROLES[complaint.currentStage || "complaint_raised"]?.includes("marketingCoordinator");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <h3 className="text-base font-bold text-brand-darkest truncate">{complaint.title}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-brand-bg rounded-lg text-brand-mid transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-6 max-h-[75vh] overflow-y-auto space-y-6">
+          <ComplaintTracker 
+            currentStage={complaint.currentStage} 
+            stageHistory={complaint.stageHistory}
+            complaint={complaint}
+            onAdvance={onAdvance}
+            canAdvance={canAdvance}
+            compact
+          />
+          
+          <div className="space-y-6">
+            <div>
+              <p className="text-[10px] font-extrabold text-brand-mid uppercase tracking-widest mb-1.5">Description</p>
+              <div className="text-sm text-brand-darkest leading-relaxed bg-brand-bg/40 p-4 rounded-xl border border-brand-mid/10">
+                {complaint.description}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-brand-bg/30 p-3 rounded-xl border border-brand-mid/10">
+                <p className="text-[10px] font-extrabold text-brand-mid uppercase mb-1">Project</p>
+                <p className="text-sm font-bold text-brand-darkest truncate">{complaint.project?.name || "General"}</p>
+                {complaint.project?.projectId && <p className="text-[9px] font-bold text-brand-mid">#{complaint.project.projectId}</p>}
+              </div>
+              <div className="bg-brand-bg/30 p-3 rounded-xl border border-brand-mid/10">
+                <p className="text-[10px] font-extrabold text-brand-mid uppercase mb-1">Status</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                   <div className={`w-2 h-2 rounded-full ${complaint.status === 'resolved' ? 'bg-emerald-500' : 'bg-brand-mid'}`} />
+                   <span className="text-sm font-bold text-brand-darkest capitalize">{complaint.status}</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-extrabold text-brand-mid uppercase tracking-widest mb-1.5">Project</p>
+                <p className="text-sm font-bold text-brand-darkest">{complaint.project?.name || "General"}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="p-5 border-t border-brand-bg flex justify-end">
+           <button onClick={onClose} className="px-8 py-2.5 rounded-xl text-sm font-bold text-brand-mid shadow-sm hover:bg-brand-bg transition-all">
+             Close
+           </button>
+        </div>
       </div>
     </div>
   );

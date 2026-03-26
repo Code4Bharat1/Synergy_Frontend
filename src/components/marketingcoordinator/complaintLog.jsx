@@ -18,6 +18,7 @@ import {
   FONTS,
 } from "./shared";
 import axiosInstance from "../../lib/axios";
+import ComplaintTracker from "../common/ComplaintTracker";
 
 const SEVERITY_OPTS = [
   { label: "Low", color: "#34C759", bg: "rgba(52,199,89,0.1)" },
@@ -672,6 +673,9 @@ export default function ComplaintLogPage() {
                       <span style={{ color: "#4988C4", fontSize: 11 }}>
                         {new Date(c.createdAt).toLocaleDateString()}
                       </span>
+                    </div>
+                    <div className="mt-3">
+                      <ComplaintTracker currentStage={c.currentStage} status={c.status} stageHistory={c.stageHistory} compact />
                     </div>
                   </div>
                 ))

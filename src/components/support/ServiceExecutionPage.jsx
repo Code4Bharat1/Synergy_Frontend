@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import axiosInstance from "../../lib/axios";
+import ComplaintTracker from "../common/ComplaintTracker";
 
 const getToken = () =>
   typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
@@ -38,7 +39,7 @@ function ServiceExecutionContent() {
       .get(`/complaints/${complaintId}`, authCfg())
       .then((r) => setComplaint(r.data.data || r.data))
       .catch(() => {});
-  }, [complaintId]);
+  }, [complaintId, axiosInstance]);
 
   const handleResolve = async () => {
     setResolving(true);
@@ -47,7 +48,7 @@ function ServiceExecutionContent() {
       if (complaintId) {
         await axiosInstance.patch(
           `/complaints/${complaintId}`,
-          { status: "resolved" },
+          { status: "resolved", currentStage: "resolved" },
           authCfg(),
         );
       }
@@ -108,11 +109,8 @@ function ServiceExecutionContent() {
           background: "#0F2854",
           display: "flex",
           alignItems: "center",
-          justifyCenter: "center",
-          fontSize: 14,
-          display: "flex",
-          alignItems: "center",
           justifyContent: "center",
+          fontSize: 14,
         }}
       >
         {icon}

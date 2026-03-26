@@ -24,6 +24,7 @@ import {
   labelStyle,
 } from "./shared";
 import axiosInstance from "../../lib/axios";
+import ComplaintTracker from "../common/ComplaintTracker";
 
 const getToken = () =>
   typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
@@ -511,9 +512,10 @@ export default function SearchPage() {
                   onChange={(e) => set("status", e.target.value)}
                 >
                   <option value="">All Statuses</option>
-                  <option>Open</option>
-                  <option>Under Review</option>
-                  <option>Resolved</option>
+                  <option value="open">Open</option>
+                  <option value="in-progress">Under Review / In Progress</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="closed">Closed</option>
                 </select>
               </div>
             </div>
@@ -759,6 +761,9 @@ export default function SearchPage() {
                   <span className="rc-meta-item">
                     <Package size={11} /> {c.project?.name || "—"}
                   </span>
+                </div>
+                <div className="mt-2 mb-3">
+                  <ComplaintTracker currentStage={c.currentStage} status={c.status} stageHistory={c.stageHistory} compact />
                 </div>
                 <div className="rc-bottom">
                   <div className="rc-badges">
