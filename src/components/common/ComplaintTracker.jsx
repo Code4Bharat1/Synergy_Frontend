@@ -15,9 +15,10 @@ import {
   Plus,
   Trash2,
   Package,
-  File,
   Upload,
+  File as FileIcon,
 } from "lucide-react";
+import MediaGallery from "./MediaGallery";
 
 // ── Stage Advance Roles (RBAC) ────────────────────────────────────────────────
 export const STAGE_ADVANCE_ROLES = {
@@ -28,6 +29,7 @@ export const STAGE_ADVANCE_ROLES = {
   production:        ["admin", "director", "marketingCoordinator"],
   dispatch:          ["admin", "director", "marketingCoordinator",
                       "engineer", "installationIncharge", "qualityControl"],
+  verification:      ["marketingCoordinator", "director", "admin"],
 };
 
 // ── Stage Definitions ─────────────────────────────────────────────────────────
@@ -93,10 +95,20 @@ const STAGES = [
     borderColor: "rgba(14,165,233,0.3)",
   },
   {
-    key: "resolved",
+    key: "verification",
     step: 7,
-    label: "Resolved after Installation",
-    description: "Complaint marked resolved on-site by engineer",
+    label: "Verification & Satisfaction",
+    description: "Verify installation and confirm customer satisfaction",
+    icon: UserCheck,
+    color: "#6366f1",      // indigo
+    bgColor: "rgba(99,102,241,0.1)",
+    borderColor: "rgba(99,102,241,0.3)",
+  },
+  {
+    key: "resolved",
+    step: 8,
+    label: "Final Resolution",
+    description: "Complaint marked resolved and closed in ERP",
     icon: CheckCircle2,
     color: "#10b981",      // emerald
     bgColor: "rgba(16,185,129,0.1)",
@@ -162,7 +174,21 @@ export default function ComplaintTracker({
   complaint = {},
 }) {
   const currentStatus = status || complaint.status;
+
+  // Fallback to infer stage from status if currentStage is missing
+  let derivedStage = currentStage;
+  if (!derivedStage && currentStatus) {
+    if (currentStatus === "resolved" || currentStatus === "closed") derivedStage = "resolved";
+    else if (currentStatus === "in-progress") derivedStage = "incharge_review";
+    else derivedStage = "complaint_raised";
+  }
+  if (!derivedStage) derivedStage = "complaint_raised";
+
+  const currentIdx = STAGES.findIndex((s) => s.key === derivedStage);
+  const activeIdx = currentIdx >= 0 ? currentIdx : 0;
+
   const [expanded, setExpanded] = useState(!compact);
+  const [expandedStage, setExpandedStage] = useState(activeIdx); // index of the stage showing details
   const [stageNotes, setStageNotes] = useState("");
   const [materials, setMaterials] = useState([]);
   const [files, setFiles] = useState([]); // local files for stage advancement upload
@@ -186,17 +212,6 @@ export default function ComplaintTracker({
 
   const removeFile = (idx) => setFiles(files.filter((_, i) => i !== idx));
 
-  // Fallback to infer stage from status if currentStage is missing
-  let derivedStage = currentStage;
-  if (!derivedStage && status) {
-    if (status === "resolved" || status === "closed") derivedStage = "resolved";
-    else if (status === "in-progress") derivedStage = "incharge_review";
-    else derivedStage = "complaint_raised";
-  }
-  if (!derivedStage) derivedStage = "complaint_raised";
-
-  const currentIdx = STAGES.findIndex((s) => s.key === derivedStage);
-  const activeIdx = currentIdx >= 0 ? currentIdx : 0;
 
   // Build a map of stage → history entry for quick lookup
   const historyMap = {};
@@ -364,83 +379,107 @@ export default function ComplaintTracker({
               </div>
 
               {/* Stage content */}
-              <div className={`pb-5 flex-1 min-w-0 ${i === STAGES.length - 1 ? "pb-0" : ""}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
+              <div 
+                className={`pb-5 flex-1 min-w-0 cursor-pointer ${i === STAGES.length - 1 ? "pb-0" : ""}`}
+                onClick={() => setExpandedStage(expandedStage === i ? null : i)}
+              >
+                <div className="flex items-start justify-between gap-2 group/step">
+                  <div className="min-w-0">
                     <p
-                      className="text-sm font-bold leading-tight"
+                      className="text-sm font-bold leading-tight flex items-center gap-2 group-hover/step:text-blue-600 transition-colors"
                       style={{
-                        color: status === "pending" ? "#94a3b8" : status === "active" ? stage.color : "#1e293b",
+                        color: status === "pending" ? "#94a3b8" : (expandedStage === i ? "" : (status === "active" ? stage.color : "#1e293b")),
                       }}
                     >
                       Step {stage.step} — {stage.label}
+                      {historyEntry && (
+                         <span className="text-gray-300 group-hover/step:text-blue-500">
+                           {expandedStage === i ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}
+                         </span>
+                      )}
                     </p>
                     <p
-                      className="text-xs mt-0.5 leading-relaxed"
+                      className="text-xs mt-0.5 leading-relaxed break-words opacity-60"
                       style={{ color: status === "pending" ? "#cbd5e1" : "#64748b" }}
                     >
                       {stage.description}
                     </p>
                   </div>
                   {/* Status pill */}
-                  {status === "completed" && (
-                    <span
-                      className="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0"
-                      style={{ background: stage.bgColor, color: stage.color }}
-                    >
-                      ✓ Done
-                    </span>
-                  )}
-                  {status === "active" && (
-                    <span
-                      className="text-xs font-bold px-2.5 py-0.5 rounded-full shrink-0 animate-pulse"
-                      style={{ background: stage.bgColor, color: stage.color, border: `1px solid ${stage.borderColor}` }}
-                    >
-                      ● Current
-                    </span>
-                  )}
-                </div>
-
-                {/* Timestamp & metadata */}
-                {historyEntry && (
-                  <div className="flex flex-wrap items-center gap-3 mt-1.5">
-                    <span className="text-xs text-gray-400 flex items-center gap-1">
-                      <Clock size={10} />
-                      {formatDate(historyEntry.timestamp)}
-                    </span>
-                    {historyEntry.updatedBy && (
-                      <span className="text-xs text-gray-400">
-                        by <span className="font-semibold text-gray-500">{historyEntry.updatedBy}</span>
+                  <div className="flex flex-col items-end gap-1">
+                    {status === "completed" && (
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
+                        style={{ background: stage.bgColor, color: stage.color }}
+                      >
+                        ✓ Done
                       </span>
                     )}
-                    {duration && (
-                      <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
-                        ⏱ {duration}
+                    {status === "active" && (
+                      <span
+                        className="text-[10px] font-bold px-2.5 py-0.5 rounded-full shrink-0 animate-pulse"
+                        style={{ background: stage.bgColor, color: stage.color, border: `1px solid ${stage.borderColor}` }}
+                      >
+                        ● Active
                       </span>
                     )}
                   </div>
-                )}
-                {historyEntry?.notes && (
-                  <p className="text-xs text-gray-500 mt-1 bg-gray-50 rounded-lg px-2.5 py-1.5 italic">
-                    {historyEntry.notes}
-                  </p>
-                )}
+                </div>
 
-                {/* Delay warning for active stage */}
-                {status === "active" && historyEntry && (() => {
-                  const daysSince = Math.floor((Date.now() - new Date(historyEntry.timestamp)) / 86400000);
-                  if (daysSince > 3) {
-                    return (
-                      <div className="flex items-center gap-1.5 mt-2 text-xs text-red-500 bg-red-50 rounded-lg px-2.5 py-1.5">
-                        <AlertTriangle size={12} />
-                        <span className="font-semibold">
-                          Stuck for {daysSince} days — requires attention
+                {/* Expanded Details Section */}
+                {expandedStage === i && (
+                  <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-1">
+                    {/* Timestamp & metadata */}
+                    {historyEntry && (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <Clock size={10} />
+                          {formatDate(historyEntry.timestamp)}
                         </span>
+                        {historyEntry.updatedBy && (
+                          <span className="text-xs text-gray-400">
+                            by <span className="font-semibold text-gray-500">{historyEntry.updatedBy}</span>
+                          </span>
+                        )}
+                        {duration && (
+                          <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                            ⏱ {duration}
+                          </span>
+                        )}
                       </div>
-                    );
-                  }
-                  return null;
-                })()}
+                    )}
+                    
+                    {historyEntry?.notes && (
+                      <div className="bg-gray-50/50 border border-gray-100 rounded-xl px-3 py-2">
+                        <p className="text-xs text-gray-500 italic break-words leading-relaxed">
+                          "{historyEntry.notes}"
+                        </p>
+                      </div>
+                    )}
+
+                    {historyEntry?.photos?.length > 0 && (
+                      <div className="pt-1">
+                        <MediaGallery files={historyEntry.photos} hideTitle columns={2} />
+                      </div>
+                    )}
+
+                    {/* Delay warning for active stage */}
+                    {status === "active" && historyEntry && (() => {
+                      const daysSince = Math.floor((Date.now() - new Date(historyEntry.timestamp)) / 86400000);
+                      if (daysSince > 3) {
+                        return (
+                          <div className="flex items-center gap-1.5 mt-2 text-xs text-red-500 bg-red-50 rounded-lg px-2.5 py-1.5">
+                            <AlertTriangle size={12} />
+                            <span className="font-semibold">
+                              Delayed for {daysSince} days
+                            </span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -493,27 +532,31 @@ export default function ComplaintTracker({
                   ) : (
                     <div className="space-y-2">
                        {materials.map((m, idx) => (
-                         <div key={idx} className="flex gap-2 items-start">
-                            <input 
-                              placeholder="Name" 
-                              className="flex-1 text-[11px] p-2 border border-gray-200 rounded-lg outline-none"
-                              value={m.name}
-                              onChange={(e) => updateMaterial(idx, "name", e.target.value)}
-                            />
-                            <input 
-                              placeholder="Qty" 
-                              className="w-14 text-[11px] p-2 border border-gray-200 rounded-lg outline-none"
-                              value={m.qty}
-                              onChange={(e) => updateMaterial(idx, "qty", e.target.value)}
-                            />
-                            <select 
-                              className="text-[11px] p-2 border border-gray-200 rounded-lg outline-none bg-white"
-                              value={m.unit}
-                              onChange={(e) => updateMaterial(idx, "unit", e.target.value)}
-                            >
-                               {["pcs", "kg", "m", "m²", "lot", "set"].map(u => <option key={u}>{u}</option>)}
-                            </select>
-                            <button onClick={() => removeMaterial(idx)} className="p-2 text-gray-300 hover:text-red-500"><Trash2 size={13}/></button>
+                         <div key={idx} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-start bg-gray-50/50 p-2 sm:p-0 rounded-xl sm:bg-transparent">
+                            <div className="flex-1 flex gap-2">
+                              <input 
+                                placeholder="Name" 
+                                className="flex-1 text-[11px] p-2 border border-gray-200 rounded-lg outline-none bg-white"
+                                value={m.name}
+                                onChange={(e) => updateMaterial(idx, "name", e.target.value)}
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <input 
+                                placeholder="Qty" 
+                                className="w-14 text-[11px] p-2 border border-gray-200 rounded-lg outline-none bg-white font-bold text-center"
+                                value={m.qty}
+                                onChange={(e) => updateMaterial(idx, "qty", e.target.value)}
+                              />
+                              <select 
+                                className="flex-1 sm:w-auto text-[11px] p-2 border border-gray-200 rounded-lg outline-none bg-white"
+                                value={m.unit}
+                                onChange={(e) => updateMaterial(idx, "unit", e.target.value)}
+                              >
+                                 {["pcs", "kg", "m", "m²", "lot", "set"].map(u => <option key={u}>{u}</option>)}
+                              </select>
+                              <button onClick={() => removeMaterial(idx)} className="p-2 text-gray-300 hover:text-red-500"><Trash2 size={13}/></button>
+                            </div>
                          </div>
                        ))}
                     </div>
@@ -535,7 +578,7 @@ export default function ComplaintTracker({
                     <div className="flex flex-wrap gap-2 mt-2">
                       {files.map((f, idx) => (
                         <div key={idx} className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 px-2 py-1 rounded text-[10px] font-bold text-blue-700">
-                           <File size={10} />
+                           <FileIcon size={10} />
                            <span className="max-w-[80px] truncate">{f.name}</span>
                            <button onClick={() => removeFile(idx)} className="ml-1 hover:text-red-500">×</button>
                         </div>

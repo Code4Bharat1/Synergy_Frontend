@@ -29,6 +29,12 @@ const SEVERITY_OPTS = [
   { label: "Critical", color: "#9B1C1C", bg: "rgba(155,28,28,0.1)" },
 ];
 
+const DURATION_OPTS = [
+  { label: "Short", days: 15, color: "#4988C4", desc: "Quick fix (est. 15 days)" },
+  { label: "Standard", days: 30, color: "#1C4D8D", desc: "Standard repair (est. 1 month)" },
+  { label: "Long", days: 90, color: "#0F2854", desc: "Major project (est. 3/6 months)" },
+];
+
 const sevColorMap = {
   Low: "#34C759",
   Medium: "#FF9500",
@@ -50,6 +56,7 @@ export default function ComplaintLogPage() {
     title: "",
     description: "",
     severity: "Medium",
+    duration: "Standard",
     photos: [],
   });
   const [materials, setMaterials] = useState([
@@ -122,6 +129,7 @@ export default function ComplaintLogPage() {
       formData.append("title", form.title.trim());
       formData.append("description", form.description.trim());
       formData.append("priority", form.severity.toLowerCase());
+      formData.append("duration_type", form.duration.toLowerCase());
       formData.append("status", "open");
       if (form.project) formData.append("project", form.project);
       if (form.item) formData.append("item", form.item);
@@ -160,6 +168,7 @@ export default function ComplaintLogPage() {
       title: "",
       description: "",
       severity: "Medium",
+      duration: "Standard",
       photos: [],
     });
     setMaterials([{ id: 1, name: "", qty: "", unit: "pcs", urgent: false }]);
@@ -174,43 +183,57 @@ export default function ComplaintLogPage() {
       <>
         <style>{FONTS}</style>
         <div
-          style={{ maxWidth: 480, margin: "80px auto", textAlign: "center" }}
+          className="animate-in fade-in slide-in-from-bottom-4 duration-500"
+          style={{ 
+            maxWidth: 480, 
+            width: '90%',
+            margin: "80px auto", 
+            textAlign: "center",
+            padding: "20px",
+            background: "#fff",
+            borderRadius: "24px",
+            boxShadow: "0 10px 40px rgba(15,40,84,0.08)",
+            border: "1px solid rgba(73,136,196,0.1)"
+          }}
         >
-          <CheckCircle
-            size={56}
-            color="#34C759"
-            strokeWidth={1.5}
-            style={{ marginBottom: 16 }}
-          />
+          <div className="flex justify-center mb-6">
+            <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center animate-bounce duration-1000">
+               <CheckCircle size={44} color="#34C759" strokeWidth={1.5} />
+            </div>
+          </div>
           <h2
             style={{
               color: "#0F2854",
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: 800,
               fontFamily: "'Syne',sans-serif",
-              marginBottom: 8,
+              marginBottom: 12,
             }}
           >
             Complaint Logged!
           </h2>
-          <p style={{ color: "#4988C4", fontSize: 14, marginBottom: 24 }}>
-            Your complaint has been submitted to the service team for review.
+          <p style={{ color: "#4988C4", fontSize: 15, marginBottom: 32, lineHeight: 1.6 }}>
+            The support team and management have been notified. You can track this in your dashboard.
           </p>
           <button
             onClick={reset}
             style={{
-              background: "#0F2854",
-              color: "#BDE8F5",
+              background: "linear-gradient(135deg, #1C4D8D, #0F2854)",
+              color: "#fff",
               border: "none",
-              padding: "10px 22px",
-              borderRadius: 10,
-              fontSize: 13,
+              padding: "14px 32px",
+              borderRadius: 14,
+              fontSize: 14,
               fontWeight: 700,
               cursor: "pointer",
               fontFamily: "'DM Sans',sans-serif",
+              boxShadow: "0 4px 15px rgba(15,40,84,0.2)",
+              transition: "transform 0.2s"
             }}
+            onMouseOver={(e) => e.target.style.transform = "scale(1.02)"}
+            onMouseOut={(e) => e.target.style.transform = "scale(1)"}
           >
-            Log Another Complaint
+            Log New Complaint
           </button>
         </div>
       </>
@@ -222,17 +245,51 @@ export default function ComplaintLogPage() {
       <style>
         {FONTS +
           `
-        .cl-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
-        @media (max-width: 860px) { .cl-grid { grid-template-columns: 1fr; } }
-        .cl-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        @media (max-width: 560px) { .cl-field-row { grid-template-columns: 1fr; } }
-        .cl-severity-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-top: 2px; }
-        @media (max-width: 420px) { .cl-severity-row { grid-template-columns: repeat(2,1fr); gap: 8px; } }
-        .cl-mat-row { display: grid; grid-template-columns: 1fr 80px 70px 90px 32px; gap: 10px; align-items: center; }
-        @media (max-width: 560px) { .cl-mat-row { grid-template-columns: 1fr 60px 60px; } .cl-mat-urgent, .cl-mat-del { display: none; } }
+        .cl-container { padding: 0; width: 100%; max-width: 1400px; margin: 0 auto; }
+        .cl-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 24px; }
+        
+        @media (max-width: 1280px) { .cl-grid { grid-template-columns: 1.4fr 1fr; gap: 20px; } }
+        @media (max-width: 1100px) { .cl-grid { grid-template-columns: 1fr; } }
+        
+        .cl-card { padding: 28px; }
+        @media (max-width: 640px) { .cl-card { padding: 20px 16px; } }
+        
+        .cl-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 640px) { .cl-field-row { grid-template-columns: 1fr; gap: 12px; } }
+        
+        .cl-severity-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+        @media (max-width: 480px) { .cl-severity-row { grid-template-columns: repeat(2,1fr); } }
+        
+        .cl-mat-row { display: grid; grid-template-columns: 1fr 80px 80px 90px 40px; gap: 12px; align-items: center; }
+        @media (max-width: 768px) { 
+          .cl-mat-row { 
+            grid-template-columns: 1fr 80px 90px; 
+            gap: 10px;
+            padding: 12px;
+            background: #f8fafc;
+            border: 1px solid #eef2f8;
+            border-radius: 12px;
+          }
+          .cl-mat-name { grid-column: span 3; }
+          .cl-mat-header { display: none !important; }
+          .cl-mat-del { 
+             grid-column: span 3; 
+             display: flex !important; 
+             justify-content: center;
+             padding: 8px !important;
+             background: #fff5f5 !important;
+             border-radius: 10px !important;
+             margin-top: 4px;
+             color: #ef4444 !important;
+             font-size: 11px !important;
+             font-weight: 700 !important;
+             text-transform: uppercase;
+          }
+        }
       `}
       </style>
 
+      <div className="cl-container">
       <PageHeader
         eyebrow="Field"
         title="Log a Complaint"
@@ -273,7 +330,7 @@ export default function ComplaintLogPage() {
 
       <div className="cl-grid">
         {/* ── LEFT: Main Form ──────────────────────────────────────────── */}
-        <Card style={{ padding: "26px" }}>
+        <Card className="cl-card">
           <SectionHead
             icon={<MessageSquare size={16} color="#BDE8F5" />}
             title="Complaint Details"
@@ -357,6 +414,31 @@ export default function ComplaintLogPage() {
               </div>
             </div>
 
+            {/* Duration Type */}
+            <div>
+              <Label required>Expected Resolution Span</Label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {DURATION_OPTS?.map((d) => (
+                  <button
+                    key={d.label}
+                    onClick={() => upd("duration", d.label)}
+                    style={{
+                      padding: "10px 6px",
+                      borderRadius: 10,
+                      border: form.duration === d.label ? `1.5px solid ${d.color}` : "1.5px solid #eee",
+                      cursor: "pointer",
+                      background: form.duration === d.label ? "rgba(189,232,245,0.06)" : "#fff",
+                      transition: "all 0.1s",
+                      textAlign: "center"
+                    }}
+                  >
+                     <div style={{ color: form.duration === d.label ? d.color : "#94a3b8", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{d.label}</div>
+                     <div style={{ color: "#94a3b8", fontSize: 9, marginTop: 2 }}>{d.desc.split("(")[1].replace(")", "")}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Photo Upload */}
             <div>
               <Label>Photo Evidence</Label>
@@ -395,9 +477,9 @@ export default function ComplaintLogPage() {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(4,1fr)",
-                    gap: 8,
-                    marginTop: 10,
+                    gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))",
+                    gap: 10,
+                    marginTop: 12,
                   }}
                 >
                   {form.photos?.map((p) => (
@@ -405,8 +487,10 @@ export default function ComplaintLogPage() {
                       key={p.name}
                       style={{
                         position: "relative",
-                        borderRadius: 8,
+                        borderRadius: 12,
                         overflow: "hidden",
+                        aspectRatio: "1/1",
+                        border: "1px solid #eef2f8"
                       }}
                     >
                       <img
@@ -414,7 +498,7 @@ export default function ComplaintLogPage() {
                         alt={p.name}
                         style={{
                           width: "100%",
-                          height: 70,
+                          height: "100%",
                           objectFit: "cover",
                         }}
                       />
@@ -422,13 +506,14 @@ export default function ComplaintLogPage() {
                         onClick={() => removePhoto(p.name)}
                         style={{
                           position: "absolute",
-                          top: 3,
-                          right: 3,
-                          background: "rgba(0,0,0,0.6)",
+                          top: 4,
+                          right: 4,
+                          background: "rgba(0,0,0,0.5)",
+                          backdropFilter: "blur(4px)",
                           border: "none",
                           borderRadius: "50%",
-                          width: 18,
-                          height: 18,
+                          width: 20,
+                          height: 20,
                           color: "#fff",
                           cursor: "pointer",
                           fontSize: 10,
@@ -450,14 +535,14 @@ export default function ComplaintLogPage() {
               <Label>Required Materials</Label>
 
               {/* Header row */}
-              <div className="cl-mat-row" style={{ marginBottom: 6 }}>
+              <div className="cl-mat-row cl-mat-header" style={{ marginBottom: 8, padding: "0 10px" }}>
                 {["Material Name", "Qty", "Unit", "Urgent", ""]?.map((h) => (
                   <div
                     key={h}
                     style={{
                       color: "#4988C4",
                       fontSize: 10,
-                      fontWeight: 600,
+                      fontWeight: 700,
                       letterSpacing: 0.5,
                     }}
                   >
@@ -466,15 +551,17 @@ export default function ComplaintLogPage() {
                 ))}
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {materials?.map((m) => (
                   <div key={m.id} className="cl-mat-row">
+                    <div className="cl-mat-name">
                     <input
                       style={inputStyle}
                       placeholder="e.g. Gel coat resin"
                       value={m.name}
                       onChange={(e) => updMat(m.id, "name", e.target.value)}
                     />
+                    </div>
                     <input
                       type="number"
                       min={0}
@@ -601,7 +688,7 @@ export default function ComplaintLogPage() {
 
         {/* ── RIGHT: Recent Complaints ─────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Card style={{ padding: "22px" }}>
+          <Card className="cl-card">
             <SectionHead
               icon={<MessageSquare size={16} color="#BDE8F5" />}
               title="Recent Complaints"
@@ -632,6 +719,11 @@ export default function ComplaintLogPage() {
                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.priority === 'High' || c.priority === 'Critical' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-500'} uppercase border border-current/10`}>
                          {c.priority}
                        </span>
+                       {c.duration_type && (
+                         <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 uppercase">
+                           🕒 {c.duration_type}
+                         </span>
+                       )}
                     </div>
                     <p className="text-sm font-bold text-blue-950 mb-1">{c.title}</p>
                     <p className="text-[11px] text-gray-500 mb-4 line-clamp-2 italic">"{c.description}"</p>
@@ -642,6 +734,39 @@ export default function ComplaintLogPage() {
                       stageHistory={c.stageHistory} 
                       compact 
                     />
+
+                    {/* Timeline Progress */}
+                    {c.status !== 'resolved' && (
+                       <div className="mt-3 bg-blue-50/50 p-2 rounded-lg border border-blue-100/50">
+                          <div className="flex justify-between items-center mb-1.5">
+                             <span className="text-[9px] font-bold text-blue-800 tracking-tight uppercase">Timeline Health</span>
+                             <span className="text-[10px] font-bold text-blue-600">
+                                {(() => {
+                                  const start = new Date(c.createdAt || Date.now());
+                                  const now = new Date();
+                                  const elapsed = Math.max(1, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
+                                  const est = c.duration_type === 'short' ? 15 : c.duration_type === 'long' ? 90 : 30;
+                                  const pct = Math.min(100, Math.round((elapsed / est) * 100));
+                                  return pct + '%';
+                                })()}
+                             </span>
+                          </div>
+                          <div className="w-full h-1 bg-white rounded-full overflow-hidden border border-blue-100/30">
+                            <div 
+                              className="h-full bg-blue-500 rounded-full transition-all duration-1000"
+                              style={{ 
+                                width: (() => {
+                                  const start = new Date(c.createdAt || Date.now());
+                                  const now = new Date();
+                                  const elapsed = Math.min(90, Math.max(1, Math.floor((now - start) / (1000 * 60 * 60 * 24))));
+                                  const est = c.duration_type === 'short' ? 15 : c.duration_type === 'long' ? 90 : 30;
+                                  return Math.min(100, Math.round((elapsed / est) * 100)) + '%';
+                                })()
+                              }}
+                            />
+                          </div>
+                       </div>
+                    )}
 
                     {/* Materials & Media if available */}
                     {(c.materials?.length > 0 || c.photos?.length > 0) && (
@@ -666,7 +791,7 @@ export default function ComplaintLogPage() {
           </Card>
 
           {/* Severity reference */}
-          <Card style={{ padding: "20px 22px" }}>
+          <Card className="cl-card">
             <div
               style={{
                 color: "#0F2854",
@@ -725,6 +850,7 @@ export default function ComplaintLogPage() {
           </Card>
         </div>
       </div>
-    </>
-  );
+    </div>
+  </>
+);
 }

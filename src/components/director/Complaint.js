@@ -59,6 +59,7 @@ const EMPTY_FORM = {
   project: "",
   priority: "medium",
   status: "open",
+  duration_type: "standard",
   assignedTo: "",
   resolutionNotes: "",
 };
@@ -85,10 +86,9 @@ function StatCard({ label, value, colorClass, active, onClick }) {
       onClick={onClick}
       className={`rounded-xl border shadow-sm p-4 text-center cursor-pointer transition-all duration-200
         hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]
-        ${
-          active
-            ? "border-blue-400 bg-blue-50 ring-2 ring-blue-200"
-            : "border-gray-100 bg-white hover:border-blue-200"
+        ${active
+          ? "border-blue-400 bg-blue-50 ring-2 ring-blue-200"
+          : "border-gray-100 bg-white hover:border-blue-200"
         }`}
     >
       <p className={`text-2xl font-bold ${colorClass}`}>{value}</p>
@@ -102,10 +102,17 @@ function StatCard({ label, value, colorClass, active, onClick }) {
   );
 }
 
-function Modal({ title, onClose, children }) {
+function Modal({ title, onClose, children, size = "lg" }) {
+  const maxWidth = {
+    sm: "max-w-md",
+    lg: "max-w-lg",
+    xl: "max-w-2xl",
+    "5xl": "max-w-5xl",
+  }[size] || "max-w-lg";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-2 sm:px-4">
+      <div className={`bg-white rounded-2xl shadow-2xl w-full ${maxWidth} max-h-[92vh] overflow-y-auto overflow-x-hidden relative flex flex-col transition-all duration-300`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="text-sm font-bold text-gray-800">{title}</h3>
           <button
@@ -203,6 +210,20 @@ function ComplaintForm({
           </select>
         </div>
         <div>
+          <label className="text-xs font-semibold text-gray-600 mb-1 block">
+            Resolution Span
+          </label>
+          <select
+            value={form.duration_type}
+            onChange={(e) => set("duration_type", e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 font-bold text-blue-600"
+          >
+            <option value="short">Short (15 Days)</option>
+            <option value="standard">Standard (1 Month)</option>
+            <option value="long">Long (3/6 Months)</option>
+          </select>
+        </div>
+        <div className="col-span-2">
           <label className="text-xs font-semibold text-gray-600 mb-1 block">
             Status
           </label>
@@ -323,82 +344,162 @@ function ComplaintForm({
 function ComplaintDetail({ complaint, onAdvance, canAdvance }) {
   const SM = STATUS_META[complaint.status] || {};
   const PM = PRIORITY_META[complaint.priority] || {};
+
   return (
-    <div className="space-y-5 text-sm">
-      <ComplaintTracker
-        currentStage={complaint.currentStage || "complaint_raised"}
-        stageHistory={complaint.stageHistory || []}
-        compact={true}
-        complaint={complaint}
-        onAdvance={onAdvance}
-        canAdvance={canAdvance}
-      />
-      <div className="flex flex-wrap gap-2">
-        <Badge
-          text={SM.label || complaint.status}
-          colorClass={SM.color || "bg-gray-100 text-gray-600"}
-        />
-        <Badge
-          text={PM.label || complaint.priority}
-          colorClass={PM.color || "bg-gray-100 text-gray-600"}
-        />
-      </div>
-      <div>
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Description</p>
-        <p className="text-gray-700 leading-relaxed bg-gray-50/50 p-3 rounded-xl border border-gray-100">{complaint.description}</p>
-      </div>
+    <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8 text-sm">
+      {/* Left Column: Complaint Details */}
+      <div className="lg:col-span-7 space-y-6">
+        <div className="flex flex-wrap gap-2">
+          <Badge
+            text={SM.label || complaint.status}
+            colorClass={SM.color || "bg-gray-100 text-gray-600"}
+          />
+          <Badge
+            text={PM.label || complaint.priority}
+            colorClass={PM.color || "bg-gray-100 text-gray-600"}
+          />
+        </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div className="bg-gray-50/30 p-2.5 rounded-xl border border-gray-100/50">
-          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Project</p>
-          <p className="text-sm font-bold text-extra-darkblue truncate">
-            {complaint.project?.name || "—"}
+        <div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Detailed Description</p>
+          <p className="text-gray-700 leading-relaxed bg-gray-50/50 p-4 rounded-2xl border border-gray-100 break-words whitespace-pre-wrap text-sm shadow-inner">
+            {complaint.description}
           </p>
-          {complaint.project?.projectId && (
-            <p className="text-[9px] font-bold text-blue-500">#{complaint.project.projectId}</p>
-          )}
         </div>
-        <div className="bg-gray-50/30 p-2.5 rounded-xl border border-gray-100/50">
-          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Logged By</p>
-          <p className="text-sm font-bold text-gray-700">{complaint.loggedBy?.name || "—"}</p>
-        </div>
-        <div className="bg-gray-50/30 p-2.5 rounded-xl border border-gray-100/50">
-          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Assigned To</p>
-          <p className="text-sm font-bold text-gray-700">{complaint.assignedTo?.name || "—"}</p>
-        </div>
-      </div>
 
-      {/* Materials List */}
-      {complaint.materials && complaint.materials.length > 0 && (
-        <div className="space-y-3 pt-4 border-t border-gray-100">
-           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active Material List / BOM</p>
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-             {complaint.materials.map((m, idx) => (
-                <div key={idx} className="flex items-center gap-2.5 bg-amber-50/40 p-2 rounded-lg border border-amber-100/50">
-                   <Package size={14} className="text-amber-500" />
-                   <div>
-                      <p className="text-xs font-bold text-gray-800 leading-none">{m.name}</p>
-                      <p className="text-[10px] text-amber-600 font-bold mt-1">{m.qty} {m.unit}</p>
-                   </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <DetailCard
+            label="Project"
+            value={complaint.project?.name || "—"}
+            sub={complaint.project?.projectId ? `#${complaint.project.projectId}` : null}
+            iconColor="text-blue-500"
+          />
+          <DetailCard
+            label="Estimated Resolution"
+            value={complaint.duration_type ? (complaint.duration_type.charAt(0).toUpperCase() + complaint.duration_type.slice(1)) : "Standard"}
+            sub={complaint.duration_type === "short" ? "15-day turnaround" : complaint.duration_type === "long" ? "3/6 month project" : "30-day/1 mo repair"}
+            iconColor="text-indigo-500"
+          />
+          <DetailCard
+            label="Logged By"
+            value={complaint.loggedBy?.name || "—"}
+            sub={complaint.loggedBy?.role}
+            iconColor="text-emerald-500"
+          />
+          <DetailCard
+            label="Assigned To"
+            value={complaint.assignedTo?.name || "Unassigned"}
+            sub={complaint.assignedTo?.role}
+            iconColor="text-amber-500"
+          />
+        </div>
+
+        {/* Materials List */}
+        {complaint.materials && complaint.materials.length > 0 && (
+          <div className="space-y-3 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Package size={14} className="text-gray-400" />
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active BOM / Materials</p>
+              </div>
+
+              {/* Time Progress Calculation */}
+              {complaint.status !== 'resolved' && (
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Est. Timeline Progress</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-100/50">
+                      <div
+                        style={{
+                          width: (() => {
+                            const start = new Date(complaint.createdAt || Date.now());
+                            const now = new Date();
+                            const diffDays = Math.max(1, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
+                            const est = complaint.duration_type === 'short' ? 15 : complaint.duration_type === 'long' ? 90 : 30;
+                            return Math.min(100, Math.round((diffDays / est) * 100)) + '%';
+                          })(),
+                          transition: 'width 1s ease-in-out'
+                        }}
+                        className="h-full bg-blue-500 rounded-full"
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-blue-600">
+                      {(() => {
+                        const start = new Date(complaint.createdAt || Date.now());
+                        const now = new Date();
+                        const diffDays = Math.max(1, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
+                        const est = complaint.duration_type === 'short' ? 15 : complaint.duration_type === 'long' ? 90 : 30;
+                        return Math.min(100, Math.round((diffDays / est) * 100)) + '%';
+                      })()}
+                    </span>
+                  </div>
                 </div>
-             ))}
-           </div>
-        </div>
-      )}
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {complaint.materials.map((m, idx) => (
+                <div key={idx} className="flex items-center gap-3 bg-blue-50/30 p-3 rounded-xl border border-blue-100/30 group hover:border-blue-200 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-blue-500 shadow-sm font-bold text-xs">{m.qty}</div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-gray-800 truncate">{m.name}</p>
+                    <p className="text-[10px] text-gray-400 font-medium">{m.unit}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-      {/* Media Gallery */}
-      <div className="pt-4 border-t border-gray-100">
-        <MediaGallery files={complaint.photos || (complaint.photo ? [complaint.photo] : [])} />
+        {/* Media Gallery */}
+        <div className="pt-4 border-t border-gray-100">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Evidence & Attachments</p>
+          <div className="rounded-2xl border border-gray-50 overflow-hidden bg-gray-50/20">
+            <MediaGallery
+              files={complaint.photos || (complaint.photo ? [complaint.photo] : [])}
+              hideTitle
+              compact
+            />
+          </div>
+        </div>
+
+        {complaint.resolutionNotes && (
+          <div className="pt-4 border-t border-gray-100">
+            <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Resolution Summary</p>
+            <div className="bg-emerald-50/40 rounded-2xl border border-emerald-100 p-4 relative group">
+              <div className="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-40 transition-opacity">
+                <ShieldCheck size={24} className="text-emerald-500" />
+              </div>
+              <p className="text-gray-700 text-xs leading-relaxed italic pr-8">
+                "{complaint.resolutionNotes}"
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {complaint.resolutionNotes && (
-        <div className="pt-4 border-t border-gray-100">
-          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Resolution Notes</p>
-          <p className="text-gray-700 bg-green-50/50 rounded-xl border border-green-100 p-3 text-xs leading-relaxed italic">
-            "{complaint.resolutionNotes}"
-          </p>
+      {/* Right Column: Progress Tracker */}
+      <div className="lg:col-span-5 lg:border-l lg:border-gray-100 lg:pl-8 space-y-6">
+        <div className="sticky top-0">
+          <ComplaintTracker
+            currentStage={complaint.currentStage || "complaint_raised"}
+            stageHistory={complaint.stageHistory || []}
+            compact={false}
+            complaint={complaint}
+            onAdvance={onAdvance}
+            canAdvance={canAdvance}
+          />
         </div>
-      )}
+      </div>
+    </div>
+  );
+}
+
+function DetailCard({ label, value, sub, iconColor }) {
+  return (
+    <div className="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+      <p className={`text-[9px] font-black uppercase tracking-widest ${iconColor} mb-1.5 opacity-60 group-hover:opacity-100`}>{label}</p>
+      <p className="text-sm font-bold text-gray-900 truncate">{value}</p>
+      {sub && <p className="text-[10px] font-bold text-gray-400 mt-0.5 truncate">{sub}</p>}
     </div>
   );
 }
@@ -541,6 +642,7 @@ export default function ComplaintAnalytics() {
   // "all" | "open" | "in-progress" | "resolved-closed"
   const [activeCard, setActiveCard] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
+  const [filterDuration, setFilterDuration] = useState("all");
   const [search, setSearch] = useState("");
 
   const [projectsList, setProjectsList] = useState([]);
@@ -713,6 +815,7 @@ export default function ComplaintAnalytics() {
     )
       return false;
     if (filterPriority !== "all" && c.priority !== filterPriority) return false;
+    if (filterDuration !== "all" && c.duration_type !== filterDuration) return false;
     if (search) {
       const q = search.toLowerCase();
       if (
@@ -859,6 +962,17 @@ export default function ComplaintAnalytics() {
                 </option>
               ))}
             </select>
+
+            <select
+              value={filterDuration}
+              onChange={(e) => setFilterDuration(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            >
+              <option value="all">All Timeline Spans</option>
+              <option value="short">Short (15 Days)</option>
+              <option value="standard">Standard (1 Month)</option>
+              <option value="long">Long (3/6 Months)</option>
+            </select>
           </div>
 
           {loading ? (
@@ -882,6 +996,7 @@ export default function ComplaintAnalytics() {
                       "Project",
                       "Priority",
                       "Status",
+                    
                       "Logged By",
                       "Assigned To",
                       "Date",
@@ -934,6 +1049,28 @@ export default function ComplaintAnalytics() {
                             {SM.label || c.status}
                           </span>
                         </td>
+                        {/* <td className="px-5 py-3.5 whitespace-nowrap">
+                          <div className="flex flex-col gap-1.5 w-24">
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">
+                              {c.duration_type || 'standard'}
+                            </span>
+                            <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden border border-gray-100/30">
+                              <div
+                                style={{
+                                  width: (() => {
+                                    const start = new Date(c.createdAt || Date.now());
+                                    const now = new Date();
+                                    const elapsed = Math.max(1, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
+                                    const est = c.duration_type === 'short' ? 15 : c.duration_type === 'long' ? 90 : 30;
+                                    return Math.min(100, Math.round((elapsed / est) * 100)) + '%';
+                                  })(),
+                                  transition: 'width 0.5s'
+                                }}
+                                className="h-full bg-blue-500 rounded-full"
+                              />
+                            </div>
+                          </div>
+                        </td> */}
                         <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap">
                           {c.loggedBy?.name || "—"}
                         </td>
@@ -1000,9 +1137,10 @@ export default function ComplaintAnalytics() {
         <Modal
           title={viewComplaint.title}
           onClose={() => setViewComplaint(null)}
+          size="5xl"
         >
-          <ComplaintDetail 
-            complaint={viewComplaint} 
+          <ComplaintDetail
+            complaint={viewComplaint}
             onAdvance={handleAdvanceStage}
             canAdvance={STAGE_ADVANCE_ROLES[viewComplaint.currentStage || "complaint_raised"]?.includes(userRole)}
           />

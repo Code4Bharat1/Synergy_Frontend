@@ -7,7 +7,7 @@ import axiosInstance from '../../lib/axios';
  * MediaGallery Component
  * Handles rendering of images, videos and document links (PDF, Excel, etc)
  */
-const MediaGallery = ({ files = [], title = "Evidence / Designs" }) => {
+const MediaGallery = ({ files = [], title = "Evidence / Designs", hideTitle = false, columns = 4 }) => {
   if (!files || files.length === 0) return null;
 
   const getFileIcon = (url) => {
@@ -50,8 +50,8 @@ const MediaGallery = ({ files = [], title = "Evidence / Designs" }) => {
 
   return (
     <div className="space-y-3">
-      <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{title}</h4>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+      {!hideTitle && <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{title}</h4>}
+      <div className={`grid grid-cols-2 ${columns >= 3 ? 'sm:grid-cols-3' : ''} ${columns >= 4 ? 'md:grid-cols-4' : ''} gap-3`}>
         {files.map((file, idx) => {
           const url = resolveUrl(file);
           const icon = getFileIcon(file);

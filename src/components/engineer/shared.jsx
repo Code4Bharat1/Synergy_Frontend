@@ -37,30 +37,41 @@ export const DEPARTMENTS = [
 // ─── Shared UI ────────────────────────────────────────────────────────────────
 export function PageHeader({ eyebrow, title, subtitle, action }) {
   return (
-    <div style={{ marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-      <div>
+    <div style={{ 
+      marginBottom: 28, 
+      display: "flex", 
+      flexWrap: "wrap",
+      justifyContent: "space-between", 
+      alignItems: "flex-start",
+      gap: 16
+    }}>
+      <div style={{ flex: "1 1 300px" }}>
         {eyebrow && (
           <div style={{ color: "#4988C4", fontSize: 13, fontWeight: 400, letterSpacing: 0, textTransform: "none", marginBottom: 2 }}>
             {eyebrow}
           </div>
         )}
-        <h1 style={{ color: "#0F2854", fontSize: 25, fontWeight: 700, margin: 0, fontFamily: "'DM Sans', sans-serif" }}>{title}</h1>
+        <h1 style={{ color: "#0F2854", fontSize: "clamp(20px, 5vw, 25px)", fontWeight: 700, margin: 0, fontFamily: "'DM Sans', sans-serif" }}>{title}</h1>
         {subtitle && <p style={{ color: "#4988C4", fontSize: 13, margin: "4px 0 0" }}>{subtitle}</p>}
       </div>
-      {action}
+      {action && <div style={{ flexShrink: 0 }}>{action}</div>}
     </div>
   );
 }
 
-export function Card({ children, style = {} }) {
+export function Card({ children, style = {}, className = "", ...props }) {
   return (
-    <div style={{
-      background: "#fff",
-      borderRadius: 16,
-      border: "1px solid rgba(73,136,196,0.15)",
-      boxShadow: "0 2px 12px rgba(15,40,84,0.06)",
-      ...style,
-    }}>
+    <div 
+      className={className}
+      style={{
+        background: "#fff",
+        borderRadius: 16,
+        border: "1px solid rgba(73,136,196,0.15)",
+        boxShadow: "0 2px 12px rgba(15,40,84,0.06)",
+        ...style,
+      }}
+      {...props}
+    >
       {children}
     </div>
   );

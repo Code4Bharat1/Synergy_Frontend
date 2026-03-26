@@ -134,6 +134,7 @@ export default function DirectorComplaintDetailPage() {
       priority: complaint.priority || "medium",
       status: complaint.status || "open",
       assignedTo: complaint.assignedTo?._id || "",
+      duration_type: complaint.duration_type || "standard",
       resolutionNotes: complaint.resolutionNotes || "",
     });
     setSelectedFiles([]);
@@ -172,6 +173,7 @@ export default function DirectorComplaintDetailPage() {
           const v = editForm[k];
           if (v !== undefined && v !== null && v !== "") {
             if (k === "priority") payload[k] = String(v).toLowerCase();
+            else if (k === "duration_type") payload[k] = String(v).toLowerCase();
             else payload[k] = v._id || v;
           }
         });
@@ -183,6 +185,7 @@ export default function DirectorComplaintDetailPage() {
           if (v === "" || v === undefined || v === null) return;
           let val = v._id || v;
           if (k === "priority") val = String(v).toLowerCase();
+          if (k === "duration_type") val = String(v).toLowerCase();
           formData.append(k, val);
         });
         selectedFiles.forEach((f) => formData.append("photos", f.file));
@@ -335,6 +338,38 @@ export default function DirectorComplaintDetailPage() {
               <p className="text-xs font-semibold text-gray-400 mb-1">Created</p>
               <p className="text-sm text-gray-700">{new Date(complaint.createdAt).toLocaleDateString()}</p>
             </div>
+            {complaint.duration_type && (
+               <div className="col-span-2 sm:col-span-1">
+                  <p className="text-xs font-semibold text-gray-400 mb-1 flex items-center gap-1">
+                    Timeline Health <span className="text-[10px] text-blue-500 font-bold">({complaint.duration_type === 'short' ? '15d' : complaint.duration_type === 'long' ? '3/6mo' : '1mo'})</span>
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                     <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-100/50">
+                        <div 
+                           className="h-full bg-blue-500 transition-all duration-1000"
+                           style={{ 
+                             width: (() => {
+                               const start = new Date(complaint.createdAt || Date.now());
+                               const now = new Date();
+                               const elapsed = Math.max(1, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
+                               const est = complaint.duration_type === 'short' ? 15 : complaint.duration_type === 'long' ? 90 : 30;
+                               return Math.min(100, Math.round((elapsed / est) * 100)) + '%';
+                             })()
+                           }}
+                        />
+                     </div>
+                     <span className="text-xs font-bold text-blue-600">
+                        {(() => {
+                          const start = new Date(complaint.createdAt || Date.now());
+                          const now = new Date();
+                          const elapsed = Math.max(1, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
+                          const est = complaint.duration_type === 'short' ? 15 : complaint.duration_type === 'long' ? 90 : 30;
+                          return Math.min(100, Math.round((elapsed / est) * 100)) + '%';
+                        })()}
+                     </span>
+                  </div>
+               </div>
+            )}
             {complaint.resolvedAt && (
               <div>
                 <p className="text-xs font-semibold text-gray-400 mb-1">Resolved At</p>
@@ -436,6 +471,18 @@ export default function DirectorComplaintDetailPage() {
                 </select>
               </div>
               <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1 block">Resolution Span</label>
+                <select
+                  value={editForm.duration_type}
+                  onChange={(e) => setEditForm((f) => ({ ...f, duration_type: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 font-bold text-blue-600"
+                >
+                  <option value="short">Short (15 Days)</option>
+                  <option value="standard">Standard (1 Month)</option>
+                  <option value="long">Long (3/6 Months)</option>
+                </select>
+              </div>
+              <div className="col-span-2">
                 <label className="text-xs font-semibold text-gray-600 mb-1 block">Status</label>
                 <select
                   value={editForm.status}
