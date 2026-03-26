@@ -79,7 +79,7 @@ console.log("Token refreshed");
         return axiosInstance(originalRequest);
       } catch (err) {
         alert("Session Expired. Please login again.");
-        console.log(err);
+        console.log(err.response);
 
         processQueue(err, null);
 
