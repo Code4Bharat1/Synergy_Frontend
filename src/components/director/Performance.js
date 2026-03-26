@@ -79,15 +79,15 @@ const ChartTip = ({ active, payload, label, currency }) => {
 // ── KPI card ──────────────────────────────────────────────────────────────────
 function KpiCard({ label, value, sub, icon: Icon, color }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 min-w-0">
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
-        <Icon size={20} />
+    <div className="bg-white rounded-[20px] border border-gray-100/80 p-4 transition-all hover:shadow-[0_12px_24px_-8px_rgba(15,40,84,0.12)] hover:border-blue-100 group">
+      <div className="flex items-center gap-3 mb-2.5">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${color} shadow-inner`}>
+          <Icon size={14} strokeWidth={3} />
+        </div>
+        <p className="text-xl font-black text-[#0F2854] tracking-tight leading-none">{value}</p>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xl font-bold text-[#0F2854] leading-tight">{value}</p>
-        <p className="text-xs font-medium text-gray-500 leading-tight truncate">{label}</p>
-        {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
-      </div>
+      <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest leading-tight">{label}</p>
+      {sub && <p className="text-[8px] text-blue-500 font-bold mt-1 text-right">{sub}</p>}
     </div>
   );
 }
@@ -95,15 +95,17 @@ function KpiCard({ label, value, sub, icon: Icon, color }) {
 // ── Section card ──────────────────────────────────────────────────────────────
 function Card({ title, sub, icon: Icon, iconCls, children }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-100">
-        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${iconCls}`}><Icon size={14} /></div>
+    <div className="bg-white rounded-[32px] border border-gray-100 shadow-[0_16px_48px_-24px_rgba(15,40,84,0.1)] overflow-hidden transition-all duration-700 animate-in fade-in zoom-in-95">
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-50/80 bg-gradient-to-r from-gray-50/30 to-transparent">
+        <div className={`w-9 h-9 rounded-[14px] flex items-center justify-center shadow-sm ${iconCls}`}>
+          <Icon size={16} strokeWidth={2.5} />
+        </div>
         <div>
-          <h3 className="text-sm font-bold text-[#0F2854]">{title}</h3>
-          {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+          <h3 className="text-sm font-black text-[#0F2854] tracking-tight uppercase tracking-wider">{title}</h3>
+          {sub && <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5 opacity-60 leading-none">{sub}</p>}
         </div>
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-6">{children}</div>
     </div>
   );
 }
@@ -122,6 +124,7 @@ export default function PerformanceAnalytics() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [selectedId, setSelectedId] = useState("");
 
   const load = useCallback(async () => {
     const [pR, uR, rR, aR, cR, iR, tR] = await Promise.allSettled([
@@ -277,75 +280,165 @@ export default function PerformanceAnalytics() {
   return (
     <div className="space-y-6 pb-8">
 
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-[#0F2854]">Performance Analytics</h2>
-          <p className="text-sm text-gray-400 mt-0.5">Live data — zero mock values</p>
+      <div className="bg-gradient-to-br from-white to-gray-50/30 p-8 rounded-[40px] border border-gray-100 shadow-sm mb-6">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
+          <div>
+            <h2 className="text-2xl font-black text-[#0F2854] tracking-tight">Department Performance</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Live Operations Monitor</p>
+            </div>
+          </div>
+          <button onClick={refresh} disabled={refreshing}
+            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full border border-gray-200 bg-white text-gray-500 hover:text-blue-600 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5 transition-all disabled:opacity-50 group">
+            <RefreshCw size={12} className={`${refreshing ? "animate-spin" : ""} group-hover:rotate-180 transition-transform duration-500`} /> Refresh Sync
+          </button>
         </div>
-        <button onClick={refresh} disabled={refreshing}
-          className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50">
-          <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /> Refresh
-        </button>
+
+        {/* KPIs Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3.5 relative z-10">
+          <KpiCard label="Total Projects"  value={projects.length} icon={BarChart3}    color="bg-blue-50 text-blue-600" />
+          <KpiCard label="Avg Progress"    value={`${avgProgress}%`} icon={Activity}   color="bg-indigo-50 text-indigo-600" />
+          <KpiCard label="Completed"       value={completed}       icon={CheckCircle2} color="bg-emerald-50 text-emerald-600" />
+          <KpiCard label="Overdue"         value={overdue}         icon={AlertTriangle} color="bg-red-50 text-red-500" sub={`+${atRisk} at risk`} />
+          <KpiCard label="Total Budget"    value={fmtCr(totalBudget)} icon={IndianRupee} color="bg-amber-50 text-amber-600" />
+          <KpiCard label="Open Complaints" value={openCmp}         icon={AlertTriangle} color="bg-pink-50 text-pink-600" />
+        </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard label="Total Projects"  value={projects.length} icon={BarChart3}    color="bg-blue-50 text-blue-600" />
-        <KpiCard label="Avg Progress"    value={`${avgProgress}%`} icon={Activity}   color="bg-indigo-50 text-indigo-600" />
-        <KpiCard label="Completed"       value={completed}       icon={CheckCircle2} color="bg-emerald-50 text-emerald-600" />
-        <KpiCard label="Overdue"         value={overdue}         icon={AlertTriangle} color="bg-red-50 text-red-500" sub={`+${atRisk} at risk`} />
-        <KpiCard label="Total Budget"    value={fmtCr(totalBudget)} icon={IndianRupee} color="bg-amber-50 text-amber-600" />
-        <KpiCard label="Open Complaints" value={openCmp}         icon={AlertTriangle} color="bg-pink-50 text-pink-600" />
-      </div>
-
-      {/* ── Project Timeline ── */}
-      <Card title="Project Timeline — On-Track vs Delayed" sub="Colour = status. Red fill = overdue days. Click a project to view details." icon={Calendar} iconCls="bg-blue-50 text-blue-600">
-        {timelineData.length === 0 ? (
-          <div className="py-10 text-center text-gray-300 text-sm">No projects with start & end dates</div>
-        ) : (
-          <>
-            <div className="flex flex-wrap gap-4 text-xs font-semibold mb-4">
-              {[{ color: C.green, label: "Completed" }, { color: C.blue, label: "On-Track" }, { color: C.amber, label: "At Risk (≤14d)" }, { color: C.red, label: "Delayed" }].map(l => (
-                <div key={l.label} className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm" style={{ background: l.color }} />
-                  <span className="text-gray-500">{l.label}</span>
-                </div>
+      {/* ── Project Deep Dive Section ── */}
+      <Card 
+        title="Project Performance Deep-Dive" 
+        sub="Select a project to analyze its specific progress health and financial metrics." 
+        icon={FlaskConical} 
+        iconCls="bg-blue-50 text-blue-600"
+      >
+        <div className="space-y-6">
+          <div className="max-w-md">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Select Project to Audit</label>
+            <select 
+              value={selectedId} 
+              onChange={e => setSelectedId(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-sm font-semibold text-[#0F2854] outline-none focus:ring-2 focus:ring-blue-100 transition-all appearance-none cursor-pointer"
+            >
+              <option value="">— Choose a Project —</option>
+              {projects.map(p => (
+                <option key={p._id} value={p._id}>{p.projectId ? `${p.projectId} · ` : ""}{p.name}</option>
               ))}
+            </select>
+          </div>
+
+          {!selectedId ? (
+            <div className="py-12 border-2 border-dashed border-gray-50 rounded-2xl flex flex-col items-center justify-center text-gray-300">
+               <Activity size={40} className="mb-3 opacity-20" />
+               <p className="text-sm font-medium">Please select a project from the dropdown above</p>
             </div>
-            <div className="space-y-3">
-              {timelineData.map((p, idx) => {
-                const tot = (p.elapsed + p.remaining + p.overdue) || 1;
-                return (
-                  <div key={idx} className="cursor-pointer group" onClick={() => router.push(`/director/project/${p.id}`)}>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${STATUS_BG[p.status] || "bg-gray-100 text-gray-500"}`}>{p.progress}%</span>
-                        <span className="font-semibold text-[#0F2854] truncate group-hover:text-[#1C4D8D]" title={p.fullName}>{p.name}</span>
-                      </div>
-                      <div className="shrink-0 flex items-center gap-1 ml-2 text-gray-400">
-                        <span>{p.startDate}</span><span className="text-gray-300">→</span>
-                        <span className={p.t === "delayed" ? "text-red-500 font-bold" : ""}>{p.endDate}</span>
-                        {p.t === "delayed" && <span className="text-red-500 font-bold text-[10px] ml-1">{p.overdue}d late</span>}
-                        {p.t === "at-risk" && <span className="text-amber-500 font-bold text-[10px] ml-1">{p.daysLeft}d left</span>}
-                      </div>
-                    </div>
-                    <div className="flex h-3 rounded-full overflow-hidden bg-gray-100">
-                      <div style={{ width: `${(p.elapsed / tot) * 100}%`, background: p.tColor }} className="h-full transition-all duration-700" />
-                      {p.remaining > 0 && <div style={{ width: `${(p.remaining / tot) * 100}%` }} className="h-full bg-gray-200" />}
-                      {p.overdue > 0  && <div style={{ width: `${(p.overdue / tot) * 100}%`, background: "#fca5a5" }} className="h-full" />}
-                    </div>
+          ) : (() => {
+            const p = projects.find(x => x._id === selectedId);
+            if (!p) return null;
+            
+            // Calculate health metrics
+            const start = new Date(p.startDate || p.createdAt);
+            const end = p.endDate ? new Date(p.endDate) : new Date(start.getTime() + 30 * 86400000);
+            const totalDays = daysDiff(start, end) || 1;
+            const elapsed = Math.max(0, daysDiff(start, today));
+            const expectedProg = Math.min(100, Math.round((elapsed / totalDays) * 100));
+            const actualProg = p.progress || 0;
+            const healthGap = actualProg - expectedProg;
+
+            // Generate "Simulation" graph data for visual trend
+            // Point 0: Start, Point 1: 33%, Point 2: 66%, Point 3: Today, Point 4: Future (Target)
+            const graphData = [
+              { day: "Start", target: 0, actual: 0 },
+              { day: "33%", target: 33, actual: Math.round(actualProg * 0.3) },
+              { day: "66%", target: 66, actual: Math.round(actualProg * 0.7) },
+              { day: "Current", target: expectedProg, actual: actualProg },
+            ];
+
+            return (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-50">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Status Health</p>
+                    <p className={`text-lg font-black ${healthGap >= 0 ? "text-emerald-500" : healthGap > -15 ? "text-amber-500" : "text-red-500"}`}>
+                      {healthGap >= 0 ? "Ahead" : Math.abs(healthGap) < 15 ? "Slight Delay" : "Critical Delay"}
+                    </p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{healthGap >= 0 ? "+" : ""}{healthGap}% vs target</p>
                   </div>
-                );
-              })}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-4 pt-2 border-t border-gray-100 text-xs text-gray-400">
-              <span>Overdue: <strong className="text-red-500">{overdue}</strong></span>
-              <span>At-risk: <strong className="text-amber-500">{atRisk}</strong></span>
-              <span>On-track: <strong className="text-blue-600">{projects.filter(p => timing(p) === "on-track").length}</strong></span>
-            </div>
-          </>
-        )}
+                  <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-50">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Time Elapsed</p>
+                    <p className="text-lg font-black text-[#0F2854]">{elapsed} Days</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">out of {totalDays} total</p>
+                  </div>
+                  <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-50">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Project Phase</p>
+                    <p className="text-lg font-black text-[#1C4D8D] truncate">{p.phase || "Preparation"}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Current activity</p>
+                  </div>
+                  <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-50">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Budget Burn</p>
+                    <p className={`text-lg font-black ${ (p.actualCost || 0) > (p.budget || 0) ? "text-red-500" : "text-emerald-500"}`}>
+                      {p.budget ? Math.round(((p.actualCost || 0) / p.budget) * 100) : 0}%
+                    </p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">of allocated funds</p>
+                  </div>
+                </div>
+
+                <div className="w-full">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Progress Performance (Actual vs Expected)</p>
+                  <div className="h-[350px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={graphData} margin={{ left: -20, right: 10 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="day" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
+                        <YAxis domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
+                        <Tooltip content={<ChartTip />} />
+                        <Legend wrapperStyle={{fontSize: 11, paddingTop: 10}} />
+                        <Line 
+                          name="Target Path" 
+                          type="monotone" 
+                          dataKey="target" 
+                          stroke="#e2e8f0" 
+                          strokeWidth={2} 
+                          strokeDasharray="5 5" 
+                          dot={false}
+                        />
+                        <Line 
+                          name="Actual Progress" 
+                          type="monotone" 
+                          dataKey="actual" 
+                          stroke={healthGap >= 0 ? C.green : C.blue} 
+                          strokeWidth={4} 
+                          dot={{ r: 6, fill: healthGap >= 0 ? C.green : C.blue, strokeWidth: 2, stroke: '#fff' }}
+                          activeDot={{ r: 8 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+                   <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                        <span className="text-xs text-gray-500">Current Phase</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                        <span className="text-xs text-gray-500">Efficiency High</span>
+                      </div>
+                   </div>
+                   <button 
+                     onClick={() => router.push(`/director/project/${p._id}`)}
+                     className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1.5 transition-all"
+                   >
+                     View Full Project Dossier <ChevronRight size={14} />
+                   </button>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
       </Card>
 
       {/* ── Average Progress Trend (Area Chart) ── */}
@@ -602,11 +695,17 @@ export default function PerformanceAnalytics() {
             <input type="text" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-[#1C4D8D] text-gray-700" />
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-2">
             {["All", "Delayed", "On Track", "initiated", "in-progress", "installation", "testing", "completed", "on-hold"].map(f => (
-              <button key={f} onClick={() => setStatusFilter(f)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${statusFilter === f ? "bg-[#0F2854] text-white" : "bg-white border border-gray-200 text-gray-500 hover:border-[#1C4D8D]"}`}>
-                {f === "All" ? "All" : f === "Delayed" ? "Delayed" : f === "On Track" ? "On Track" : f.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+              <button 
+                key={f} 
+                onClick={() => setStatusFilter(f)}
+                className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm
+                  ${statusFilter === f 
+                    ? "bg-[#0F2854] text-white shadow-[#0F2854]/20 ring-4 ring-[#0F2854]/5" 
+                    : "bg-white border border-gray-100 text-gray-400 hover:border-blue-200 hover:text-blue-600"}`}
+              >
+                {f === "All" ? "All" : f === "Delayed" ? "Delayed" : f === "On Track" ? "On Track" : f.replace(/-/g, " ")}
               </button>
             ))}
           </div>
