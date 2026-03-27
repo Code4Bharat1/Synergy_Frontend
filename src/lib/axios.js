@@ -41,7 +41,11 @@ axiosInstance.interceptors.response.use(
     // We MUST check for 401 here, not 403.
     // 403 means "Forbidden" (you don't have the role permission).
     // 401 means "Unauthorized" (your token expired).
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+  error.response?.status === 401 &&
+  !originalRequest._retry &&
+  !originalRequest.url.includes("/auth/login") // 👈 IMPORTANT
+) {
       originalRequest._retry = true;
 
       if (isRefreshing) {
@@ -78,7 +82,7 @@ console.log("Token refreshed");
 
         return axiosInstance(originalRequest);
       } catch (err) {
-        alert("Session Expired. Please login again.");
+        console.log("Refresh failed"); 
         console.log(err.response);
 
         processQueue(err, null);

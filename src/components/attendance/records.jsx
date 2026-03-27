@@ -63,12 +63,25 @@ function fmtDuration(inIso, outIso) {
 // ── Contract expiry helpers ───────────────────────────────────────────────────
 function isExpired(end) {
   if (!end) return false;
-  return new Date(end) < new Date();
+  const endDate = new Date(end);
+  const today = new Date();
+  // expired if end date's calendar day is before today's calendar day
+  return (
+    endDate.getFullYear() < today.getFullYear() ||
+    (endDate.getFullYear() === today.getFullYear() &&
+      endDate.getMonth() < today.getMonth()) ||
+    (endDate.getFullYear() === today.getFullYear() &&
+      endDate.getMonth() === today.getMonth() &&
+      endDate.getDate() < today.getDate())
+  );
 }
 function daysLeft(end) {
   if (!end) return null;
-  const diff = Math.ceil((new Date(end) - new Date()) / 86400000);
-  return diff;
+  const endDay = new Date(end);
+  endDay.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((endDay - today) / 86400000);
 }
 function expiryLabel(end) {
   if (!end) return null;
@@ -79,10 +92,10 @@ function expiryLabel(end) {
       cls: "bg-red-50 text-red-600 border-red-200",
     };
   if (d === 0)
-    return {
-      text: "Expires today",
-      cls: "bg-red-50 text-red-600 border-red-200",
-    };
+  return {
+    text: "Expired today",
+    cls: "bg-red-50 text-red-600 border-red-200",
+  };
   if (d <= 3)
     return {
       text: `Expires in ${d}d`,
@@ -433,14 +446,17 @@ function RecordDetailPopup({ rec, onClose }) {
             </div>
           )}
 
-          {rec.markedBy && (
-            <p className="text-xs text-gray-400">
-              Marked by:{" "}
-              <span className="font-semibold text-gray-600">
-                {rec.markedBy?.name || rec.markedBy?.email || "—"}
-              </span>
-            </p>
-          )}
+         <p className="text-xs text-gray-400 flex items-center gap-1.5 flex-wrap">
+  <span>Marked by:</span>
+  <span className="font-semibold text-gray-600">
+    {rec.markedBy?.name || rec.markedBy?.email || worker.name || "Unknown"}
+  </span>
+  {rec.markedBy?.role === "worker" && (
+    <span className="text-[10px] bg-blue-50 text-blue-500 border border-blue-100 px-1.5 py-0.5 rounded-full font-bold">
+      Self
+    </span>
+  )}
+</p>
         </div>
 
         <div className="px-5 pb-5">
@@ -629,52 +645,54 @@ export default function SiteAttendanceViewPage() {
   ].filter(Boolean).length;
 
   const exportCSV = () => {
-    const headers = [
-      "Name",
-      "Trade",
-      "Phone",
-      "Contractor",
-      "Site",
-      "Zone",
-      "Date",
-      "Punch In",
-      "Punch Out",
-      "Duration",
-      "Status",
-      "OT (mins)",
-      "Task",
-      "Notes",
-      "Marked By",
-      "Contract End",
-    ];
-    const rows = filtered?.map((r) => [
-      r.worker?.name || "",
-      r.worker?.trade || "",
-      r.worker?.phone || "",
-      r.worker?.contractor || "",
-      r.worker?.site || r.site || "",
-      r.zone || r.worker?.zone || "",
-      fmtDate(r.date),
-      fmtTime(r.punchInTime),
-      fmtTime(r.punchOutTime),
-      fmtDuration(r.punchInTime, r.punchOutTime),
-      r.status || "",
-      r.overtime || 0,
-      r.taskAssigned || "",
-      r.notes || "",
-      r.markedBy?.name || r.markedBy?.email || "",
-      fmtDate(r.worker?.assignmentEnd),
-    ]);
-    const csv = [headers, ...rows]
-      ?.map((row) =>
-        row?.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","),
-      )
-      .join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    a.download = `workers_attendance_${dateFrom}_to_${dateTo}.csv`;
-    a.click();
-  };
+  const headers = [
+    "Name", "Trade", "Phone", "Contractor", "Project", "Site", "Zone", "Date",
+    "Punch In", "Punch Out", "Duration (hrs)", "Status", "OT (mins)", "Task",
+    "Notes", "Marked By", "Contract Start", "Contract End",
+  ];
+  const rows = filtered?.map((r) => [
+    r.worker?.name || "",
+    r.worker?.trade || "",
+    // prefix with tab so Excel treats as text, not scientific notation
+    r.worker?.phone ? `\t${r.worker.phone}` : "",
+    r.worker?.contractor || "",
+    r.project?.name || r.project?.title || "",
+    r.worker?.site || r.site || "",
+    r.zone || r.worker?.zone || "",
+    r.date ? new Date(r.date).toLocaleDateString("en-GB") : "",
+    r.punchInTime
+      ? new Date(r.punchInTime).toLocaleTimeString("en-IN", {
+          timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: true,
+        })
+      : "",
+    r.punchOutTime
+      ? new Date(r.punchOutTime).toLocaleTimeString("en-IN", {
+          timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: true,
+        })
+      : "",
+    r.punchInTime && r.punchOutTime
+      ? (Math.round((new Date(r.punchOutTime) - new Date(r.punchInTime)) / 60000) / 60).toFixed(2)
+      : "",
+    r.status || "",
+    r.overtime || 0,
+    r.taskAssigned || "",
+    r.notes || "",
+    r.markedBy?.name || r.markedBy?.email || "",
+    r.worker?.assignmentStart ? new Date(r.worker.assignmentStart).toLocaleDateString("en-GB") : "",
+    r.worker?.assignmentEnd ? new Date(r.worker.assignmentEnd).toLocaleDateString("en-GB") : "",
+  ]);
+  const csv = [headers, ...rows]
+    .map((row) =>
+      row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","),
+    )
+    .join("\n");
+  // BOM prefix fixes UTF-8 encoding in Excel (prevents â€" corruption)
+  const BOM = "\uFEFF";
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" }));
+  a.download = `workers_attendance_${dateFrom}_to_${dateTo}.csv`;
+  a.click();
+};
 
   return (
     <div className="space-y-5">

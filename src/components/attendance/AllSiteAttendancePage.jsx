@@ -59,26 +59,11 @@ function getDistanceMeters(lat1, lng1, lat2, lng2) {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const STATUSES = [
-  {
-    value: "present",
-    label: "P",
-    full: "Present",
-    cls: "bg-emerald-500 text-white",
-  },
+  { value: "present", label: "P", full: "Present", cls: "bg-emerald-500 text-white" },
   { value: "absent", label: "A", full: "Absent", cls: "bg-red-500 text-white" },
   { value: "late", label: "L", full: "Late", cls: "bg-amber-500 text-white" },
-  {
-    value: "half-day",
-    label: "½",
-    full: "Half Day",
-    cls: "bg-purple-500 text-white",
-  },
-  {
-    value: "on-leave",
-    label: "OL",
-    full: "On Leave",
-    cls: "bg-sky-500 text-white",
-  },
+  { value: "half-day", label: "½", full: "Half Day", cls: "bg-purple-500 text-white" },
+  { value: "on-leave", label: "OL", full: "On Leave", cls: "bg-sky-500 text-white" },
 ];
 
 const TRADES = [
@@ -94,6 +79,7 @@ const TRADES = [
 ];
 
 const DURATION_OPTIONS = [
+  { label: "5 Min (Test)", days: 0.0035 }, // 👈 ADD THIS
   { label: "1 Day", days: 1 },
   { label: "3 Days", days: 3 },
   { label: "1 Week", days: 7 },
@@ -122,6 +108,8 @@ const STATUS_BADGE = {
   late: "bg-amber-50 text-amber-700 border border-amber-100",
   "half-day": "bg-purple-50 text-purple-700 border border-purple-100",
   "on-leave": "bg-sky-50 text-sky-700 border border-sky-100",
+  "deactivated-present": "bg-gray-200 text-gray-500 border border-gray-300",
+  "deactivated-absent": "bg-gray-100 text-gray-400 border border-gray-200",
 };
 
 const STATUS_BORDER = {
@@ -130,6 +118,8 @@ const STATUS_BORDER = {
   late: "border-l-amber-400",
   "half-day": "border-l-purple-400",
   "on-leave": "border-l-sky-400",
+  "deactivated-present": "border-l-gray-300",
+  "deactivated-absent": "border-l-gray-200",
 };
 
 const AVATAR_BG = [
@@ -164,8 +154,12 @@ function fmtDate(d) {
 }
 function toLocalHHMM(iso) {
   if (!iso) return "";
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return new Date(iso).toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 function assignmentLabel(start, end) {
   if (!start || !end) return "Day worker";
@@ -177,7 +171,11 @@ function assignmentLabel(start, end) {
 }
 
 const LATE_AFTER = { h: 9, m: 30 };
-function calcStatus(punchInHHMM, punchOutHHMM) {
+function calcStatus(punchInHHMM, punchOutHHMM, isActive) {
+  if (!isActive) {
+  if (!punchInHHMM) return "deactivated-absent";
+  return "deactivated-present";
+}
   if (!punchInHHMM) return "absent";
   const [inH, inM] = punchInHHMM.split(":")?.map(Number);
   const isLate =
@@ -199,18 +197,35 @@ function to12hr(hhmm) {
 const api = {
   // ─── KEY CHANGE: always passes all=true ───────────────────────────────────
   async getWorkers(site, date, projectId) {
-    const params = new URLSearchParams();
-    if (site) params.set("site", site);
-    if (date) params.set("date", date);
-    if (projectId) params.set("project", projectId);
-    params.set("all", "true"); // ← fetch ALL workers, not just logged-in user's
-    const res = await fetch(`${API_BASE}/site-workers?${params}`, {
-      headers: authHeaders(),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Failed to load workers");
-    return data.workers || [];
-  },
+  const params = new URLSearchParams();
+  if (site) params.set("site", site);
+  if (date) params.set("date", date);
+  if (projectId) params.set("project", projectId);
+  params.set("all", "true");
+
+  // fetch active workers
+  const res = await fetch(`${API_BASE}/site-workers?${params}`, {
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to load workers");
+  const activeWorkers = data.workers || [];
+
+  // also fetch inactive so deactivated show in roster with grey badge
+  const inactiveParams = new URLSearchParams();
+  if (site) inactiveParams.set("site", site);
+  if (projectId) inactiveParams.set("project", projectId);
+  inactiveParams.set("active", "false");
+  inactiveParams.set("all", "true");
+  const inactiveRes = await fetch(`${API_BASE}/site-workers?${inactiveParams}`, {
+    headers: authHeaders(),
+  });
+  const inactiveData = await inactiveRes.json();
+  const inactiveWorkers = inactiveRes.ok ? (inactiveData.workers || []) : [];
+const seen = new Set(activeWorkers.map((w) => w._id));
+  const uniqueInactive = inactiveWorkers.filter((w) => !seen.has(w._id));
+  return [...activeWorkers, ...uniqueInactive];
+},
   async createWorker(payload) {
     const res = await fetch(`${API_BASE}/site-workers`, {
       method: "POST",
@@ -242,22 +257,33 @@ const api = {
     return data;
   },
   async renewWorker(id, durationDays) {
-    const start = new Date();
-    const end = new Date(start);
+  const start = new Date();
+  let end = new Date(start); // ✅ use let ONLY ONCE
+
+  if (Number(durationDays) < 1) {
+    // for test durations like 5 min
+    end.setMinutes(end.getMinutes() + Number(durationDays) * 1440);
+  } else {
     end.setDate(end.getDate() + Number(durationDays));
-    const res = await fetch(`${API_BASE}/site-workers/${id}`, {
-      method: "PATCH",
-      headers: authHeaders(),
-      body: JSON.stringify({
-        assignmentStart: start.toISOString(),
-        assignmentEnd: end.toISOString(),
-        isActive: true,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Failed to renew");
-    return data.worker;
-  },
+
+    // ✅ VERY IMPORTANT (full day validity)
+    end.setHours(23, 59, 59, 999);
+  }
+
+  const res = await fetch(`${API_BASE}/site-workers/${id}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      assignmentStart: start.toISOString(),
+      assignmentEnd: end.toISOString(),
+      isActive: true,
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to renew");
+  return data.worker;
+},
   async lookupByIdProof(idProof) {
     const params = new URLSearchParams({ idProof });
     const res = await fetch(`${API_BASE}/site-workers/lookup?${params}`, {
@@ -381,17 +407,21 @@ function EngineerAttendanceModal({ onClose, defaultProjectId }) {
           const outTs = rec.punchOutTime || rec.punchOut || rec.checkOut;
           if (inTs)
             setPunchInTime(
-              new Date(inTs).toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
+              new Date(inTs).toLocaleTimeString("en-IN", {
+  timeZone: "Asia/Kolkata",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: true,
+}),
             );
           if (outTs)
             setPunchOutTime(
-              new Date(outTs).toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
+              new Date(outTs).toLocaleTimeString("en-IN", {
+  timeZone: "Asia/Kolkata",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: true,
+}),
             );
         }
       })
@@ -487,10 +517,12 @@ function EngineerAttendanceModal({ onClose, defaultProjectId }) {
         const inTs = rec.punchInTime || rec.punchIn || rec.checkIn;
         if (inTs)
           setPunchInTime(
-            new Date(inTs).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
+            new Date(inTs).toLocaleTimeString("en-IN", {
+  timeZone: "Asia/Kolkata",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: true,
+}),
           );
         setSuccess("Punched in successfully! ✅");
       } else {
@@ -498,10 +530,12 @@ function EngineerAttendanceModal({ onClose, defaultProjectId }) {
         const outTs = rec.punchOutTime || rec.punchOut || rec.checkOut;
         if (outTs)
           setPunchOutTime(
-            new Date(outTs).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
+            new Date(outTs).toLocaleTimeString("en-IN", {
+  timeZone: "Asia/Kolkata",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: true,
+}),
           );
         setSuccess("Punched out successfully! 🏁");
       }
@@ -546,11 +580,12 @@ function EngineerAttendanceModal({ onClose, defaultProjectId }) {
         <div className="p-4 space-y-4">
           <div className="text-center py-1">
             <div className="text-3xl font-bold tabular-nums text-extra-darkblue">
-              {now.toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              })}
+              {now.toLocaleTimeString("en-IN", {
+  timeZone: "Asia/Kolkata",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: true,
+})}
             </div>
             <div className="text-xs text-gray-400 mt-1">
               {now.toLocaleDateString("en-US", {
@@ -1217,7 +1252,11 @@ if (!form.idProof.trim()) {
                 <p className="text-amber-500 mt-0.5">
                   {form.durationMode === "custom"
                     ? form.customEnd ? `From ${fmtDate(form.customStart || todayISO())} to ${fmtDate(form.customEnd)}` : "Pick an end date above"
-                    : form.durationDays === 1 ? "Today only." : `Active for ${form.durationDays} days from today.`}
+                    : form.durationDays < 1
+  ? "Active for few minutes (test mode)"
+  : form.durationDays === 1
+  ? "Today only."
+  : `Active for ${form.durationDays} days from today.`}
                 </p>
               </div>
             </div>
@@ -1421,7 +1460,7 @@ function DeactivateModal({ worker, onClose, onDeactivated }) {
     setSaving(true);
     setError("");
     try {
-      await api.deactivateWorker(worker._id);
+      await api.deactivateWorker(worker.assignmentId || worker._id);
       onDeactivated(worker._id, reason, notes);
       onClose();
     } catch (err) {
@@ -1511,10 +1550,16 @@ function WorkerDetailPopup({ worker, record, onClose, onChange, onAutoSave, onDe
   }, [worker._id]);
 
   const trade = worker.trade || "general";
-  const tradeCls = TRADE_COLORS[trade] || TRADE_COLORS.general;
-  const autoStatus = record.status || calcStatus(record.punchInTime, record.punchOutTime);
+const tradeCls = TRADE_COLORS[trade] || TRADE_COLORS.general;
+const isDeactivated = worker.isActive === false;
+const autoStatus = isDeactivated
+  ? (record.punchInTime ? "deactivated-present" : "deactivated-absent")
+  : (record.status || calcStatus(record.punchInTime, record.punchOutTime, true));
+
   const statusCls = STATUS_BADGE[autoStatus] || STATUS_BADGE.absent;
-  const statusLabel = STATUSES.find((s) => s.value === autoStatus)?.full || "Absent";
+  const statusLabel = isDeactivated
+  ? "Inactive"
+  : (STATUSES.find((s) => s.value === autoStatus)?.full || "Absent");
   const span = assignmentLabel(worker.assignmentStart, worker.assignmentEnd);
 
   return (
@@ -1568,17 +1613,24 @@ function WorkerDetailPopup({ worker, record, onClose, onChange, onAutoSave, onDe
         <div className="p-4 space-y-3">
           <div>
             <label className="text-xs font-semibold text-black block mb-2">Attendance Status</label>
-            <div className="grid grid-cols-3 gap-2">
-              {STATUSES?.map((s) => {
-                const isSelected = (record.status || calcStatus(record.punchInTime, record.punchOutTime)) === s.value;
-                return (
-                  <button key={s.value} onClick={() => { const updated = { ...record, status: s.value }; onChange(updated); onAutoSave(updated); }}
-                    className={`py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 ${isSelected ? s.cls + " border-transparent shadow-sm scale-[1.02]" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"}`}>
-                    {s.full}
-                  </button>
-                );
-              })}
-            </div>
+            <div className={`grid grid-cols-3 gap-2 ${isDeactivated ? "opacity-50 pointer-events-none" : ""}`}>
+  {STATUSES?.map((s) => {
+    const isSelected = autoStatus === s.value;
+    return (
+      <button key={s.value}
+        disabled={isDeactivated}
+        onClick={() => {
+          if (isDeactivated) return;
+          const updated = { ...record, status: s.value };
+          onChange(updated);
+          onAutoSave(updated);
+        }}
+        className={`py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 ${isSelected ? s.cls + " border-transparent shadow-sm scale-[1.02]" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"}`}>
+        {s.full}
+      </button>
+    );
+  })}
+</div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -1611,10 +1663,19 @@ function WorkerDetailPopup({ worker, record, onClose, onChange, onAutoSave, onDe
 function WorkerCard({ worker, record, onClick }) {
   const trade = worker.trade || "general";
   const tradeCls = TRADE_COLORS[trade] || TRADE_COLORS.general;
-  const autoStatus = record.status || calcStatus(record.punchInTime, record.punchOutTime);
-  const statusCls = STATUS_BADGE[autoStatus] || STATUS_BADGE.absent;
-  const statusLabel = STATUSES.find((s) => s.value === autoStatus)?.full || "Absent";
-  const borderCls = STATUS_BORDER[autoStatus] || "border-l-gray-200";
+ const isDeactivated = worker.isActive === false;
+const autoStatus = isDeactivated
+  ? (record.punchInTime ? "deactivated-present" : "deactivated-absent")
+  : (record.status || calcStatus(record.punchInTime, record.punchOutTime, true));
+const statusCls = isDeactivated
+  ? "bg-gray-100 text-gray-400 border border-gray-200"
+  : (STATUS_BADGE[autoStatus] || STATUS_BADGE.absent);
+const statusLabel = isDeactivated
+  ? (record.punchInTime ? "Was Present · Inactive" : "Inactive")
+  : (STATUSES.find((s) => s.value === autoStatus)?.full || "Absent");
+const borderCls = isDeactivated ? "border-l-gray-300" : (STATUS_BORDER[autoStatus] || "border-l-gray-200");
+
+
 
   return (
     <button onClick={onClick}
@@ -1871,7 +1932,7 @@ export default function AllSiteAttendancePage() {
         init[w._id] = {
           workerId: w._id,
           assignmentId: w.assignmentId || null,
-          status: isForSelectedDate && att?.status ? att.status : calcStatus(inTime, outTime),
+          status: isForSelectedDate && att?.status ? att.status : calcStatus(inTime, outTime, w.isActive !== false),
           punchInTime: inTime,
           punchOutTime: outTime,
           zone: att?.zone || w.zone || "",
@@ -1935,13 +1996,18 @@ export default function AllSiteAttendancePage() {
     showToast(`${worker.name} added to roster`, "success");
   };
 
-  const handleDeactivated = (id) => {
-    const deactivated = workers.find((w) => w._id === id);
-    setWorkers((prev) => prev.filter((w) => w._id !== id));
-    setRecords((prev) => { const n = { ...prev }; delete n[id]; return n; });
-    if (deactivated) setInactiveWorkers((prev) => [{ ...deactivated, isActive: false }, ...prev]);
-    showToast("Worker deactivated — find them in Inactive Workers below", "success");
-  };
+const handleDeactivated = (id) => {
+  // update isActive in-place so the card immediately shows "Inactive" badge
+  setWorkers((prev) => prev.map((w) => w._id === id ? { ...w, isActive: false } : w));
+  setRecords((prev) => ({
+    ...prev,
+    [id]: {
+      ...prev[id],
+      status: prev[id]?.punchInTime ? "deactivated-present" : "deactivated-absent",
+    },
+  }));
+  showToast("Worker deactivated", "success");
+};
 
   const handleRenewed = (updatedWorker) => {
     const wasInactive = inactiveWorkers.some((w) => w._id === updatedWorker._id);
@@ -1980,7 +2046,7 @@ export default function AllSiteAttendancePage() {
 
   const filtered = workers.filter((w) => {
     const ms = [w.name, w.phone, w.trade, w.contractor].some((f) => f?.toLowerCase().includes(search.toLowerCase()));
-    const mSt = filterStatus === "all" || calcStatus(records[w._id]?.punchInTime, records[w._id]?.punchOutTime) === filterStatus;
+    const mSt = filterStatus === "all" || calcStatus(records[w._id]?.punchInTime, records[w._id]?.punchOutTime, w.isActive !== false) === filterStatus;
     const mSite = !site.trim() || (w.site || "").toLowerCase().includes(site.toLowerCase());
     return ms && mSt && mSite;
   });
