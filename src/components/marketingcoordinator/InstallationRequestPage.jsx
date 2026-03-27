@@ -443,7 +443,12 @@ export default function InstallationRequestPage() {
                   return (
                     <button
                       key={eng._id}
-                      onClick={() => upd("engineer", eng)}
+                      onClick={() =>
+  upd(
+    "engineer",
+    form.engineer?._id === eng._id ? null : eng
+  )
+}
                       className={[
                         "rounded-xl p-3.5 text-left border transition-all",
                         isSelected

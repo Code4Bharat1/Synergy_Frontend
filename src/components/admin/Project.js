@@ -236,7 +236,7 @@ const toPayload = (f) => ({
 // "one character at a time" bug: when FormFields was defined inside the render
 // function, React treated it as a new component type on every render and
 // unmounted+remounted it (and its inputs) after each keystroke.
-function FormFields({ form, setForm, users }) {
+function FormFields({ form, setForm, users ,isEditMode}) {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const marketingExecs = users.filter((u) => u.role === "marketingExecutive");
@@ -354,37 +354,38 @@ function FormFields({ form, setForm, users }) {
           Team Assignment
         </p>
       </div>
-
-      <Field label="Marketing Executive">
-        <select
-          className={inputCls}
-          value={form.assignedMarketingExecutive}
-          onChange={set("assignedMarketingExecutive")}
-        >
-          <option value="">— None —</option>
-          {marketingExecs?.map((u) => (
-            <option key={u._id} value={u._id}>
-              {u.name || u.email}
-            </option>
-          ))}
-        </select>
-      </Field>
-
-      <Field label="Installation In-Charge">
-        <select
-          className={inputCls}
-          value={form.assignedInstallationIncharge}
-          onChange={set("assignedInstallationIncharge")}
-        >
-          <option value="">— None —</option>
-          {incharges?.map((u) => (
-            <option key={u._id} value={u._id}>
-              {u.name || u.email}
-            </option>
-          ))}
-        </select>
-      </Field>
-
+  {!isEditMode && (
+  <Field label="Marketing Executive">
+    <select
+      className={inputCls}
+      value={form.assignedMarketingExecutive}
+      onChange={set("assignedMarketingExecutive")}
+    >
+      <option value="">— None —</option>
+      {marketingExecs?.map((u) => (
+        <option key={u._id} value={u._id}>
+          {u.name || u.email}
+        </option>
+      ))}
+    </select>
+  </Field>
+)}
+{!isEditMode && (
+  <Field label="Installation In-Charge">
+    <select
+      className={inputCls}
+      value={form.assignedInstallationIncharge}
+      onChange={set("assignedInstallationIncharge")}
+    >
+      <option value="">— None —</option>
+      {incharges?.map((u) => (
+        <option key={u._id} value={u._id}>
+          {u.name || u.email}
+        </option>
+      ))}
+    </select>
+  </Field>
+)}
       <Field
         label={`Engineers${form.assignedEngineers.length > 0 ? ` (${form.assignedEngineers.length} selected)` : ""}`}
       >
@@ -559,7 +560,7 @@ export default function ProjectManagement() {
       {/* Create Modal */}
       {modal === "create" && (
         <Modal title="Create Project" onClose={() => !saving && setModal(null)}>
-          <FormFields form={form} setForm={setForm} users={users} />
+          <FormFields form={form} setForm={setForm} users={users} isEditMode={false} />
           <button
             onClick={handleCreate}
             disabled={saving}
@@ -575,7 +576,7 @@ export default function ProjectManagement() {
       {/* Edit Modal */}
       {modal === "edit" && (
         <Modal title="Edit Project" onClose={() => !saving && setModal(null)}>
-          <FormFields form={form} setForm={setForm} users={users} />
+          <FormFields form={form} setForm={setForm} users={users} isEditMode={true} />
           <button
             onClick={handleEdit}
             disabled={saving}

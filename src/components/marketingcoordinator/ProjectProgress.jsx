@@ -189,6 +189,15 @@ function InfoTile({ icon: Ic, label, value }) {
   );
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api-synergy.nexcorealliance.com/api/v1";
+
+const getFileUrl = (url) => {
+  if (!url) return null;
+  let clean = url.replace(/\/undefined\//g, "/").replace(/^undefined\//, "").replace(/^\/+/, "");
+  if (clean.startsWith("http")) return clean;
+  return `${API_BASE.replace("/api/v1", "")}/${clean}`;
+};
+
 // ── File Components ───────────────────────────
 function FileRow({ file }) {
   const rawName = file._displayName || file.originalname || file.filename || file.name || file.fileName || "Unnamed file";
@@ -197,7 +206,8 @@ function FileRow({ file }) {
   const ext = getExt(displayName).toUpperCase();
   const size = fmtSize(file.size || file.fileSize);
   const uploadedAt = (file.createdAt || file.uploadedAt) ? fmt(file.createdAt || file.uploadedAt) : null;
-  const fileUrl = file.url || file.fileUrl || file.path || null;
+  const fileUrl = getFileUrl(file.url || file.fileUrl || file.path); 
+console.log("file object:", file);
 
   const FileIc = () => {
     const e = getExt(displayName);

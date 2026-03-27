@@ -273,7 +273,7 @@ function ProjectCard({ p }) {
 
 // ─── Main Component ────────────────────────────────────────────────────────
 export default function ProgressMonitoring() {
-  const [tab, setTab] = useState("logs");
+  
   const [projects, setProjects] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -535,108 +535,12 @@ export default function ProgressMonitoring() {
 
         {/* ── Logs + Attendance tabs ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          {/* Tab bar */}
-          <div className="px-4 sm:px-5 border-b border-gray-100 flex gap-0">
-            {[
-              { key: "logs", label: "Daily Progress Logs" },
-              { key: "attendance", label: "Attendance Summary" },
-            ]?.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`px-1 py-3.5 mr-5 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
-                  tab === t.key
-                    ? "border-blue-800 text-blue-950"
-                    : "border-transparent text-gray-400 hover:text-gray-600"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          
 
-          {/* DAILY LOGS — Desktop */}
-          {tab === "logs" && (
-            <>
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-slate-50">
-                      {["Date", "Project", "Engineer", "Task", "Hours"]?.map(
-                        (h) => (
-                          <th
-                            key={h}
-                            className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap"
-                          >
-                            {h}
-                          </th>
-                        ),
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {LOGS?.map((log, i) => (
-                      <tr
-                        key={i}
-                        className="border-t border-gray-50 hover:bg-slate-50/60 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-xs font-semibold text-gray-400 whitespace-nowrap">
-                          {log.date}
-                        </td>
-                        <td className="px-4 py-3 text-xs font-bold text-blue-500">
-                          {log.project}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <Avatar name={log.engineer} size="sm" />
-                            <span className="text-xs font-semibold text-gray-700 whitespace-nowrap">
-                              {log.engineer}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-500 max-w-xs truncate">
-                          {log.task}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">
-                            {log.hours}h
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* DAILY LOGS — Mobile */}
-              <div className="sm:hidden flex flex-col divide-y divide-gray-50">
-                {LOGS?.map((log, i) => (
-                  <div key={i} className="px-4 py-3.5">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-bold text-blue-500">
-                        {log.project}
-                      </span>
-                      <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">
-                        {log.hours}h
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-700 leading-snug mb-1.5">
-                      {log.task}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                      <Avatar name={log.engineer} size="sm" />
-                      <span>{log.engineer}</span>
-                      <span className="text-gray-200">·</span>
-                      <span>{log.date}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+          
 
           {/* ATTENDANCE — Desktop */}
-          {tab === "attendance" && (
+       
             <>
               {loading ? (
                 <div className="p-5">
@@ -644,100 +548,86 @@ export default function ProgressMonitoring() {
                 </div>
               ) : (
                 <>
-                  <div className="hidden sm:block">
-                    <div className="grid grid-cols-4 gap-0 px-5 py-3 bg-slate-50 border-b border-gray-50">
-                      {[
-                        "Engineer",
-                        "Attendance Rate",
-                        "Days",
-                        "Breakdown",
-                      ]?.map((h) => (
-                        <p
-                          key={h}
-                          className="text-[10px] font-bold text-gray-400 uppercase tracking-wider m-0"
-                        >
-                          {h}
-                        </p>
-                      ))}
-                    </div>
-                    {attendance.length === 0 && (
-                      <p className="text-sm text-gray-400 text-center py-10">
-                        No attendance records found.
-                      </p>
-                    )}
-                    {attendance?.map((a, i) => {
-                      const rate =
-                        a.total > 0
-                          ? Math.round((a.present / a.total) * 100)
-                          : 0;
-                      const barCls =
-                        rate >= 90
-                          ? "bg-blue-800"
-                          : rate >= 80
-                            ? "bg-blue-400"
-                            : "bg-orange-500";
-                      const textCls =
-                        rate >= 90
-                          ? "text-blue-800"
-                          : rate >= 80
-                            ? "text-blue-500"
-                            : "text-orange-500";
-                      return (
-                        <div
-                          key={a.name + i}
-                          className={`grid grid-cols-4 gap-0 px-5 py-4 items-center hover:bg-slate-50/60 transition-colors ${i < attendance.length - 1 ? "border-b border-gray-50" : ""}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Avatar name={a.name} />
-                            <div>
-                              <p className="text-sm font-bold text-blue-950">
-                                {a.name}
-                              </p>
-                              <p className="text-xs text-gray-400 capitalize">
-                                {a.role}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="pr-6">
-                            <div className="flex justify-between mb-1.5">
-                              <span className="text-[10px] text-gray-400 font-semibold">
-                                Rate
-                              </span>
-                              <span
-                                className={`text-xs font-extrabold ${textCls}`}
-                              >
-                                {rate}%
-                              </span>
-                            </div>
-                            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full ${barCls} rounded-full transition-all duration-500`}
-                                style={{ width: `${rate}%` }}
-                              />
-                            </div>
-                          </div>
-                          <p className="text-xs font-semibold text-gray-700">
-                            {a.present} / {a.total} days
-                          </p>
-                          <div className="flex gap-1.5 flex-wrap">
-                            <span className="bg-green-50 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                              {a.present} Present
-                            </span>
-                            {a.absent > 0 && (
-                              <span className="bg-red-50 text-red-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                                {a.absent} Absent
-                              </span>
-                            )}
-                            {a.late > 0 && (
-                              <span className="bg-amber-50 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                                {a.late} Late
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                <div className="overflow-x-auto">
+  <table className="w-full border-collapse text-sm">
+    <thead>
+      <tr className="bg-slate-50">
+        {["Engineer", "Attendance %", "Days", "Breakdown"]?.map((h) => (
+          <th
+            key={h}
+            className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider"
+          >
+            {h}
+          </th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {attendance?.map((a, i) => {
+        const rate =
+          a.total > 0 ? Math.round((a.present / a.total) * 100) : 0;
+
+        return (
+          <tr
+            key={a.name + i}
+            className="border-t border-gray-50 hover:bg-blue-50/30"
+          >
+            {/* Engineer */}
+            <td className="px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Avatar name={a.name} size="sm" />
+                <div>
+                  <p className="text-xs font-bold text-blue-950">
+                    {a.name}
+                  </p>
+                  <p className="text-[10px] text-gray-400">
+                    {a.role}
+                  </p>
+                </div>
+              </div>
+            </td>
+
+            {/* % */}
+            <td className="px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <ProgressBar value={rate} />
+                </div>
+                <span className="text-xs font-bold w-8 text-right">
+                  {rate}%
+                </span>
+              </div>
+            </td>
+
+            {/* Days */}
+            <td className="px-4 py-3 text-xs font-semibold">
+              {a.present} / {a.total}
+            </td>
+
+            {/* Breakdown */}
+            <td className="px-4 py-3">
+              <div className="flex gap-1.5 flex-wrap">
+                <span className="bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded-full">
+                  {a.present} Present
+                </span>
+                {a.absent > 0 && (
+                  <span className="bg-red-50 text-red-700 text-xs px-2 py-0.5 rounded-full">
+                    {a.absent} Absent
+                  </span>
+                )}
+                {a.late > 0 && (
+                  <span className="bg-amber-50 text-amber-700 text-xs px-2 py-0.5 rounded-full">
+                    {a.late} Late
+                  </span>
+                )}
+              </div>
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>
 
                   {/* ATTENDANCE — Mobile */}
                   <div className="sm:hidden flex flex-col divide-y divide-gray-50">
@@ -814,7 +704,7 @@ export default function ProgressMonitoring() {
                 </>
               )}
             </>
-          )}
+          
         </div>
 
         {/* Footer */}

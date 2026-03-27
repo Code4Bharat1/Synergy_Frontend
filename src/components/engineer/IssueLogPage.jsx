@@ -252,9 +252,9 @@ export default function IssueLogPage() {
                 >
                   <option value="">Select department</option>
                   {DEPARTMENTS?.map((d) => (
-                    <option key={d.id} value={d.name}>
-                      {d.name}
-                    </option>
+                    <option key={d.id} value={d.id}>
+  {d.name}
+</option>
                   ))}
                 </select>
               </div>

@@ -265,6 +265,7 @@ export default function TrialQC() {
   const [savingHandover, setSavingHandover] = useState(false);
   const [handoverModal, setHandoverModal] = useState(false);
   const [handoverComment, setHandoverComment] = useState("");
+  const [isReady, setIsReady] = useState(false);
 
   // ── Fetch projects ──────────────────────────────────────────────────────────
   const fetchProjects = useCallback(async () => {
@@ -317,12 +318,34 @@ export default function TrialQC() {
       setRecord(null);
     } finally {
       setRecordLoading(false);
+      setIsReady(true);
     }
   }, []);
 
   useEffect(() => {
     if (selectedId) fetchRecord(selectedId);
   }, [selectedId, fetchRecord]);
+
+  useEffect(() => {
+    if (!selectedId || !isReady) return;
+
+  const timeout = setTimeout(() => {
+    autoSaveQC();
+  }, 800); // debounce
+
+  return () => clearTimeout(timeout);
+}, [qcState, remarks]);
+
+useEffect(() => {
+  if (!selectedId || !record || !isReady) return;
+
+  const timeout = setTimeout(() => {
+    autoSaveTrial();
+  }, 800);
+
+  return () => clearTimeout(timeout);
+}, [trialDetails, trialDate]);
+
 
   // ── Save QC Checks ──────────────────────────────────────────────────────────
   const saveQcChecks = async () => {
@@ -357,6 +380,36 @@ export default function TrialQC() {
       setSavingQc(false);
     }
   };
+
+  const autoSaveQC = async () => {
+  try {
+    const user = getCurrentUser();
+    const qcChecks = stateToDbQc(qcState);
+if (!record) {
+  const user = getCurrentUser();
+
+  const res = await apiFetch("/trial-qc/create", {
+    method: "POST",
+    body: {
+      project: selectedId,
+      installationIncharge: user._id || user.id,
+      trialDate: trialDate || new Date().toISOString(), // ✅ FIX
+      qcChecks,
+      remarks,
+    },
+  });
+
+  setRecord(res?.data || res);
+}else {
+      await apiFetch(`/trial-qc/update/${record._id}`, {
+        method: "PATCH",
+        body: { qcChecks, remarks },
+      });
+    }
+  } catch (err) {
+    console.error("Auto-save QC failed", err);
+  }
+};
 
   // ── Save Trial Details ──────────────────────────────────────────────────────
   const saveTrialDetails = async () => {
@@ -394,7 +447,22 @@ export default function TrialQC() {
       setSavingTrial(false);
     }
   };
+const autoSaveTrial = async () => {
+  try {
+    if (!record) return;
 
+    await apiFetch(`/trial-qc/update/${record._id}`, {
+      method: "PATCH",
+      body: {
+        trialDate,
+        trialDetails,
+        remarks,
+      },
+    });
+  } catch (err) {
+    console.error("Auto-save Trial failed", err);
+  }
+};
   // ── Approve ─────────────────────────────────────────────────────────────────
   const submitApproval = async () => {
     if (!record) return;

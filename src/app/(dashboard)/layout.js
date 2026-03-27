@@ -45,7 +45,7 @@ const ROLE_NAVIGATION = {
     { label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
     { label: "User Management", icon: Users, href: "/admin/user" },
     { label: "Projects", icon: FolderKanban, href: "/admin/project" },
-    { label: "Role Assignment", icon: ShieldCheck, href: "/admin/role" },
+    // { label: "Role Assignment", icon: ShieldCheck, href: "/admin/role" },
     { label: "Document Control", icon: FileText, href: "/admin/document" },
     {
       label: "Staff Attendance",
@@ -236,11 +236,11 @@ const ROLE_NAVIGATION = {
       icon: LayoutDashboard,
       label: "Dashboard",
     },
-    {
-      href: "/marketingCoordinator/documents",
-      icon: FileText,
-      label: "Documents",
-    },
+    // {
+    //   href: "/marketingCoordinator/documents",
+    //   icon: FileText,
+    //   label: "Documents",
+    // },
       {
       href: "/marketingCoordinator/ProjectProgress",
       icon: ChartNoAxesCombined,

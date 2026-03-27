@@ -146,6 +146,7 @@ function ProjectCard({
   pChecks,
   onToggle,
   onProceed,
+  onSave,
   proceeding,
   proceeded,
 }) {
@@ -245,28 +246,42 @@ function ProjectCard({
       </div>
 
       {/* Proceed button */}
-      {!proceeded &&
-        (isUnassigned ? (
-          <div className="w-full py-2.5 rounded-xl text-xs font-bold text-center bg-gray-100 text-gray-400 cursor-not-allowed border border-dashed border-gray-200">
-            Assign an engineer first
-          </div>
-        ) : (
-          <button
-            onClick={() => onProceed(project.id)}
-            disabled={!allDone || proceeding}
-            className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
-              allDone && !proceeding
-                ? "bg-blue-800 text-white hover:bg-blue-900 shadow-md shadow-blue-200"
-                : "bg-gray-100 text-gray-400 cursor-not-allowed"
-            }`}
-          >
-            {proceeding
-              ? "Processing…"
-              : allDone
-                ? "✓ Proceed to Engineer"
-                : `Complete all checks (${doneCount}/4)`}
-          </button>
-        ))}
+      {/* Actions */}
+{!proceeded &&
+  (isUnassigned ? (
+    <div className="w-full py-2.5 rounded-xl text-xs font-bold text-center bg-gray-100 text-gray-400 cursor-not-allowed border border-dashed border-gray-200">
+      Assign an engineer first
+    </div>
+  ) : (
+    <div className="flex flex-col gap-2">
+      
+      {/* SAVE BUTTON */}
+      <button
+        onClick={() => onSave(project.id)}
+        className="w-full py-2.5 rounded-xl text-xs font-semibold bg-gray-200 hover:bg-gray-300 text-gray-700"
+      >
+        Save Draft
+      </button>
+
+      {/* PROCEED BUTTON */}
+      <button
+        onClick={() => onProceed(project.id)}
+        disabled={!allDone || proceeding}
+        className={`w-full py-2.5 rounded-xl text-sm font-bold ${
+          allDone && !proceeding
+            ? "bg-blue-800 text-white"
+            : "bg-gray-100 text-gray-400 cursor-not-allowed"
+        }`}
+      >
+        {proceeding
+          ? "Processing…"
+          : allDone
+            ? "✓ Proceed to Engineer"
+            : `Complete all checks (${doneCount}/4)`}
+      </button>
+
+    </div>
+  ))}
 
       {proceeded && (
         <div className="w-full py-2.5 rounded-xl text-sm font-bold text-center bg-green-50 text-green-700 border border-green-200">
@@ -287,7 +302,7 @@ export default function EligibilityChecklist() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [toast, setToast] = useState(null);
-
+const [isLoaded, setIsLoaded] = useState(false);
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
@@ -298,47 +313,75 @@ export default function EligibilityChecklist() {
       .get("/projects")
       .then(({ data }) => {
         const mapped = data?.map((p) => ({
-          id: p._id,
-          name: p.name,
-          client: p.clientName,
-          engineer:
-            p.assignedEngineers?.length > 0
-              ? p.assignedEngineers[0].name
-              : "Unassigned",
-          submitted: new Date(p.createdAt).toLocaleDateString("en-GB", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          }),
-        }));
+  id: p._id.toString(),        // ✅ internal (DO NOT REMOVE)
+  projectCode: p.projectId,    // ✅ this is PA-001
+  name: p.name,
+  client: p.clientName,
+  engineer:
+    p.assignedEngineers?.length > 0
+      ? p.assignedEngineers[0].name
+      : "Unassigned",
+  submitted: new Date(p.createdAt).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }),
+}));
         setProjects(mapped);
+const localDraft = JSON.parse(
+  localStorage.getItem("eligibilityChecksDraft") || "{}"
+);
 
-        const savedChecks = {};
-        const savedProceeded = {};
-        data.forEach((p) => {
-          savedChecks[p._id] = p.eligibilityChecks || {
-            material: false,
-            foundation: false,
-            customer: false,
-            acceptance: false,
-          };
-          savedProceeded[p._id] = p.eligibilityStatus === "proceeded";
-        });
-        setChecks(savedChecks);
-        setProceeded(savedProceeded);
+const savedChecks = {};
+const savedProceeded = {};
+
+data.forEach((p) => {
+const defaultChecks = {
+  material: false,
+  foundation: false,
+  customer: false,
+  acceptance: false,
+};
+
+savedChecks[p._id] = {
+  ...defaultChecks,
+  ...(p.eligibilityChecks || {}),
+  ...(localDraft[p._id] || {}), // ✅ always override last
+};
+
+  savedProceeded[p._id] = p.eligibilityStatus === "proceeded";
+});
+
+setChecks(savedChecks);
+setProceeded(savedProceeded);
       })
       .catch((err) => setError(err.response?.data?.message || err.message))
       .finally(() => setLoading(false));
   }, []);
 
-  const toggle = (projectId, key) => {
-    const project = projects.find((p) => p.id === projectId);
-    if (proceeded[projectId] || project?.engineer === "Unassigned") return;
-    setChecks((prev) => ({
-      ...prev,
-      [projectId]: { ...prev[projectId], [key]: !prev[projectId][key] },
-    }));
-  };
+ const toggle = (projectId, key) => {
+  const project = projects.find((p) => p.id === projectId);
+  if (proceeded[projectId] || project?.engineer === "Unassigned") return;
+
+  setChecks((prev) => ({
+    ...prev,
+    [projectId]: {
+      ...prev[projectId],
+      [key]: !prev[projectId][key],
+    },
+  }));
+};
+const handleSaveDraft = (projectId) => {
+  const draft = JSON.parse(
+    localStorage.getItem("eligibilityChecksDraft") || "{}"
+  );
+
+  draft[projectId] = checks[projectId];
+
+  localStorage.setItem("eligibilityChecksDraft", JSON.stringify(draft));
+
+  showToast("Draft saved!");
+};
 
   const handleProceed = async (projectId) => {
     const project = projects.find((p) => p.id === projectId);
@@ -352,6 +395,12 @@ export default function EligibilityChecklist() {
         checks: checks[projectId],
       });
       setProceeded((prev) => ({ ...prev, [projectId]: true }));
+      // ✅ remove draft after final save
+const draft = JSON.parse(
+  localStorage.getItem("eligibilityChecksDraft") || "{}"
+);
+delete draft[projectId];
+localStorage.setItem("eligibilityChecksDraft", JSON.stringify(draft));
       showToast("Project forwarded to engineer successfully!");
     } catch (err) {
       showToast(err.response?.data?.message || err.message, "error");
@@ -612,14 +661,14 @@ export default function EligibilityChecklist() {
 
                     return (
                       <tr
-                        key={project.id}
+                        key={project.projectCode}
                         className={`border-t border-gray-50 transition-colors
                           ${isUnassigned ? "bg-amber-50/40 hover:bg-amber-50/60" : i % 2 === 1 ? "bg-slate-50/50 hover:bg-blue-50/30" : "hover:bg-blue-50/30"}`}
                       >
                         <td className="px-4 py-3.5">
                           <p className="text-gray-800 font-medium text-xs mt-0.5">
                             {project.id && (
-                              <span className="text-blue-700 mr-2">{project.id}</span>
+                              <span className="text-blue-700 mr-2">{project.projectCode}</span>
                             )}
                             {project.name}
                           </p>
@@ -734,22 +783,28 @@ export default function EligibilityChecklist() {
                               Assign first
                             </span>
                           ) : (
-                            <button
-                              onClick={() => handleProceed(project.id)}
-                              disabled={!allDone || proceeding === project.id}
-                              title={
-                                !allDone
-                                  ? "Complete all checks first"
-                                  : "Forward to engineer"
-                              }
-                              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
-                                allDone && proceeding !== project.id
-                                  ? "bg-blue-800 text-white hover:bg-blue-900 shadow-sm"
-                                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                              }`}
-                            >
-                              {proceeding === project.id ? "..." : "Proceed"}
-                            </button>
+                            <div className="flex flex-col gap-2 items-center">
+  {/* SAVE BUTTON */}
+  <button
+    onClick={() => handleSaveDraft(project.id)}
+    className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-200 hover:bg-gray-300 text-gray-700"
+  >
+    Save
+  </button>
+
+  {/* PROCEED BUTTON */}
+  <button
+    onClick={() => handleProceed(project.id)}
+    disabled={!allDone || proceeding === project.id}
+    className={`px-4 py-2 rounded-xl text-xs font-bold ${
+      allDone && proceeding !== project.id
+        ? "bg-blue-800 text-white"
+        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+    }`}
+  >
+    {proceeding === project.id ? "..." : "Proceed"}
+  </button>
+</div>
                           )}
                         </td>
                       </tr>
@@ -777,6 +832,7 @@ export default function EligibilityChecklist() {
                 onProceed={handleProceed}
                 proceeding={proceeding === project.id}
                 proceeded={proceeded[project.id]}
+                onSave={handleSaveDraft}
               />
             ))
           )}

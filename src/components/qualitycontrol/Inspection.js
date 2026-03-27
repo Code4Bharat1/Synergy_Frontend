@@ -419,6 +419,7 @@ export default function QCInspection() {
   const [existingReport, setExistingReport] = useState(null); // holds loaded report
   const [reportLoading, setReportLoading] = useState(false);
   const [reportChecked, setReportChecked] = useState(false); // whether we've checked for existing
+  const [saving, setSaving] = useState(false);
 
   const getCurrentUserId = () => {
     try {
@@ -441,6 +442,30 @@ export default function QCInspection() {
       .catch(() => setProjects([]))
       .finally(() => setProjLoad(false));
   }, []);
+  
+  useEffect(() => {
+  if (!selected) return;
+
+  setSaving(true);
+
+  const timeout = setTimeout(() => {
+    const draft = {
+      project: selected._id,
+      checks,
+      remarks,
+      decision,
+    };
+
+    localStorage.setItem(
+      `qc-draft-${selected._id}`,
+      JSON.stringify(draft)
+    );
+
+    setSaving(false);
+  }, 500);
+
+  return () => clearTimeout(timeout);
+}, [checks, remarks, decision, selected]);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -457,33 +482,43 @@ export default function QCInspection() {
 
   // When project is selected — reset form and check if a QC report exists
   const handleSelectProject = async (proj) => {
-    setSelected(proj);
+  setSelected(proj);
+  setExistingReport(null);
+  setReportChecked(false);
+
+  // ✅ LOAD FROM LOCAL STORAGE
+  const savedDraft = localStorage.getItem(`qc-draft-${proj._id}`);
+
+  if (savedDraft) {
+    const parsed = JSON.parse(savedDraft);
+    setChecks(parsed.checks || freshChecks());
+    setRemarks(parsed.remarks || "");
+    setDecision(parsed.decision || null);
+  } else {
     setChecks(freshChecks());
     setRemarks("");
     setDecision(null);
-    setExistingReport(null);
-    setReportChecked(false);
+  }
 
-    // Check for existing QC report for this project
-    setReportLoading(true);
-    try {
-      const res = await axiosInstance.get(
-        `/report/view-qc?project=${proj._id}`,
-      );
-      const reports = Array.isArray(res.data)
-        ? res.data
-        : (res.data.data ?? []);
-      if (reports.length > 0) {
-        // Store the most recent report but don't load it yet — show button instead
-        setExistingReport(reports[0]);
-      }
-    } catch {
-      // No report found or error — that's fine, fresh form
-    } finally {
-      setReportLoading(false);
-      setReportChecked(true);
+  // 🔽 KEEP THIS PART SAME
+  setReportLoading(true);
+  try {
+    const res = await axiosInstance.get(
+      `/reports/view-qc?project=${proj._id}`,
+    );
+    const reports = Array.isArray(res.data)
+      ? res.data
+      : (res.data.data ?? []);
+
+    if (reports.length > 0) {
+      setExistingReport(reports[0]);
     }
-  };
+  } catch {
+  } finally {
+    setReportLoading(false);
+    setReportChecked(true);
+  }
+};
 
   // Load the existing report into the form
   const handleLoadPreviousReport = () => {
@@ -516,16 +551,16 @@ export default function QCInspection() {
       if (existingReport) {
         // PATCH — update existing report
         await axiosInstance.patch(
-          `/report/update/${existingReport._id}`,
+          `/reports/update/${existingReport._id}`,
           payload,
         );
         showToast("QC Report updated successfully!", "success");
       } else {
         // POST — create new report
-        await axiosInstance.post("/report/add-qc", payload);
+        await axiosInstance.post("/reports/add-qc", payload);
         showToast("QC Report submitted successfully!", "success");
       }
-
+localStorage.removeItem(`qc-draft-${selected._id}`);
       setSelected(null);
       setChecks(freshChecks());
       setRemarks("");

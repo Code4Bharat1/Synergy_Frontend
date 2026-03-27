@@ -590,7 +590,7 @@ export default function AssignEngineer() {
                             : "bg-blue-950 hover:bg-blue-800 text-white"
                         }`}
                       >
-                        {hasEngineers ? "✎  Reassign" : "＋  Assign Engineer"}
+                        {hasEngineers ? " Reassign" : "＋  Assign Engineer"}
                       </button>
                     )}
                   </div>
