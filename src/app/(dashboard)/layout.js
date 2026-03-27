@@ -99,7 +99,12 @@ const ROLE_NAVIGATION = {
       label: "Complaint Log",
     },
     { href: "/engineer/documents", icon: FileText, label: "Documents" },
-    { label: "Mark Attendance", icon: HardHat, href: "/attendance" },
+     {
+      href: "/engineer/Attendance",
+      icon: HardHat,
+      label: "Attendance",
+    },
+    // { label: "Mark Attendance", icon: HardHat, href: "/attendance" },
   ],
   support: [
     { href: "/support", icon: LayoutDashboard, label: "Dashboard" },
