@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import axios from "axios";
-import { AlertTriangle, Upload, CheckCircle } from "lucide-react";
+import axiosInstance from "../../lib/axios";
+import { AlertTriangle, Upload, CheckCircle, AlertCircle } from "lucide-react";
 import {
   PageHeader,
   Card,
@@ -11,9 +11,6 @@ import {
   SubmitBtn,
   FONTS,
 } from "./shared";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 const getToken = () =>
   typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
@@ -37,6 +34,8 @@ const sevColorMap = {
 };
 
 const DEPARTMENTS = [
+  { id: "admin", name: "Admin" },
+  { id: "director", name: "Director" },
   { id: "attendance", name: "Attendance" },
   { id: "engineer", name: "Engineer" },
   { id: "support", name: "Support" },
@@ -56,22 +55,24 @@ export default function IssueLogPage() {
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [projects, setProjects] = useState([]);
   const [recentIssues, setRecentIssues] = useState([]);
 
   const cfg = { headers: authHeaders() };
 
   const fetchRecentIssues = () =>
-    axios
-      .get(`${API_BASE}/issues`, cfg)
+    axiosInstance
+      .get(`/issues?_t=${Date.now()}`)
       .then((r) => setRecentIssues(r.data.slice(0, 3)))
       .catch(console.error);
 
   useEffect(() => {
-    axios
-      .get(`${API_BASE}/projects`, cfg)
+    axiosInstance
+      .get(`/projects?_t=${Date.now()}`)
       .then((r) => {
-        const ongoingProjects = r.data.filter((p) => p.status !== "completed");
+        const raw = Array.isArray(r.data) ? r.data : r.data?.projects || [];
+        const ongoingProjects = raw.filter((p) => p.status !== "completed");
         setProjects(ongoingProjects);
       })
       .catch(console.error);
@@ -95,6 +96,7 @@ export default function IssueLogPage() {
 
   const handleSubmit = async () => {
     setLoading(true);
+    setError(null);
     try {
       const fd = new FormData();
       fd.append("project", form.project);
@@ -104,11 +106,12 @@ export default function IssueLogPage() {
       fd.append("proposedSolution", form.proposedSolution);
       form.photos.forEach((p) => fd.append("photos", p.file));
 
-      await axios.post(`${API_BASE}/issues`, fd, { headers: authHeaders() });
+      await axiosInstance.post(`/issues`, fd);
 
       await fetchRecentIssues();
       setSubmitted(true);
     } catch (err) {
+      setError(err.response?.data?.message || "Failed to submit issue log");
       console.error("Failed to submit issue:", err);
     } finally {
       setLoading(false);
@@ -204,6 +207,13 @@ export default function IssueLogPage() {
         subtitle="Report problems and assign to the responsible department"
       />
 
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl mb-4 flex items-center gap-3 animate-pulse">
+          <AlertCircle size={18} />
+          <span className="text-sm font-bold">{error}</span>
+        </div>
+      )}
+
       <div className="il-grid">
         {/* ── Form ─────────────────────────────────────────────────────── */}
         <Card style={{ padding: "26px" }}>
@@ -217,17 +227,19 @@ export default function IssueLogPage() {
             <div>
               <Label required>Project</Label>
               <select
-                style={{ ...inputStyle, cursor: "pointer" }}
+                required
+                style={{ ...inputStyle, cursor: "pointer", border: form.project ? '1.5px solid #34C759' : inputStyle.border }}
                 value={form.project}
                 onChange={(e) => upd("project", e.target.value)}
               >
                 <option value="">Select project</option>
                 {projects?.map((p) => (
                   <option key={p._id} value={p._id}>
-                    {p.name}
+                    {p.name} {p.projectId ? `(${p.projectId})` : ''}
                   </option>
                 ))}
               </select>
+              {form.project && <p className="text-[10px] text-emerald-600 font-bold mt-1">Project ID: {form.project}</p>}
             </div>
 
             {/* Problem description */}

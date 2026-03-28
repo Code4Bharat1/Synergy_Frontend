@@ -57,6 +57,7 @@ const ROLE_NAVIGATION = {
       icon: CalendarCheck,
       href: "/allAttendance",
     },
+    { label: "Issue Log", icon: AlertTriangle, href: "/admin/issue-log" },
   ],
   director: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/director" },
@@ -75,6 +76,7 @@ const ROLE_NAVIGATION = {
       icon: CalendarCheck,
       href: "/allAttendance",
     },
+    { label: "Issue Log", icon: AlertTriangle, href: "/director/issue-log" },
   ],
   engineer: [
     { href: "/engineer/", icon: LayoutDashboard, label: "Dashboard" },
@@ -103,6 +105,11 @@ const ROLE_NAVIGATION = {
       href: "/engineer/Attendance",
       icon: HardHat,
       label: "Attendance",
+    },
+    {
+      href: "/engineer/log-issued",
+      icon: AlertTriangle,
+      label: "Log Issued",
     },
     // { label: "Mark Attendance", icon: HardHat, href: "/attendance" },
   ],
