@@ -19,7 +19,11 @@ const apiFetch = async (path, { method = "GET", body } = {}) => {
     ...(body ? { data: JSON.parse(body) } : {}),
   };
   const res = await axiosInstance(config);
+
   return res.data;
+
+
+
 };
 
 const FILE_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1")
