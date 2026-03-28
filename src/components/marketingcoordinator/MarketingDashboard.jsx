@@ -305,201 +305,151 @@ export default function MarketingDashboard() {
   ];
 
   return (
-    <div className="animate-fadeUp">
-      {/* ── Overdue Alert Banner ──────────────────────────────────────────── */}
-      {overdueDoc && !dismissed && (
-        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-red-400/30 bg-red-500/8 px-4 py-3">
-          <AlertCircle size={16} className="shrink-0 text-red-500" />
-          <span className="flex-1 text-[13px] font-semibold text-brand-darkest min-w-[180px]">
-            ⚠ Overdue: <strong>{overdueDoc.type}</strong> for{" "}
-            {overdueDoc.project} — upload immediately
+ <div className="animate-fadeUp">
+  {/* ── Overdue Alert Banner ───────────────────────────── */}
+  {overdueDoc && !dismissed && (
+    <div className="mb-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 shadow-sm">
+      <AlertCircle size={16} className="text-red-500 shrink-0" />
+
+      <p className="text-sm text-gray-800 flex-1">
+        <span className="font-semibold text-red-600">Overdue:</span>{" "}
+        {overdueDoc.type} for {overdueDoc.project}
+      </p>
+
+      <div className="flex items-center gap-2">
+        <Link href="/marketing/documents">
+          <span className="text-sm font-medium text-white bg-red-500 px-3 py-1.5 rounded-md cursor-pointer hover:bg-red-600 shadow-sm transition">
+            Upload
           </span>
-          <div className="flex gap-2 ml-auto">
-            <Link href="/marketing/documents">
-              <span className="block rounded-lg bg-red-500 px-3.5 py-1.5 text-[11px] font-bold text-white cursor-pointer whitespace-nowrap hover:bg-red-600 transition-colors">
-                Upload Now →
-              </span>
-            </Link>
-            <button
-              onClick={() => setDismissed(true)}
-              className="rounded-lg border border-red-400/30 px-3 py-1.5 text-[11px] font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
-            >
-              Dismiss
-            </button>
+        </Link>
+
+        <button
+          onClick={() => setDismissed(true)}
+          className="text-sm text-red-500 px-3 py-1.5 rounded-md border border-red-200 hover:bg-red-100 transition"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  )}
+
+  {/* ── Header ─────────────────────────────────────────── */}
+  <div className="mb-8">
+    <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">
+      Marketing Coordinator
+    </p>
+
+    <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 mt-1">
+      Good morning, {coordName.split(" ")[0]}
+    </h1>
+
+    <p className="text-sm text-gray-500 mt-1">{today}</p>
+  </div>
+
+  {/* ── Summary Cards ──────────────────────────────────── */}
+  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+    {SUMMARY?.map((s, i) => (
+      <div
+        key={i}
+        className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-medium text-gray-500 uppercase">
+            {s.label}
+          </p>
+
+          <div className="w-8 h-8 flex items-center justify-center rounded-md bg-gray-100">
+            <s.icon size={14} className="text-gray-600" />
           </div>
         </div>
-      )}
 
-      {/* ── Page Header ───────────────────────────────────────────────────── */}
-      <div className="mb-7">
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[2px] text-brand-mid">
-          Marketing Coordinator
+        {s.loading ? (
+          <div className="h-8 w-12 bg-gray-200 rounded animate-pulse" />
+        ) : (
+          <p className="text-2xl font-semibold text-gray-900">
+            {s.value}
+          </p>
+        )}
+      </div>
+    ))}
+  </div>
+
+  {/* ── Recent Complaints ──────────────────────────────── */}
+  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+    <div className="flex items-center justify-between mb-5">
+      <div>
+        <h2 className="text-sm font-semibold text-gray-900">
+          Recent Complaints
+        </h2>
+        <p className="text-xs text-gray-500">
+          Track resolution progress
         </p>
-        <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-brand-darkest">
-          Good morning, {coordName.split(" ")[0]}
-        </h1>
-        <p className="mt-1 text-[13px] text-brand-mid">{today}</p>
       </div>
 
-      {/* ── Summary Cards ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
-        {SUMMARY?.map((s, i) => (
+      <Link href="/marketingCoordinator/complaint-log">
+        <span className="text-sm text-gray-600 hover:text-gray-900 cursor-pointer">
+          View all →
+        </span>
+      </Link>
+    </div>
+
+    <div className="divide-y divide-gray-100 max-h-[420px] overflow-y-auto">
+      {complaintsLoading ? (
+        <p className="text-sm text-gray-500 text-center py-8">
+          Loading complaints...
+        </p>
+      ) : complaints.length === 0 ? (
+        <p className="text-sm text-gray-500 text-center py-8">
+          No complaints logged yet.
+        </p>
+      ) : (
+        complaints.map((c) => (
           <div
-            key={i}
-            className="rounded-2xl p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg cursor-default"
+            key={c._id}
+            onClick={() => setViewComplaint(c)}
+            className="py-4 px-2 -mx-2 rounded-lg cursor-pointer hover:bg-gray-50 transition"
           >
-            <div className="flex items-start justify-between mb-3">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.5px] text-brand-mid leading-tight">
-                {s.label}
-              </span>
-              <div
-                className={`w-7 h-7 rounded-lg ${s.bg} flex items-center justify-center shrink-0`}
-              >
-                <s.icon size={14} className={s.color} />
-              </div>
-            </div>
-            {s.loading ? (
-              <div className="h-9 w-12 rounded-lg animate-pulse bg-brand-mid/15 mt-1" />
-            ) : (
-              <div
-                className={`font-display text-3xl sm:text-4xl font-extrabold ${s.color}`}
-              >
-                {s.value}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* ── Main Grid ─────────────────────────────────────────────────────── */}
-      {/* <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5"> */}
-        {/* Recent Complaints */}
-        <div className="rounded-2xl bg-white shadow-sm p-5 sm:p-6 overflow-hidden">
-          <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-brand-darkest to-brand-dark flex items-center justify-center shrink-0">
-                <MessageSquare size={14} className="text-brand-light" />
-              </div>
+            <div className="flex items-start justify-between gap-3 mb-2">
               <div>
-                <div className="text-brand-darkest font-bold text-[14px] font-display">
-                  Recent Complaints
-                </div>
-                <div className="text-brand-mid text-[11px]">
-                  Track resolution progress
-                </div>
+                <p className="text-sm font-medium text-gray-900">
+                  {c.title}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {c.project?.name || "No Project"}
+                </p>
               </div>
-            </div>
-            <Link href="/marketingCoordinator/complaint-log">
-              <span className="text-[11px] font-bold text-brand-mid hover:text-brand-dark transition-colors cursor-pointer">
-                View Log →
+
+              <span
+                className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                  c.priority === "high" || c.priority === "critical"
+                    ? "bg-red-100 text-red-600"
+                    : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                {c.priority}
               </span>
-            </Link>
-          </div>
-
-          <div className="divide-y divide-gray-50 max-h-[420px] overflow-y-auto pr-1">
-            {complaintsLoading ? (
-              <p className="text-xs text-brand-mid text-center py-8">
-                Loading complaints...
-              </p>
-            ) : complaints.length === 0 ? (
-              <p className="text-xs text-brand-mid text-center py-8">
-                No complaints logged yet.
-              </p>
-            ) : (
-              complaints.map((c) => (
-                <div
-                  key={c._id}
-                  onClick={() => setViewComplaint(c)}
-                  className="py-4 cursor-pointer hover:bg-brand-bg/30 transition-colors first:pt-0"
-                >
-                  <div className="flex justify-between items-start mb-2.5 gap-2">
-                    <div>
-                      <p className="text-[13px] font-bold text-brand-darkest leading-tight">
-                        {c.title}
-                      </p>
-                      <p className="text-[10px] text-brand-mid mt-0.5">
-                        {c.project?.name || "No Project"}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${c.priority === "high" || c.priority === "critical" ? "bg-red-50 text-red-500" : "bg-brand-mid/10 text-brand-mid"} uppercase shrink-0`}
-                    >
-                      {c.priority}
-                    </span>
-                  </div>
-                  <ComplaintTracker
-                    currentStage={c.currentStage}
-                    status={c.status}
-                    compact
-                  />
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* ── Right Column ──────────────────────────────────────────────────── */}
-        {/* <div className="flex flex-col gap-5"> */}
-
-        {/* Pending Documents */}
-
-        {/* Quick Actions */}
-        {/* <div className="rounded-2xl bg-white shadow-sm p-5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-brand-darkest to-brand-dark flex items-center justify-center shrink-0">
-              <TrendingUp size={14} className="text-brand-light" />
             </div>
-            <div className="text-brand-darkest font-bold text-[14px] font-display">
-              Quick Actions
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
-            {[
-              // { label: "New Project Replication", href: "/marketing-Coordinator/project-replication", color: "text-brand-dark",   bg: "bg-brand-dark/8",  border: "border-brand-dark/15",  icon: Copy     },
-              {
-                label: "Upload Documents",
-                href: "/marketingCoordinator/documents",
-                color: "text-orange-500",
-                bg: "bg-orange-500/8",
-                border: "border-orange-500/15",
-                icon: FileText,
-              },
-              {
-                label: "Send Install Request",
-                href: "/marketingCoordinator/installation-request",
-                color: "text-emerald-500",
-                bg: "bg-emerald-500/8",
-                border: "border-emerald-500/15",
-                icon: Send,
-              },
-            ]?.map((a, i) => (
-              <Link key={i} href={a.href}>
-                <div
-                  className={`flex items-center justify-between rounded-xl border ${a.border} ${a.bg} px-3.5 py-2.5 cursor-pointer hover:brightness-95 transition-all`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <a.icon size={13} className={a.color} />
-                    <span className={`text-[12px] font-semibold ${a.color}`}>
-                      {a.label}
-                    </span>
-                  </div>
-                  <ChevronRight size={12} className={a.color} />
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div> */}
 
-        {/* </div> */}
-      {/* </div> */}
-      {viewComplaint && (
-        <ComplaintDetailModal
-          complaint={viewComplaint}
-          onClose={() => setViewComplaint(null)}
-          onAdvance={handleAdvanceStage}
-        />
+            <ComplaintTracker
+              currentStage={c.currentStage}
+              status={c.status}
+              compact
+            />
+          </div>
+        ))
       )}
     </div>
+  </div>
+
+  {/* ── Modal ─────────────────────────────────────────── */}
+  {viewComplaint && (
+    <ComplaintDetailModal
+      complaint={viewComplaint}
+      onClose={() => setViewComplaint(null)}
+      onAdvance={handleAdvanceStage}
+    />
+  )}
+</div>
   );
 }
 
