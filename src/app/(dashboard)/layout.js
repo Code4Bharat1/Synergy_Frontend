@@ -90,11 +90,11 @@ const ROLE_NAVIGATION = {
       icon: AlertTriangle,
       label: "Installation Issues",
     },
-    {
-      href: "/engineer/qc-upload",
-      icon: CheckSquare,
-      label: "Project Test Upload",
-    },
+    // {
+    //   href: "/engineer/qc-upload",
+    //   icon: CheckSquare,
+    //   label: "Project Test Upload",
+    // },
     {
       href: "/engineer/complaint-log",
       icon: MessageSquare,
@@ -236,6 +236,11 @@ const ROLE_NAVIGATION = {
       icon: CalendarCheck,
       label: "Task Assigned",
     },
+    {
+      href: "/marketingExecutive/log-issued",
+      icon: AlertTriangle,
+      label: "Log Issued",
+    },
   ],
   marketingCoordinator: [
     {
@@ -277,6 +282,11 @@ const ROLE_NAVIGATION = {
       href: "/task-assigned",
       icon: CalendarCheck,
       label: "Task Assigned",
+    },
+    {
+      href: "/marketingCoordinator/log-issued",
+      icon: AlertTriangle,
+      label: "Log Issued",
     },
   ],
 };
