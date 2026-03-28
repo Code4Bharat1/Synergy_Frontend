@@ -40,7 +40,7 @@ const fmtDate = (d) =>
 
 // ── Type / Status Config ──────────────────────────────────────────────────────
 const TYPE_CONFIG = {
-  "Budget Deviation":    { icon: DollarSign,          color: "bg-amber-50 text-amber-600" },
+  // "Budget Deviation":    { icon: DollarSign,          color: "bg-amber-50 text-amber-600" },
   "Timeline Extension":  { icon: Calendar,             color: "bg-blue-50 text-blue-600"   },
   "High-Value Complaint":{ icon: MessageSquareWarning, color: "bg-red-50 text-red-500"     },
   "Corrective Action":   { icon: Wrench,               color: "bg-purple-50 text-purple-600"},
@@ -63,8 +63,14 @@ const STATUS_CONFIG = {
 };
 
 const ALL_TYPES = [
-  "All", "Budget Deviation", "Timeline Extension",
-  "High-Value Complaint", "Corrective Action", "Document Review", "Expense Approval",
+  "All",
+  //  "Budget Deviation",
+  // "Timeline Extension",
+  // "High-Value Complaint",
+  //  "Corrective Action",
+    "Document Review",
+     "Expense Approval",
+
 ];
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
